@@ -1,0 +1,68 @@
+# =============================================================================
+# AI Studio (AIFlow) — .gitattributes
+# Development happens on Windows, deployment in Linux containers.
+# Without explicit rules CRLF enters history and breaks shell scripts in images.
+# =============================================================================
+
+# Default: let Git detect text files and normalize to LF in history.
+* text=auto eol=lf
+
+# --- Files that require LF ---------------------------------------------------
+# Scripts inside Docker images: CRLF yields "bad interpreter".
+*.sh            text eol=lf
+*.bash          text eol=lf
+Dockerfile      text eol=lf
+Dockerfile.*    text eol=lf
+*.dockerfile    text eol=lf
+entrypoint*     text eol=lf
+*.yml           text eol=lf
+*.yaml          text eol=lf
+
+# --- Sources -----------------------------------------------------------------
+*.ts            text eol=lf
+*.tsx           text eol=lf
+*.js            text eol=lf
+*.jsx           text eol=lf
+*.mjs           text eol=lf
+*.cjs           text eol=lf
+*.json          text eol=lf
+*.jsonc         text eol=lf
+*.css           text eol=lf
+*.scss          text eol=lf
+*.html          text eol=lf
+*.md            text eol=lf
+*.sql           text eol=lf
+*.prisma        text eol=lf
+*.py            text eol=lf
+*.env.example   text eol=lf
+.gitignore      text eol=lf
+.gitattributes  text eol=lf
+
+# --- Windows-specific --------------------------------------------------------
+*.bat           text eol=crlf
+*.cmd           text eol=crlf
+*.ps1           text eol=crlf
+
+# --- Binary ------------------------------------------------------------------
+*.png           binary
+*.jpg           binary
+*.jpeg          binary
+*.gif           binary
+*.ico           binary
+*.webp          binary
+*.avif          binary
+*.woff          binary
+*.woff2         binary
+*.ttf           binary
+*.eot           binary
+*.pdf           binary
+*.zip           binary
+*.gz            binary
+*.tar           binary
+*.db            binary
+
+# --- Diff behavior -----------------------------------------------------------
+# Lock files marked generated: kept out of PR diffs but still versioned.
+package-lock.json   linguist-generated=true -diff
+pnpm-lock.yaml      linguist-generated=true -diff
+yarn.lock           linguist-generated=true -diff

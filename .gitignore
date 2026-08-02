@@ -1,0 +1,155 @@
+# =============================================================================
+# AI Studio (AIFlow) — .gitignore
+# Stack: Next.js + TypeScript + Prisma + Docker (see docs/10-infrastructure.md)
+# Many rules target code that does not exist yet. Deliberate: they must be in
+# force from the first scaffolding commit, not added after junk enters history.
+# =============================================================================
+
+# --- Secrets -----------------------------------------------------------------
+# ENCRYPTION_KEY, NEXTAUTH_SECRET, GITEA_ADMIN_TOKEN, LLM provider keys.
+# Only .env.example is committed, with empty values.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+!**/public/**/*.key
+secrets/
+.secrets/
+
+# --- Dependencies ------------------------------------------------------------
+node_modules/
+.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+jspm_packages/
+bower_components/
+
+# --- Python (Aider inside the sandbox image) ---------------------------------
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.Python
+
+# --- Next.js build -----------------------------------------------------------
+.next/
+out/
+build/
+dist/
+*.tsbuildinfo
+next-env.d.ts
+
+# --- Prisma ------------------------------------------------------------------
+# Generated client is a build artifact. Migrations themselves are committed.
+prisma/generated/
+prisma/*.db
+prisma/*.db-journal
+!prisma/migrations/
+
+# --- Tests and coverage ------------------------------------------------------
+coverage/
+.nyc_output/
+*.lcov
+test-results/
+playwright-report/
+blob-report/
+.playwright/
+
+# --- Logs --------------------------------------------------------------------
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# --- Docker and volume data --------------------------------------------------
+# postgres_data / redis_data / minio_data / gitea_data must never enter
+# history when run locally with bind mounts.
+docker-compose.override.yml
+.docker/
+volumes/
+data/
+postgres_data/
+redis_data/
+minio_data/
+gitea_data/
+
+# --- Sandbox working directories ---------------------------------------------
+# User project clones created by the code:execute worker.
+/tmp/sandbox/
+sandbox-workspaces/
+workspaces/
+
+# --- User uploads ------------------------------------------------------------
+uploads/
+storage/
+
+# --- Tool caches -------------------------------------------------------------
+.cache/
+.turbo/
+.eslintcache
+.stylelintcache
+.parcel-cache/
+.swc/
+
+# --- IDE ---------------------------------------------------------------------
+# .idea is partially committed: shared project settings help, personal ones
+# do not.
+.idea/*
+!.idea/AIFlow.iml
+!.idea/modules.xml
+!.idea/misc.xml
+.idea/workspace.xml
+.idea/tasks.xml
+.idea/usage.statistics.xml
+.idea/shelf/
+.idea/httpRequests/
+.idea/dataSources/
+.idea/dataSources.local.xml
+.idea/copilot.data.migration.agent.xml
+*.iws
+*.iml.bak
+
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.shared.json
+
+# --- Claude Code -------------------------------------------------------------
+# CLAUDE.md, .claude/agents/, .claude/settings.json and .mcp.json ARE committed
+# — they are part of the project (see docs/13-agent-tooling.md).
+# Personal and machine-local settings are not.
+.claude/settings.local.json
+.claude/plans/
+.claude/memory/
+.claude/todos/
+.claude/shell-snapshots/
+.claude/statsig/
+.mcp.local.json
+
+# --- OS ----------------------------------------------------------------------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# --- Temporary ---------------------------------------------------------------
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+*~
+.tmp/
