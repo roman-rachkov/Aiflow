@@ -1,0 +1,117 @@
+# AI Studio — infrastructure stack
+#
+# Scope: the four backing services MVP-0 needs. Application containers (app,
+# worker, model-router, registry-proxy) are deliberately absent — they arrive
+# with their Dockerfiles in later roadmap tasks. Running the stack now lets
+# `yarn dev` on the host talk to real Postgres, Redis, MinIO and Gitea.
+#
+# Start:  docker compose up -d
+# Ports:  see docs/14-decisions-needed.md — 3002 Gitea, 5432 pg, 6379 redis,
+#         9000/9001 MinIO. 3000 and 3001 stay free for the host-run app and
+#         model-router.
+
+x-healthcheck-defaults: &healthcheck-defaults
+  interval: 10s
+  timeout: 5s
+  retries: 5
+  start_period: 30s
+
+services:
+  postgres:
+    # pgvector, not stock postgres:16 — RAG embeddings live in the project
+    # schemas (DocumentChunk), so the extension must exist from the start.
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-ai_studio}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ai_studio}
+      POSTGRES_DB: ai_studio
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-ai_studio} -d ai_studio']
+      <<: *healthcheck-defaults
+    networks:
+      - internal
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    # appendonly buys durability for queue state, but Redis is still treated as
+    # disposable: task progress is checkpointed to TaskLog in Postgres.
+    command: redis-server --appendonly yes
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      <<: *healthcheck-defaults
+    networks:
+      - internal
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-minioadmin}
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ['CMD', 'mc', 'ready', 'local']
+      <<: *healthcheck-defaults
+    networks:
+      - internal
+    restart: unless-stopped
+
+  gitea:
+    image: gitea/gitea:1.22
+    environment:
+      USER_UID: 1000
+      USER_GID: 1000
+      GITEA__server__DOMAIN: localhost
+      GITEA__server__SSH_DOMAIN: localhost
+      # Gitea listens on 3000 inside the container and is published on 3002.
+      # ROOT_URL is what a browser sees; platform services reach it as
+      # gitea:3000 over the internal network. Both numbers are correct in
+      # their own context — do not "fix" one to match the other.
+      GITEA__server__ROOT_URL: http://localhost:3002/
+      GITEA__security__INSTALL_LOCK: 'true'
+      GITEA__security__SECRET_KEY: ${GITEA_SECRET_KEY:-change-me}
+      GITEA__database__DB_TYPE: sqlite3
+    ports:
+      - '3002:3000'
+    volumes:
+      - gitea_data:/data
+    healthcheck:
+      # Runs inside the container, hence 3000 rather than 3002.
+      test: ['CMD-SHELL', 'curl -fsS http://localhost:3000/api/healthz || exit 1']
+      <<: *healthcheck-defaults
+    networks:
+      - internal
+    restart: unless-stopped
+
+networks:
+  internal:
+    driver: bridge
+
+  # Declared now, unused until Task 3.1 brings the sandbox image. The name is
+  # fixed here because the documents disagreed (`sandbox-net` vs `sandbox`),
+  # and `internal: true` is the isolation invariant: a sandbox reaches nothing
+  # but registry-proxy.
+  sandbox:
+    driver: bridge
+    internal: true
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
+  gitea_data:
