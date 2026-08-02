@@ -16,7 +16,7 @@ Split out of the original `ide.md` draft. Each file is one artifact. The origina
 | [10-infrastructure.md](10-infrastructure.md) | Docker Compose: all services, networks, volumes, dev/prod modes | Engineer |
 | [11-sandbox.md](11-sandbox.md) | Codegen sandbox: image Dockerfile, runner.js, dockerode integration | Engineer |
 | [12-open-questions.md](12-open-questions.md) | Open questions from the analysis review | Engineer |
-| [13-agent-tooling.md](13-agent-tooling.md) | Agent tooling registry: MCP servers, skills, subagents, prompt test log | Engineer, Platform |
+| [13-agent-tooling.md](13-agent-tooling.md) | Agent tooling registry: MCP servers, skills, subagents, prompt test log, model tiering, slash commands | Engineer, Platform |
 | [14-decisions-needed.md](14-decisions-needed.md) | Decisions required before implementation starts, ranked by rework cost | Engineer |
 | [15-engineering-conventions.md](15-engineering-conventions.md) | Git workflow, module architecture, size limits, linter/formatter, refactoring cadence | Engineer, Platform |
 

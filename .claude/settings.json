@@ -13,5 +13,9 @@
       "Bash(npx prisma validate:*)",
       "Bash(npx prisma format:*)"
     ]
+  },
+  "env": {
+    "MAX_THINKING_TOKENS": "12000",
+    "CLAUDE_CODE_MAX_OUTPUT_TOKENS": "32000"
   }
 }

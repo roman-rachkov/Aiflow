@@ -2,6 +2,7 @@
 name: reviewer
 description: AI Studio Reviewer. Checks a coder's diff against the task's acceptance criteria and issues an ACCEPTED/REJECTED verdict as JSON. Use after a coding task completes, when the change needs verification. Deliberately has no write access — it judges, it does not fix.
 tools: Read, Glob, Grep, Bash
+model: sonnet
 ---
 
 ## Role

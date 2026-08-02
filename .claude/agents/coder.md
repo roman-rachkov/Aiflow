@@ -2,6 +2,7 @@
 name: coder
 description: AI Studio Coder. Implements one atomic task in a Next.js/TypeScript/Prisma codebase, verifies it with tsc and ESLint, and commits. Use when a planned task needs actual code written. The only role with write and command execution rights.
 tools: Read, Write, Edit, Bash, Glob, Grep
+model: sonnet
 ---
 
 ## Role
