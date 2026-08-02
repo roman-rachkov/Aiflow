@@ -36,12 +36,14 @@ A JSON array and nothing else.
 
 ```json
 [
-  { "file": "CLAUDE.md",
+  {
+    "file": "CLAUDE.md",
     "line": 27,
     "claim": "<the claim as written, quoted or tightly paraphrased>",
     "actual": "<what the repository actually shows>",
     "evidence": "<path or path:line you checked>",
-    "verdict": "stale|unverifiable" }
+    "verdict": "stale|unverifiable"
+  }
 ]
 ```
 

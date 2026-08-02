@@ -29,18 +29,21 @@ Development is done by a single engineer using AI assistants (dogfooding as the 
 #### Week 1
 
 **Task 1.1. Project initialization**
+
 - Create the Next.js repository, set up TypeScript, ESLint, Prettier.
 - Bring up PostgreSQL, Redis, MinIO, Gitea via Docker Compose.
 - Configure Prisma for the `public` schema (User, ProjectMeta, DeploymentMeta).
 - Implement the script that creates a project schema when a `ProjectMeta` record is created.
 
 **Task 1.2. Authentication and base UI**
+
 - Set up NextAuth (Email provider with magic link, GitHub OAuth).
 - Create the application layout (header, side menu).
 - Pages: sign in/sign up, dashboard (project list), project card.
 - API: create, list, delete a project.
 
 **Task 1.3. Researcher chat (MVP variant)**
+
 - Build the chat UI (message list, input field).
 - API route `/api/projects/[id]/chat` with SSE streaming of the AI response.
 - Integration with routerai.ru via ModelRouter (no fallback, no cache).
@@ -49,6 +52,7 @@ Development is done by a single engineer using AI assistants (dogfooding as the 
 #### Week 2
 
 **Task 2.1. RAG and SPEC generator**
+
 - Set up LlamaIndex (or equivalent) for indexing uploaded files.
 - API for file upload (MinIO) and index runs.
 - Implement the Analyst prompt using RAG context.
@@ -56,17 +60,20 @@ Development is done by a single engineer using AI assistants (dogfooding as the 
 - Display SPEC.md with versions and version comparison.
 
 **Task 2.2. Code editor and Git integration**
+
 - Integrate Monaco Editor with a file tree (data from the Gitea API).
 - Implement a WebSocket connection for streaming files/state.
 - Diff and commit history viewer component (via the Gitea API).
 - API for creating a commit on the user's behalf.
 
 **Task 2.3. Manual deploy and ModelConfig**
+
 - API for generating Dockerfile and docker-compose.yml from a template.
 - "Build" button — image build via dockerode.
 - ModelConfig settings page (provider/model choice for the Analyst).
 
 **MVP-0 exit criterion:**
+
 - A new user registers, creates a project, talks to the Analyst, receives SPEC.md.
 - The Engineer can open the code editor, create a file, commit and click "Build" — getting a ready Docker image.
 
@@ -90,17 +97,20 @@ Development is done by a single engineer using AI assistants (dogfooding as the 
 #### Weeks 3–4: Planner, sandboxes and Coder
 
 **Task 3.1. Sandbox infrastructure**
+
 - Create the `aider-sandbox` Docker image (Node.js + Python + pinned Aider version).
 - Configure dockerode to start containers with restrictions (read-only, tmpfs, network).
 - Implement the `registry-proxy` container with a URL allowlist.
 - Runner script inside the sandbox: accepts a task (JSON via env), runs Aider, returns the result.
 
 **Task 3.2. Planner**
+
 - Develop the prompt for generating a task list from SPEC.md (in a format the Coder understands).
 - Integration with the `plan:generate` queue: fetch SPEC.md, call the LLM, parse, create `Task` records.
 - UI for the Roadmap (task list with order and dependencies), with reordering.
 
 **Task 3.3. Coder**
+
 - Worker `code:execute`: takes a task, fetches current code from Gitea, starts a sandbox.
 - Result handling: commit on success, log capture and FAILED marking on failure.
 - Dry-run mode: show the expected diff instead of executing, wait for confirmation.
@@ -109,18 +119,21 @@ Development is done by a single engineer using AI assistants (dogfooding as the 
 #### Weeks 5–6: Acceptance loop and agents
 
 **Task 4.1. Acceptance loop**
+
 - Unit test generation by an agent (a separate task after the Coder).
 - Running ESLint, TypeScript, Prisma validate in the sandbox.
 - Reviewer: an LLM agent that receives the diff and acceptance criteria and issues a verdict.
 - UI for check results.
 
 **Task 4.2. Embeddable Support Bot**
+
 - Support agent template based on Dify (or a lightweight RAG equivalent).
 - Trained on SPEC.md and project documentation.
 - API for embedding into the target application (chat widget or iframe).
 - Including the bot in the final build (added to docker-compose).
 
 **Task 4.3. Automatic deploy**
+
 - Worker `deploy:run`: builds the Docker image with the application and agents.
 - Deployment to a test domain (based on Traefik or an nginx proxy).
 - URL and logs surfaced in the project UI.
@@ -128,17 +141,20 @@ Development is done by a single engineer using AI assistants (dogfooding as the 
 #### Weeks 7–8: Dogfooding, testing, stabilization
 
 **Task 5.1. Dogfooding**
+
 - Create the "AI Studio" project inside the platform.
 - Upload the SPEC.md produced during design.
 - Run the full cycle: planning → code generation → deploy (goal: a working Analyst chat prototype).
 - Record problems, apply fixes.
 
 **Task 5.2. Load testing**
+
 - Simulate 3 concurrent projects.
 - Verify schema and sandbox isolation.
 - Bull Board monitoring, error logging.
 
 **Task 5.3. Stabilization and documentation**
+
 - Fix critical bugs.
 - Write the README and a guide for first users.
 - Prepare for launch (production environment deployment).
@@ -161,9 +177,9 @@ Development is done by a single engineer using AI assistants (dogfooding as the 
 
 ## 6. Risks and mitigation
 
-| Risk | Likelihood | Impact | Mitigation |
-|------|-------------|---------|-----------|
-| Aider cannot handle complex tasks | High | Critical | Fine-grained task decomposition, manual intervention available |
-| Docker isolation problems | Medium | High | Hard limits, security testing |
-| Dependency on routerai.ru | Medium | High | Fallback to OpenAI/Anthropic, caching |
-| Schedule slip due to scope | High | Medium | Two iterations, MVP-0 as a buffer |
+| Risk                              | Likelihood | Impact   | Mitigation                                                     |
+| --------------------------------- | ---------- | -------- | -------------------------------------------------------------- |
+| Aider cannot handle complex tasks | High       | Critical | Fine-grained task decomposition, manual intervention available |
+| Docker isolation problems         | Medium     | High     | Hard limits, security testing                                  |
+| Dependency on routerai.ru         | Medium     | High     | Fallback to OpenAI/Anthropic, caching                          |
+| Schedule slip due to scope        | High       | Medium   | Two iterations, MVP-0 as a buffer                              |

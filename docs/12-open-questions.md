@@ -11,6 +11,7 @@ Questions raised by the superseded `ide-analize.md` critique (no longer in the r
 Aider handles multi-file scaffolding from scratch poorly. Rather than having the coder generate `next.config.js`, `prisma/schema.prisma`, `tailwind.config.js` and so on, a ready-made template is needed.
 
 Options:
+
 - A separate Git repository in Gitea (cloned at project start).
 - A Docker image with the template preinstalled (COPY into /workspace).
 
@@ -25,6 +26,7 @@ Options:
 The sandbox has no network access to the platform PostgreSQL (correct for security). But Aider may create a migration (`npx prisma migrate dev` inside the container — where there is no DB).
 
 Options:
+
 - Migrations run in a separate process after the commit to Gitea (a migration worker).
 - Aider only generates the SQL file; the platform applies it.
 - Migrations are validated via `prisma validate` in the sandbox and applied at deploy time.
@@ -37,12 +39,20 @@ Options:
 
 **How do we prevent parallel coder tasks for the same projectId?**
 
-The specification states that "sandboxes run sequentially for one project". But the BullMQ `code:execute` queue pulls tasks in parallel by default.
+**RESOLVED 2026-08-02.** The premise was branch-per-task not existing. It does now
+([15-engineering-conventions.md](15-engineering-conventions.md) § 1.4): parallel Coder tasks
+no longer share a working ref, so the Git-corruption hazard that motivated per-project
+serialization is gone.
 
-Options:
-- A Redis lock (`SETNX project:{id}:code-lock`) before claiming a task.
-- A per-project queue (dynamically created `code:execute:{projectId}`).
-- `concurrency: 1` at the worker level plus partitioning by projectId.
+Decision for MVP: keep `concurrency: 1` per worker container, one container per queue
+([10-infrastructure.md](10-infrastructure.md)). No Redis lock, no dynamic per-project queue —
+both would be machinery for a scale MVP does not reach (5 concurrent projects).
+
+The path to parallelism, when it is needed, is not a lock: **the Planner may only mark tasks
+as parallel-eligible when their file sets are disjoint.** Tasks touching the same file stay
+sequential through their `dependencies` edge, which the schema now expresses explicitly
+(`TaskDependency`, with `HARD`/`SOFT` kinds). Two tasks on disjoint files can then run
+concurrently and rebase cleanly.
 
 **Affected artifacts:** [02-architecture](02-architecture.md), [10-infrastructure](10-infrastructure.md)
 
@@ -55,6 +65,7 @@ Options:
 In docker-compose the worker has `- /var/run/docker.sock:/var/run/docker.sock`, giving it full control over the host Docker daemon.
 
 Options:
+
 - A remote Docker runner with TLS authentication (dockerode with certificates).
 - Kubernetes Jobs for each coder task.
 - A dedicated Docker host for sandboxes only, separate from the platform host.
@@ -70,6 +81,7 @@ Options:
 The current runner.js reads `process.env.API_KEY`. Any process in the container can read `/proc/1/environ`.
 
 Options:
+
 - Mount the secret as a read-only file (`/run/secrets/api_key`) and read from it.
 - Pass it via stdin at container start.
 - Use Docker Secrets (available in Swarm, not in Compose).
@@ -85,6 +97,7 @@ Options:
 The current `ALLOWED_HOSTS: "registry.npmjs.org,registry.yarnpkg.com,pypi.org,github.com"` will not cover `s3.amazonaws.com`, `cloudflare.com` and other CDNs used for npm binary artifacts.
 
 Options:
+
 - Extend the allowlist (which makes it leaky).
 - For MVP, give sandboxes internet access through a logging HTTP proxy and block only in response to incidents.
 - Use a local npm mirror (Verdaccio) and proxy only that.
@@ -100,6 +113,7 @@ Options:
 In the current prompt the reviewer issues ACCEPTED/REJECTED. On REJECTED the task goes back to the coder.
 
 Options:
+
 - For MVP: the reviewer is advisory (recommends but does not block the pipeline). The Engineer confirms or rejects manually.
 - For autonomous mode ("Aunt Zina"): the reviewer is blocking, but with a retry limit (e.g. 3 attempts → FAILED → manual intervention).
 - Auto-accept threshold: all automated checks (TS, ESLint, tests) pass plus an ACCEPTED reviewer verdict.
@@ -115,6 +129,7 @@ Options:
 The analysis: "Most teams budget 3-4 months for this scope."
 
 Its recommendation:
+
 - Keep: Planner + Coder for simple CRUD tasks.
 - Defer to MVP-2: automatic reviewer, Support Bot, complex deploy with domains.
 - Cut MVP-1 scope to "automatic coder for simple tasks" and stabilize it.
@@ -131,13 +146,14 @@ Today every role runs entirely on one model, chosen per project in `ModelConfig`
 
 The alternative is a second model consulted at decision points: it receives the conversation so far and returns a recommendation the primary applies before continuing. Cheap primary plus strong advisor generally costs less than running the strong model throughout, because the escalation fires at a few points rather than every turn.
 
-**Best candidate: the Planner.** Its expensive reasoning is concentrated in dependency decisions, not in emitting the JSON — exactly the shape escalation suits.
+**Best candidate: the Planner.** Its known failure is structural — output truncated at 54 tasks ([13-agent-tooling](13-agent-tooling.md) § 4) — and its expensive reasoning is concentrated in dependency decisions, not in emitting the JSON. That is exactly the shape escalation suits.
 
 **Where it fits.** `services/model-router` already owns provider selection and the fallback chain ([02-architecture](02-architecture.md) § 2.5), so an escalation call is a second routed request, not a new subsystem. `ModelConfig.config` currently holds `{role: {provider, model}}` ([03-data-model](03-data-model.md) § 5) and would gain an optional advisor model per role.
 
 One constraint borrowed from Anthropic's implementation of this pattern: the advisor must be at least as capable as the primary, and a delegated subagent re-checks that pairing against its own model rather than its parent's. An escalation target weaker than the caller is worse than no escalation.
 
 Options:
+
 - Model-decided: the primary calls escalation when it judges it necessary. Flexible, unpredictable cost.
 - Worker-decided: fixed trigger points (before planning, on repeated failure, before marking complete). Predictable, may miss the cases that matter.
 - Skip it: accept uniform per-role cost, revisit if spend becomes a problem.
@@ -154,14 +170,14 @@ Anthropic's own `advisor` tool was evaluated for dev-time use here and rejected:
 
 ## Question Status
 
-| # | Question | Status |
-|---|--------|--------|
-| 1 | Project template | Open |
-| 2 | Applying migrations | Open |
-| 3 | code:execute concurrency | Open |
-| 4 | docker.sock mount in prod | Open |
-| 5 | API key passing | Open |
-| 6 | Proxy allowlist | Open |
-| 7 | Reviewer role | Open |
-| 8 | MVP-1 timeline | Open |
-| 9 | Escalation to a stronger model | Open — post-MVP |
+| #   | Question                       | Status                                                       |
+| --- | ------------------------------ | ------------------------------------------------------------ |
+| 1   | Project template               | Open                                                         |
+| 2   | Applying migrations            | Open                                                         |
+| 3   | code:execute concurrency       | **Resolved 2026-08-02** — premise removed by branch-per-task |
+| 4   | docker.sock mount in prod      | Open                                                         |
+| 5   | API key passing                | Open                                                         |
+| 6   | Proxy allowlist                | Open                                                         |
+| 7   | Reviewer role                  | Open                                                         |
+| 8   | MVP-1 timeline                 | Open                                                         |
+| 9   | Escalation to a stronger model | Open — post-MVP                                              |

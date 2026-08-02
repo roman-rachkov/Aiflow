@@ -13,7 +13,7 @@ Source documents remain authoritative. Where this file and a `docs/` file disagr
 
 Host ports: **3000** Next.js app, **3001** model-router, **3002** Gitea, 5432 Postgres, 6379 Redis, 9000/9001 MinIO. Full explanation at `docs/10-infrastructure.md:274`.
 
-Gitea listens on 3000 *inside* its container (its default) and publishes to 3002 on the host. So `GITEA_URL` is `http://gitea:3000` for inter-service calls, its healthcheck targets `localhost:3000` (runs inside the container), but `GITEA__server__ROOT_URL` is `http://localhost:3002/`. Both numbers are correct in their own context — don't "fix" one to match the other.
+Gitea listens on 3000 _inside_ its container (its default) and publishes to 3002 on the host. So `GITEA_URL` is `http://gitea:3000` for inter-service calls, its healthcheck targets `localhost:3000` (runs inside the container), but `GITEA__server__ROOT_URL` is `http://localhost:3002/`. Both numbers are correct in their own context — don't "fix" one to match the other.
 
 ## Isolation, in detail
 
@@ -78,10 +78,10 @@ The target stack is fixed — Next.js + Prisma + PostgreSQL only (`docs/01-syste
 
 ## Where to look next
 
-| Topic | Document |
-|---|---|
+| Topic                                         | Document                    |
+| --------------------------------------------- | --------------------------- |
 | Compose services, networks, volumes, dev/prod | `docs/10-infrastructure.md` |
-| Sandbox image, `runner.js`, dockerode | `docs/11-sandbox.md` |
-| Schemas, dynamic Prisma, encryption | `docs/03-data-model.md` |
-| Components, isolation rationale, codegen flow | `docs/02-architecture.md` |
-| Coder prompt as it ships | `docs/07-prompt-coder.md` |
+| Sandbox image, `runner.js`, dockerode         | `docs/11-sandbox.md`        |
+| Schemas, dynamic Prisma, encryption           | `docs/03-data-model.md`     |
+| Components, isolation rationale, codegen flow | `docs/02-architecture.md`   |
+| Coder prompt as it ships                      | `docs/07-prompt-coder.md`   |

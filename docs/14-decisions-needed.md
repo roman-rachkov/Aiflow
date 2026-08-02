@@ -36,26 +36,42 @@ services/registry-proxy/
 packages/db/         Prisma schema, generated client, shared domain types
 packages/queue/      BullMQ queue definitions, job payload types
 packages/ai-roles/   role prompts + model-router invocation
+packages/crypto/     AES-256-GCM helpers for ModelConfig secrets
 packages/ui/         design system: primitives, tokens
 ```
+
+`packages/crypto` was added during scaffolding (2026-08-02), not in the original decision.
+Encryption is needed by `web` (writing keys), `model-router` (decrypting before a provider
+call) and `worker` — three consumers, which is past the § 2.3 threshold for promoting shared
+logic to a package. Folding it into `packages/db` was rejected: it would make `model-router`
+depend on Prisma for two pure functions.
 
 Internal structure within `apps/web` is feature-sliced — see [15-engineering-conventions.md](15-engineering-conventions.md) § 2.
 
 This overrides the flat layout implied by `docs/10-infrastructure.md` (`src/`, `model-router/`, `prisma/` at root) and aligns with the "monorepo" wording in [04-roadmap.md](04-roadmap.md) § 5. Consequence: every `build.context` and `dockerfile` path in the compose file changes, and the app/worker Dockerfiles must copy the workspace manifests before installing so hoisting works.
 
-### A5. Node version — OPEN
+### A5. Node version — RESOLVED
 
-Images pin `node:20-alpine` (app, worker) and `node:20-bookworm-slim` (sandbox). Node 20 entered maintenance in late 2025. Stay on 20 for the MVP, or start on 22 LTS?
+**Node 22 LTS.** The dev machine already runs v22.22.2, Node 20 entered maintenance in late
+2025, and starting a greenfield project on a maintenance release buys nothing. Images move to
+`node:22-alpine` (app, worker) and `node:22-bookworm-slim` (sandbox).
 
 ---
 
 ## B. Near-blocking — answer in the first week
 
-### B1. Where SPEC.md is authored vs. stored
+### B1. Where SPEC.md is authored vs. stored — RESOLVED
 
-`docs/02-architecture.md` § 2.3 puts `SPEC.md` at the Gitea repo root. `docs/03-data-model.md` also has a `Specification` model holding versioned Markdown in the project schema. Both, or one?
+**A directory, not the repo root, and the database is authoritative.**
 
-Two sources of truth for the same artifact will drift. Options: DB is authoritative and Gitea gets a copy on commit; Gitea is authoritative and the DB caches; or drop one.
+Layout: `specs/{project-slug}/SPEC.md` in this repository; `specs/SPEC.md` in a generated
+project's repository. Putting artifacts at the repo root does not scale — the first project
+with two specification-adjacent documents turns the root into a dumping ground.
+
+Source of truth: the `Specification` table (append-only, versioned, `approvedAt`). Gitea
+receives a copy on each version commit, so requirements stay versioned alongside the code
+without being the thing the platform reads. Drift is one-directional and therefore
+recoverable: the DB can always re-emit the file.
 
 ### B2. Language policy enforcement
 
@@ -75,13 +91,27 @@ Cheapest option is a check in the acceptance loop rejecting Cyrillic in Planner/
 
 ## C. Worth deciding early, cheap to defer
 
-### C1. Prisma client generation strategy
+### C1. Prisma client generation strategy — RESOLVED
 
-`docs/03-data-model.md` § 4 creates a `PrismaClient` per project schema, cached in a WeakMap. A WeakMap keyed by schema-name strings will not retain entries as intended — string keys are not stable object identities. This is likely meant to be a `Map` with explicit eviction on project archive/delete. Confirm the intent before the data layer is written.
+**A `Map` with explicit eviction.** The `WeakMap` in `docs/03-data-model.md` § 4 was not merely
+ineffective, it was invalid: `WeakMap` requires object keys, so `.set(schemaName, client)` with a
+string throws `TypeError: Invalid value used as weak map key`. The code as written could never
+have run.
 
-### C2. Two Prisma schema files, one generated client
+Replacement: a module-level `Map<string, PrismaClient>`, with `$disconnect()` and delete on
+project archive or delete. A pool cap is deliberately omitted for MVP — 5 concurrent projects
+cannot exhaust connections — but the eviction path must exist from the start, because adding it
+later means auditing every call site.
 
-`schema.prisma` (public) and `schema_project_template.prisma` (per project) both declare `generator client`. Two schemas generating into the same default location will collide. Needs separate output paths, or a single schema with `@@schema` and Prisma multi-schema support.
+### C2. Two Prisma schema files, one generated client — RESOLVED
+
+**Separate `output` paths.** `packages/db/prisma/schema.prisma` generates into
+`../generated/public`, `schema_project_template.prisma` into `../generated/project`. Both are
+gitignored as build artifacts.
+
+Prisma's multi-schema preview feature was the alternative and is rejected: it models a fixed
+set of named schemas, while this platform creates schemas at runtime, one per project. The
+template is not a migration target at all — it is the source for a generated SQL script.
 
 ### C3. Structured output for Planner and Reviewer
 
@@ -101,22 +131,29 @@ Compose references `./registry-proxy` with `ALLOWED_HOSTS`, but nothing specifie
 
 ## D. Already decided — recorded to prevent re-litigation
 
-| Decision | Value | Where |
-|---|---|---|
-| Git author | `Roman Rachkov <pakycb84@gmail.com>`, global config, no per-repo override | A1 |
-| Repository visibility | Private; license deferred until opened | A2 |
-| Package manager | Yarn + Lerna — overrides `npm ci` in the Dockerfiles | A3 |
-| Repository layout | Monorepo, Yarn workspaces: `apps/`, `services/`, `packages/` | A4 |
-| Git workflow | Branch per task, PR, rebase only — linear `main` | [15-engineering-conventions.md](15-engineering-conventions.md) § 1 |
-| Module architecture | Feature-sliced in `apps/web`, shared logic in workspace packages | [15](15-engineering-conventions.md) § 2 |
-| Size limits | File ≤ 200, function ≤ 50, complexity ≤ 10 — ESLint warn, blocking in CI | [15](15-engineering-conventions.md) § 3 |
-| Linter / formatter | ESLint flat config (strict-type-checked) + Prettier, three gates | [15](15-engineering-conventions.md) § 4 |
-| Refactoring cadence | Per roadmap task boundary, 90-minute timebox | [15](15-engineering-conventions.md) § 5 |
-| Port allocation | App 3000, model-router 3001, Gitea 3002 (container-internal 3000) | [10-infrastructure.md](10-infrastructure.md) |
-| Deployer prompt | Deferred until local MVP is judged satisfactory | [13-agent-tooling.md](13-agent-tooling.md) T3 |
-| Documentation language | English, including role names | [`CLAUDE.md`](../CLAUDE.md) |
-| Internal agent traffic | English; user-facing output in the user's language | [`CLAUDE.md`](../CLAUDE.md) |
-| Superseded drafts | `ide.md`, `ide-analize.md` intentionally removed | [README.md](README.md) |
+| Decision                | Value                                                                       | Where                                                              |
+| ----------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| Git author              | `Roman Rachkov <pakycb84@gmail.com>`, global config, no per-repo override   | A1                                                                 |
+| Repository visibility   | Private; license deferred until opened                                      | A2                                                                 |
+| Package manager         | Yarn + Lerna — overrides `npm ci` in the Dockerfiles                        | A3                                                                 |
+| Repository layout       | Monorepo, Yarn workspaces: `apps/`, `services/`, `packages/`                | A4                                                                 |
+| Git workflow            | Branch per task, PR, rebase only — linear `main`                            | [15-engineering-conventions.md](15-engineering-conventions.md) § 1 |
+| Node version            | Node 22 LTS (already on dev machine) — overrides `node:20` in images        | A5                                                                 |
+| SPEC storage            | `specs/{slug}/SPEC.md` directory; DB authoritative, Gitea gets a copy       | B1                                                                 |
+| SPEC in user repo       | `specs/SPEC.md` at the repo root, not the project root                      | B1                                                                 |
+| Prisma client cache     | `Map<string, PrismaClient>` with explicit eviction — `WeakMap` was invalid  | C1                                                                 |
+| Prisma generator output | `../generated/public` and `../generated/project` — separate, not colliding  | C2                                                                 |
+| `packages/crypto`       | Sixth workspace package — web, worker and model-router all need AES-256-GCM | A4 (extended)                                                      |
+| UI mode vs role         | `User.uiMode` (BASIC                                                        | PRO) controls navigation; `User.role` is for future admin          | this task |
+| Module architecture     | Feature-sliced in `apps/web`, shared logic in workspace packages            | [15](15-engineering-conventions.md) § 2                            |
+| Size limits             | File ≤ 200, function ≤ 50, complexity ≤ 10 — ESLint warn, blocking in CI    | [15](15-engineering-conventions.md) § 3                            |
+| Linter / formatter      | ESLint flat config (strict-type-checked) + Prettier, three gates            | [15](15-engineering-conventions.md) § 4                            |
+| Refactoring cadence     | Per roadmap task boundary, 90-minute timebox                                | [15](15-engineering-conventions.md) § 5                            |
+| Port allocation         | App 3000, model-router 3001, Gitea 3002 (container-internal 3000)           | [10-infrastructure.md](10-infrastructure.md)                       |
+| Deployer prompt         | Deferred until local MVP is judged satisfactory                             | [13-agent-tooling.md](13-agent-tooling.md) T3                      |
+| Documentation language  | English, including role names                                               | [`CLAUDE.md`](../CLAUDE.md)                                        |
+| Internal agent traffic  | English; user-facing output in the user's language                          | [`CLAUDE.md`](../CLAUDE.md)                                        |
+| Superseded drafts       | `ide.md`, `ide-analize.md` intentionally removed                            | [README.md](README.md)                                             |
 
 ## Consequences for existing documents
 
@@ -125,4 +162,4 @@ A3 and A4 contradict what `docs/10-infrastructure.md` and `docs/11-sandbox.md` c
 - Compose `build.context` / `dockerfile` paths must point at `apps/web`, `apps/worker`, `services/model-router`, `services/registry-proxy`.
 - Both Dockerfiles: `npm ci` → `yarn install --frozen-lockfile`, and workspace manifests must be copied before install for hoisting to work.
 - Volume mounts `./src`, `./prisma` → `./apps/web/src`, `./packages/db/prisma`.
-- The sandbox image generates *user project* code, which is a standalone Next.js app, not part of this monorepo. Its `npm` usage may legitimately stay — decide when writing the image.
+- The sandbox image generates _user project_ code, which is a standalone Next.js app, not part of this monorepo. Its `npm` usage may legitimately stay — decide when writing the image.

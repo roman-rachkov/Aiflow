@@ -8,13 +8,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a cost measure, not a style preference. Russian tokenizes roughly 2–3× worse than English for the same content, and reasoning is the bulk of token spend. The rule applies at two levels:
 
-*Here, in development:*
+_Here, in development:_
 
 - Reasoning, planning, tool calls, search queries, commit messages, code comments, and agent-to-agent messages — **English**.
 - Final answers to the user — **Russian** (that is the user's language in this project).
 - `docs/*.md` is **English**, including role names. It was originally Russian and was translated wholesale for this reason. Keep it that way.
 
-*In the product being built* — the same split is a design requirement, not just a convention:
+_In the product being built_ — the same split is a design requirement, not just a convention:
 
 - Internal traffic between AI roles — the Planner's JSON task array, the Reviewer's verdict JSON, coder task descriptions, RAG queries — **English**.
 - Anything the end user reads — the Analyst's interview questions, `SPEC.md` prose, error messages, UI strings — **the user's language**.
@@ -52,14 +52,14 @@ Every task should start from documented state, not from a fresh sweep of the rep
 
 So treat state files as part of the deliverable, updated in the same commit as the change:
 
-| What changed | Update |
-|---|---|
-| A decision was made or reversed | `docs/14-decisions-needed.md` — move it to the resolved table with the rationale |
-| An architectural invariant, command, or convention | This file |
-| Directory layout, a new package or feature slice | `docs/16-code-map.md` (create at scaffolding; see below) |
-| A doc became stale because of a decision | The stale-documents table in `docs/15-engineering-conventions.md` § 7 |
-| An MCP server, skill, or subagent was tried | `docs/13-agent-tooling.md` + the prompt test log |
-| An open question was settled | `docs/12-open-questions.md` status table |
+| What changed                                       | Update                                                                           |
+| -------------------------------------------------- | -------------------------------------------------------------------------------- |
+| A decision was made or reversed                    | `docs/14-decisions-needed.md` — move it to the resolved table with the rationale |
+| An architectural invariant, command, or convention | This file                                                                        |
+| Directory layout, a new package or feature slice   | `docs/16-code-map.md` (create at scaffolding; see below)                         |
+| A doc became stale because of a decision           | The stale-documents table in `docs/15-engineering-conventions.md` § 7            |
+| An MCP server, skill, or subagent was tried        | `docs/13-agent-tooling.md` + the prompt test log                                 |
+| An open question was settled                       | `docs/12-open-questions.md` status table                                         |
 
 **`docs/16-code-map.md` does not exist yet and should be created by the scaffolding task.** It is the one file that makes "read, don't search" possible: for each package and feature slice, one line on what it owns, its public entry point, and what it depends on. Plus where the cross-cutting things live — auth, the Prisma client factory, the queue definitions, the encryption helpers. Kept to roughly a screen; a code map that needs scrolling is a code map nobody reads.
 
@@ -85,21 +85,21 @@ Two known gaps to fix while scaffolding, both of which currently make the qualit
 
 **Real now** (`package.json`), run with `yarn`:
 
-| Command | Purpose |
-|---|---|
-| `yarn verify` | The CI gate: typecheck → lint → format:check → test. Run before marking anything done |
-| `yarn typecheck` / `yarn lint` / `yarn test` | Individual gates, via Lerna |
-| `yarn format` | Fix formatting; `format:check` only reports |
+| Command                                      | Purpose                                                                               |
+| -------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `yarn verify`                                | The CI gate: typecheck → lint → format:check → test. Run before marking anything done |
+| `yarn typecheck` / `yarn lint` / `yarn test` | Individual gates, via Lerna                                                           |
+| `yarn format`                                | Fix formatting; `format:check` only reports                                           |
 
 Or as slash commands: **`/verify`** runs the gate and reports the first failure, **`/task-start <id> <slug>`** opens a correctly-named branch with the roadmap checklist, **`/state-sync`** checks whether the state files below have fallen behind.
 
-Still *prescribed by the docs* rather than runnable, cited so you can verify them:
+Still _prescribed by the docs_ rather than runnable, cited so you can verify them:
 
-| Command | Purpose | Source |
-|---|---|---|
-| `ENVIRONMENT=dev docker compose up --build` | Start the full stack | `docs/10-infrastructure.md:265` |
-| `docker compose up --scale worker=3` | Scale BullMQ workers | `docs/10-infrastructure.md:283` |
-| `npx prisma migrate dev` | Migrate the `public` schema **only** | `docs/03-data-model.md:223` |
+| Command                                     | Purpose                              | Source                          |
+| ------------------------------------------- | ------------------------------------ | ------------------------------- |
+| `ENVIRONMENT=dev docker compose up --build` | Start the full stack                 | `docs/10-infrastructure.md:265` |
+| `docker compose up --scale worker=3`        | Scale BullMQ workers                 | `docs/10-infrastructure.md:283` |
+| `npx prisma migrate dev`                    | Migrate the `public` schema **only** | `docs/03-data-model.md:223`     |
 
 Project schemas (`project_{uuid}`) are **not** migrated by `prisma migrate` — they are created from a generated SQL script derived from `schema_project_template.prisma` (`docs/03-data-model.md` § 8).
 
@@ -109,13 +109,13 @@ There is no CI configuration and that is deliberate: `docs/04-roadmap.md:159` sp
 
 Four component groups, all under Docker Compose. Details in `docs/02-architecture.md`; the invariants that span multiple documents:
 
-**The Next.js app is stateless and never executes long work.** It serves the frontend, REST API, and WebSocket proxy, and it *enqueues* — nothing more. Anything long-running belongs in a worker. This is the constraint most easily violated by accident.
+**The Next.js app is stateless and never executes long work.** It serves the frontend, REST API, and WebSocket proxy, and it _enqueues_ — nothing more. Anything long-running belongs in a worker. This is the constraint most easily violated by accident.
 
 **Four queues, one worker container each** (`docs/10-infrastructure.md:190`): `spec:generate`, `plan:generate`, `code:execute`, `deploy:run`. Concurrency is 1 per queue.
 
 **Redis is disposable.** Task progress is checkpointed to `TaskLog` in Postgres, so losing Redis means workers resume from the log rather than losing work. Never make Redis the only home for state.
 
-**Isolation runs on two axes.** *Data* — one PostgreSQL schema per project (`project_{uuid}`); only `User`, `ProjectMeta`, `DeploymentMeta` live in `public`. *Network* — the `sandbox` network is `internal: true`, so sandboxes reach nothing but `registry-proxy`.
+**Isolation runs on two axes.** _Data_ — one PostgreSQL schema per project (`project_{uuid}`); only `User`, `ProjectMeta`, `DeploymentMeta` live in `public`. _Network_ — the `sandbox` network is `internal: true`, so sandboxes reach nothing but `registry-proxy`.
 
 **Sandboxes are ephemeral and locked down**, destroyed after every task. Aider runs headless at a pinned version.
 
@@ -129,7 +129,7 @@ Gitea holds one repo per project, with `SPEC.md` at the repo root so requirement
 
 ## Conventions for generated application code → `/ai-studio-internals`
 
-These rules govern code the *product* generates, not code we write. Needed only when touching the Coder prompt. The full section is in [`ai-studio-internals`](.claude/skills/ai-studio-internals/SKILL.md).
+These rules govern code the _product_ generates, not code we write. Needed only when touching the Coder prompt. The full section is in [`ai-studio-internals`](.claude/skills/ai-studio-internals/SKILL.md).
 
 ## Port allocation → `/ai-studio-internals`
 
@@ -143,7 +143,7 @@ Host ports: 3000, 3001, 3002, 5432, 6379, 9000/9001. The Gitea 3000/3002 split a
 
 `docs/12-open-questions.md` tracks eight decisions, **all currently marked "Open"**. Check it before implementing sandboxing, Prisma migrations, queue concurrency, or secret passing — and update its status table when one is settled.
 
-`docs/14-decisions-needed.md` is separate and more urgent: decisions that must be made *before* scaffolding starts, because a late answer means rewriting code. Git identity, package manager, repo layout, and the SPEC.md storage question live there.
+`docs/14-decisions-needed.md` is separate and more urgent: decisions that must be made _before_ scaffolding starts, because a late answer means rewriting code. Git identity, package manager, repo layout, and the SPEC.md storage question live there.
 
 Two have the most immediate impact:
 
@@ -152,7 +152,7 @@ Two have the most immediate impact:
 
 ## Agent tooling
 
-`docs/13-agent-tooling.md` is the registry of MCP servers, skills, and subagents — both those used to *build* AI Studio and those that may ship *inside* it. Every entry carries a dual-use verdict (dev-time / product-time / both) and a test status.
+`docs/13-agent-tooling.md` is the registry of MCP servers, skills, and subagents — both those used to _build_ AI Studio and those that may ship _inside_ it. Every entry carries a dual-use verdict (dev-time / product-time / both) and a test status.
 
 Update it whenever you try a capability. The four subagents in `.claude/agents/` mirror the production prompts in `docs/05`–`08`, so using them here doubles as prompt testing — record results in the prompt test log at the bottom of that file.
 

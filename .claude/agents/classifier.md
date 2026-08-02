@@ -24,10 +24,12 @@ A JSON array and nothing else. No prose before or after it.
 
 ```json
 [
-  { "item": "<the item, verbatim or a short identifier>",
+  {
+    "item": "<the item, verbatim or a short identifier>",
     "bucket": "<one of the supplied buckets, or \"unclassified\">",
     "confidence": "high|medium|low",
-    "reason": "<one short clause, only when confidence is not high>" }
+    "reason": "<one short clause, only when confidence is not high>"
+  }
 ]
 ```
 

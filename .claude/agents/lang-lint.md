@@ -38,12 +38,14 @@ A JSON array and nothing else.
 
 ```json
 [
-  { "file": "<path, or \"inline\" for a supplied blob>",
+  {
+    "file": "<path, or \"inline\" for a supplied blob>",
     "line": 42,
     "field": "<JSON field name, or the construct: comment|heading|identifier|prose>",
     "excerpt": "<the offending text, trimmed to ~80 chars>",
     "rule": "<which part of the policy it breaks>",
-    "severity": "violation|review" }
+    "severity": "violation|review"
+  }
 ]
 ```
 

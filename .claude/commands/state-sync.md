@@ -16,15 +16,15 @@ Check whether this project's state files still match reality.
 
 Targets, per the state-file table in `CLAUDE.md`:
 
-| File | Owns |
-|---|---|
-| `CLAUDE.md` | architectural invariants, commands, conventions |
-| `docs/12-open-questions.md` | open question status table |
-| `docs/13-agent-tooling.md` | MCP servers, skills, subagents, prompt test log |
-| `docs/14-decisions-needed.md` | resolved vs pending decisions |
-| `docs/15-engineering-conventions.md` § 7 | the stale-documents table |
-| `docs/16-code-map.md` | package and slice layout — **may not exist yet**; if so, report that, since `CLAUDE.md` says the scaffolding task should create it |
-| `docs/README.md` | the index table |
+| File                                     | Owns                                                                                                                               |
+| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `CLAUDE.md`                              | architectural invariants, commands, conventions                                                                                    |
+| `docs/12-open-questions.md`              | open question status table                                                                                                         |
+| `docs/13-agent-tooling.md`               | MCP servers, skills, subagents, prompt test log                                                                                    |
+| `docs/14-decisions-needed.md`            | resolved vs pending decisions                                                                                                      |
+| `docs/15-engineering-conventions.md` § 7 | the stale-documents table                                                                                                          |
+| `docs/16-code-map.md`                    | package and slice layout — **may not exist yet**; if so, report that, since `CLAUDE.md` says the scaffolding task should create it |
+| `docs/README.md`                         | the index table                                                                                                                    |
 
 **Then report, grouped by file:** what is stale, what the repository actually shows, and the one-line edit that would fix it. Rank by how likely a stale claim is to mislead the next session — a wrong command or a wrong "this does not exist" is worse than a stale prose summary.
 

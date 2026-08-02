@@ -5,7 +5,7 @@
 # AI Studio — Codegen sandbox image (Aider Sandbox)
 # =============================================================================
 # Base image: Node.js 20 + Python 3.11 (Aider requires Python)
-FROM node:20-bookworm-slim
+FROM node:22-bookworm-slim
 
 # Install system dependencies and Python
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -87,7 +87,11 @@ model: ${modelProvider}/${modelName}
 api-key: ${apiKey}
 ${apiBaseUrl ? `openai-api-base: ${apiBaseUrl}` : ''}
 dark-mode: false
-no-auto-commits: false
+# Aider must not create commits. The runner commits to the task branch after
+# the verification gate passes, so a commit implies "verified" — an Aider
+# auto-commit would break that invariant by recording code that never passed
+# tsc, ESLint, Prettier or prisma validate.
+no-auto-commits: true
 `;
 fs.writeFileSync(AIDER_CONFIG, aiderConfig);
 
@@ -108,9 +112,13 @@ After making changes, verify the code compiles without TypeScript errors and pas
 function runAider() {
   return new Promise((resolve, reject) => {
     const args = [
-      '--message', prompt,
-      '--yes',           // auto-confirm
-      '--no-git',        // we commit ourselves when needed
+      '--message',
+      prompt,
+      '--yes', // auto-confirm
+      // NOT --no-git. The repository is a real clone on a task branch
+      // (docs/15-engineering-conventions.md § 1.1), and Aider needs Git to see
+      // the diff it produced. Commits are suppressed via no-auto-commits in
+      // the config above, not by blinding it to the repository.
     ];
 
     const aider = spawn('aider', args, {
@@ -202,11 +210,33 @@ function getGitDiff() {
     console.log('=== ESLint check ===');
     const lintCheck = checkLint();
     if (!lintCheck.passed) {
-      // ESLint is not fatal, but warn
-      report += `[WARNING] ESLint found problems:\n${lintCheck.output}\n`;
-      console.warn(lintCheck.output);
+      status = 'failure';
+      report += `[ERROR] ESLint found problems:\n${lintCheck.output}\n`;
+      console.error(lintCheck.output);
     } else {
       console.log('ESLint: OK');
+    }
+
+    // Prettier check
+    console.log('=== Prettier check ===');
+    const fmtCheck = checkPrettier();
+    if (!fmtCheck.passed) {
+      status = 'failure';
+      report += `[ERROR] Prettier found formatting issues:\n${fmtCheck.output}\n`;
+      console.error(fmtCheck.output);
+    } else {
+      console.log('Prettier: OK');
+    }
+
+    // Prisma validate
+    console.log('=== Prisma validate ===');
+    const prismaCheck = checkPrismaValidate();
+    if (!prismaCheck.passed) {
+      status = 'failure';
+      report += `[ERROR] Prisma validation failed:\n${prismaCheck.output}\n`;
+      console.error(prismaCheck.output);
+    } else {
+      console.log('Prisma validate: OK');
     }
 
     // Capture diff
@@ -271,17 +301,14 @@ async function executeTask(projectId, task) {
       `API_BASE_URL=${task.modelConfig.baseUrl || ''}`,
     ],
     HostConfig: {
-      Binds: [
-        `${volumeName}:/workspace`,
-        '/tmp/sandbox:/tmp/sandbox',
-      ],
+      Binds: [`${volumeName}:/workspace`, '/tmp/sandbox:/tmp/sandbox'],
       ReadonlyRootfs: true,
       Tmpfs: {
         '/tmp': 'rw,noexec,nosuid,size=512M',
         '/home/sandbox/.cache': 'rw,noexec,nosuid,size=256M',
       },
       Memory: 512 * 1024 * 1024, // 512 MB
-      NanoCpus: 1_000_000_000,    // 1 CPU
+      NanoCpus: 1_000_000_000, // 1 CPU
       SecurityOpt: ['no-new-privileges'],
       CapDrop: ['ALL'],
       NetworkMode: 'sandbox-net', // isolated network

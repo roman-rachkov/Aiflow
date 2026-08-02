@@ -178,16 +178,40 @@ The application uses a connection pool for the `public` schema and creates a sep
 
 ```typescript
 // Example of creating a project client
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from '../generated/project';
 
-function getProjectClient(schemaName: string) {
-  const baseUrl = process.env.DATABASE_URL; // postgresql://user:pass@host:5432/ai_studio?schema=public
+const clients = new Map<string, PrismaClient>();
+
+function getProjectClient(schemaName: string): PrismaClient {
+  const cached = clients.get(schemaName);
+  if (cached) return cached;
+
+  // Reject anything that is not a schema name we generated, before it reaches
+  // the connection string.
+  if (!/^project_[a-z0-9_]+$/.test(schemaName)) {
+    throw new Error(`Invalid schema name: ${schemaName}`);
+  }
+
+  const baseUrl = process.env.DATABASE_URL; // ...?schema=public
   const projectUrl = baseUrl.replace('schema=public', `schema=${schemaName}`);
-  return new PrismaClient({ datasources: { db: { url: projectUrl } } });
+  const client = new PrismaClient({ datasources: { db: { url: projectUrl } } });
+  clients.set(schemaName, client);
+  return client;
+}
+
+async function evictProjectClient(schemaName: string): Promise<void> {
+  const client = clients.get(schemaName);
+  if (!client) return;
+  await client.$disconnect();
+  clients.delete(schemaName);
 }
 ```
 
-Clients are cached in a `WeakMap` by schema name and destroyed when a project is archived or deleted.
+Clients are cached in a **`Map`** and evicted explicitly when a project is archived or deleted.
+
+An earlier revision of this document specified a `WeakMap`. That was not merely ineffective but
+invalid — `WeakMap` requires object keys, so `.set(schemaName, client)` with a string throws
+`TypeError`. Resolved as C1 in [14-decisions-needed.md](14-decisions-needed.md).
 
 ## 5. Encrypting sensitive data
 

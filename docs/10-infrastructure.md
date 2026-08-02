@@ -12,7 +12,7 @@
 # Switched via the ENVIRONMENT=dev|prod variable.
 # =============================================================================
 
-version: "3.9"
+version: '3.9'
 
 x-common-env: &common-env
   ENVIRONMENT: ${ENVIRONMENT:-dev}
@@ -54,9 +54,9 @@ services:
       POSTGRES_DB: ai_studio
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./db/init:/docker-entrypoint-initdb.d   # initialization scripts
+      - ./db/init:/docker-entrypoint-initdb.d # initialization scripts
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ai_studio} -d ai_studio"]
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-ai_studio} -d ai_studio']
       <<: *healthcheck-defaults
     networks:
       - internal
@@ -71,7 +71,7 @@ services:
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ['CMD', 'redis-cli', 'ping']
       <<: *healthcheck-defaults
     networks:
       - internal
@@ -89,7 +89,7 @@ services:
     volumes:
       - minio_data:/data
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      test: ['CMD', 'curl', '-f', 'http://localhost:9000/minio/health/live']
       <<: *healthcheck-defaults
     networks:
       - internal
@@ -106,19 +106,19 @@ services:
       GITEA__server__DOMAIN: localhost
       GITEA__server__SSH_DOMAIN: localhost
       GITEA__server__ROOT_URL: http://localhost:3002/
-      GITEA__security__INSTALL_LOCK: "true"
+      GITEA__security__INSTALL_LOCK: 'true'
       GITEA__security__SECRET_KEY: ${GITEA_SECRET_KEY:-change-me}
     ports:
       # Gitea listens on 3000 inside the container (its default); externally
       # it is published on 3002 to avoid clashing with the Next.js app.
       # Platform services reach it over the internal network as gitea:3000.
-      - "3002:3000"
+      - '3002:3000'
     volumes:
       - gitea_data:/data
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/api/healthcheck"]
+      test: ['CMD', 'curl', '-f', 'http://localhost:3000/api/healthcheck']
       <<: *healthcheck-defaults
     networks:
       - internal
@@ -129,16 +129,19 @@ services:
   # ===========================================================================
   model-router:
     build:
-      context: ./model-router
-      dockerfile: Dockerfile
+      # Context is the repository root, not the service directory: the
+      # Dockerfile needs the root manifests and yarn.lock for workspace
+      # resolution. Same for app and worker below.
+      context: .
+      dockerfile: services/model-router/Dockerfile
     environment:
       <<: *common-env
       PORT: 3001
     volumes:
       # In dev mode, mount sources for hot reload
-      - ./model-router/src:/app/src:ro
+      - ./services/model-router/src:/app/services/model-router/src:ro
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      test: ['CMD', 'curl', '-f', 'http://localhost:3001/health']
       <<: *healthcheck-defaults
     networks:
       - internal
@@ -150,16 +153,16 @@ services:
   app:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: apps/web/Dockerfile
       target: ${ENVIRONMENT:-dev}
     environment:
       <<: *common-env
       PORT: 3000
     volumes:
       # In dev mode, mount sources for hot reload
-      - ./src:/app/src:ro
-      - ./public:/app/public:ro
-      - ./prisma:/app/prisma:ro
+      - ./apps/web/src:/app/apps/web/src:ro
+      - ./apps/web/public:/app/apps/web/public:ro
+      - ./packages/db/prisma:/app/packages/db/prisma:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -172,7 +175,7 @@ services:
       model-router:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      test: ['CMD', 'curl', '-f', 'http://localhost:3000/api/health']
       <<: *healthcheck-defaults
     networks:
       - internal
@@ -184,10 +187,10 @@ services:
   worker:
     build:
       context: .
-      dockerfile: Dockerfile.worker
+      dockerfile: apps/worker/Dockerfile
     environment:
       <<: *common-env
-      QUEUES: "spec:generate,plan:generate,code:execute,deploy:run"
+      QUEUES: 'spec:generate,plan:generate,code:execute,deploy:run'
     volumes:
       # Docker socket for sandbox management (dev only)
       - /var/run/docker.sock:/var/run/docker.sock
@@ -199,7 +202,7 @@ services:
         condition: service_healthy
     networks:
       - internal
-      - sandbox  # access to the sandbox network
+      - sandbox # access to the sandbox network
     restart: unless-stopped
     # In production, multiple replicas can be run:
     # deploy:
@@ -210,10 +213,10 @@ services:
   # ===========================================================================
   registry-proxy:
     build:
-      context: ./registry-proxy
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/registry-proxy/Dockerfile
     environment:
-      ALLOWED_HOSTS: "registry.npmjs.org,registry.yarnpkg.com,pypi.org,github.com"
+      ALLOWED_HOSTS: 'registry.npmjs.org,registry.yarnpkg.com,pypi.org,github.com'
     networks:
       - sandbox
     restart: unless-stopped
@@ -226,7 +229,7 @@ networks:
   sandbox:
     # Isolated network for sandboxes, connected only to worker and registry-proxy
     driver: bridge
-    internal: true  # blocks outbound internet traffic except via registry-proxy
+    internal: true # blocks outbound internet traffic except via registry-proxy
 
 volumes:
   postgres_data:
@@ -240,23 +243,30 @@ volumes:
 
 ### Expected project layout
 
+Workspace layout per A4 in [14-decisions-needed.md](14-decisions-needed.md).
+Every Dockerfile lives beside the thing it builds, but its **build context is
+the repository root** — a workspace install needs the root manifests.
+
 ```
-ai-studio/
-├── docker-compose.yml        # this file
-├── Dockerfile                # for the app service (Next.js)
-├── Dockerfile.worker         # for BullMQ workers
-├── model-router/
-│   ├── Dockerfile
-│   └── src/
-├── registry-proxy/
-│   ├── Dockerfile
-│   └── ...
-├── db/
-│   └── init/                 # database initialization scripts
-├── src/                      # Next.js sources
-├── prisma/
-│   └── schema.prisma
-└── ...
+AIFlow/
+├── docker-compose.yml
+├── package.json              # workspaces + the yarn verify gate
+├── yarn.lock
+├── .yarnrc.yml               # nodeLinker: node-modules (PnP off)
+├── eslint.config.mjs
+├── docker/
+│   └── postgres/init/        # CREATE EXTENSION vector, pgcrypto
+├── apps/
+│   ├── web/                  # Next.js — Dockerfile, src/, public/
+│   └── worker/               # BullMQ — Dockerfile, src/
+├── services/
+│   ├── model-router/         # Dockerfile, src/
+│   └── registry-proxy/       # Dockerfile, src/
+├── packages/
+│   ├── db/prisma/            # schema.prisma + schema_project_template.prisma
+│   ├── queue/ crypto/ ai-roles/ ui/
+└── specs/
+    └── ai-studio/SPEC.md     # B1: a directory, not the repo root
 ```
 
 ### Running in development mode
@@ -271,7 +281,7 @@ ENVIRONMENT=dev docker compose up --build
 
 ### Port allocation
 
-Gitea listens on 3000 *inside* its container — that is its default and there is no reason to change it: platform services reach it over the internal network as `gitea:3000`. Externally it is published on 3002, so `GITEA__server__ROOT_URL` is `http://localhost:3002/`. Host port 3000 belongs to the Next.js app.
+Gitea listens on 3000 _inside_ its container — that is its default and there is no reason to change it: platform services reach it over the internal network as `gitea:3000`. Externally it is published on 3002, so `GITEA__server__ROOT_URL` is `http://localhost:3002/`. Host port 3000 belongs to the Next.js app.
 
 Both numbers are correct in their own context. Do not "fix" one to match the other.
 
@@ -293,33 +303,63 @@ Both numbers are correct in their own context. Do not "fix" one to match the oth
 
 ### Dockerfile for app (Next.js, multi-stage)
 
+Node 22 (A5), Yarn 4 via Corepack (A3). The workspace manifests are copied
+_before_ the sources so the dependency layer is cached independently of code
+changes — with a monorepo that is the difference between a 5-second and a
+90-second rebuild.
+
 ```dockerfile
-# Dockerfile
-FROM node:20-alpine AS base
+# apps/web/Dockerfile — build context is the repository root
+FROM node:22-alpine AS base
 WORKDIR /app
-COPY package*.json ./
-RUN npm ci
+RUN corepack enable
+
+# Manifests only. Every workspace's package.json is needed for the resolution
+# graph, even ones this image does not run.
+COPY package.json yarn.lock .yarnrc.yml ./
+COPY apps/web/package.json          apps/web/
+COPY apps/worker/package.json       apps/worker/
+COPY services/model-router/package.json   services/model-router/
+COPY services/registry-proxy/package.json services/registry-proxy/
+COPY packages/db/package.json       packages/db/
+COPY packages/queue/package.json    packages/queue/
+COPY packages/crypto/package.json   packages/crypto/
+COPY packages/ai-roles/package.json packages/ai-roles/
+COPY packages/ui/package.json       packages/ui/
+RUN yarn install --immutable
 
 FROM base AS dev
 COPY . .
-CMD ["npm", "run", "dev"]
+CMD ["yarn", "workspace", "@aiflow/web", "dev"]
 
 FROM base AS prod
 COPY . .
-RUN npm run build
-CMD ["npm", "start"]
+RUN yarn workspace @aiflow/db generate && yarn workspace @aiflow/web build
+CMD ["yarn", "workspace", "@aiflow/web", "start"]
 ```
+
+`--immutable` is the Yarn 4 name for what Yarn 1 called `--frozen-lockfile`:
+it fails if the lockfile would change, which is what a build image wants.
 
 ### Dockerfile for worker
 
 ```dockerfile
-# Dockerfile.worker
-FROM node:20-alpine
+# apps/worker/Dockerfile — build context is the repository root
+FROM node:22-alpine
 WORKDIR /app
-COPY package*.json ./
-RUN npm ci
+RUN corepack enable
+COPY package.json yarn.lock .yarnrc.yml ./
+COPY apps/worker/package.json       apps/worker/
+COPY packages/db/package.json       packages/db/
+COPY packages/queue/package.json    packages/queue/
+COPY packages/crypto/package.json   packages/crypto/
+COPY packages/ai-roles/package.json packages/ai-roles/
+RUN yarn workspaces focus @aiflow/worker --production
 COPY . .
-CMD ["node", "dist/workers/index.js"]
+CMD ["yarn", "workspace", "@aiflow/worker", "start"]
 ```
+
+`yarn workspaces focus` installs one workspace's subtree instead of the whole
+monorepo — the worker image has no reason to carry Next.js.
 
 This keeps things flexible: a developer starts everything locally with one command, while production services can be split out and scaled independently.

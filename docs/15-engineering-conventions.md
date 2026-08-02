@@ -19,11 +19,11 @@ task/{id}-{slug}     one Coder task or one roadmap task
 
 Branch naming:
 
-| Context | Pattern | Example |
-|---|---|---|
-| Platform development | `task/{roadmap-id}-{slug}` | `task/1.1-scaffold-next-app` |
-| Refactoring | `chore/refactor-{scope}` | `chore/refactor-spec-interview` |
-| Product: Coder task | `task/{taskId}-{slug}` | `task/c7f3a1-add-recipe-model` |
+| Context              | Pattern                    | Example                         |
+| -------------------- | -------------------------- | ------------------------------- |
+| Platform development | `task/{roadmap-id}-{slug}` | `task/1.1-scaffold-next-app`    |
+| Refactoring          | `chore/refactor-{scope}`   | `chore/refactor-spec-interview` |
+| Product: Coder task  | `task/{taskId}-{slug}`     | `task/c7f3a1-add-recipe-model`  |
 
 `{slug}` is kebab-case, ASCII, derived from the task title, truncated to 40 characters.
 
@@ -69,7 +69,7 @@ The AI Coder already emits this shape — `docs/07-prompt-coder.md:85` shows `fe
 
 ### 1.4 Why branch-per-task changes an architectural decision
 
-`docs/02-architecture.md:125` serializes sandboxes per project "to avoid Git conflicts". That serialization exists *because* everything committed to one branch. With one branch per task, parallel Coder tasks no longer share a working ref, and open question #3 (`docs/12-open-questions.md:36`) loses its premise.
+`docs/02-architecture.md:125` serializes sandboxes per project "to avoid Git conflicts". That serialization exists _because_ everything committed to one branch. With one branch per task, parallel Coder tasks no longer share a working ref, and open question #3 (`docs/12-open-questions.md:36`) loses its premise.
 
 This does not make concurrency free. Two parallel tasks touching the same file still conflict at rebase time. The rule: **the Planner may only mark tasks as parallel-eligible when their file sets are disjoint.** Since `docs/06-prompt-planner.md:23` already caps a task at 2–3 files, that check is cheap. Tasks with overlapping file sets stay sequential via their `dependencies` edge.
 
@@ -141,13 +141,13 @@ Promote when it is imported by two apps, or when it stops being UI-facing at all
 
 ### 3.1 Numbers
 
-| Unit | Limit | ESLint rule |
-|---|---|---|
-| File | 200 lines | `max-lines` |
-| Function | 50 lines | `max-lines-per-function` |
-| Cyclomatic complexity | 10 | `complexity` |
-| Nesting depth | 4 | `max-depth` |
-| Function parameters | 4 | `max-params` |
+| Unit                  | Limit     | ESLint rule              |
+| --------------------- | --------- | ------------------------ |
+| File                  | 200 lines | `max-lines`              |
+| Function              | 50 lines  | `max-lines-per-function` |
+| Cyclomatic complexity | 10        | `complexity`             |
+| Nesting depth         | 4         | `max-depth`              |
+| Function parameters   | 4         | `max-params`             |
 
 Blank lines and comments are excluded from line counts (`skipBlankLines`, `skipComments`).
 
@@ -163,7 +163,7 @@ Every rule above is configured `warn`. Because both the sandbox and CI run `--ma
 
 Generated files (`packages/db/generated/`, `next-env.d.ts`), migrations, and config files are exempt via ESLint `overrides`. Test files get a 400-line allowance — table-driven tests are legitimately long and splitting them hurts readability.
 
-An exemption in application code requires an inline disable *with a reason*:
+An exemption in application code requires an inline disable _with a reason_:
 
 ```ts
 /* eslint-disable-next-line max-lines -- Prisma schema mirror, split would break codegen */
@@ -194,14 +194,14 @@ eslint-config-prettier        last — disables conflicting stylistic rules
 
 Rules that matter beyond the presets:
 
-| Rule | Setting | Why |
-|---|---|---|
-| `@typescript-eslint/no-explicit-any` | error | `docs/07-prompt-coder.md:28` already forbids `any` |
-| `@typescript-eslint/no-floating-promises` | error | An unawaited promise in a worker silently loses a job |
-| `import/no-cycle` | error | Cycles are how small modules quietly become one big one |
-| `import/no-internal-modules` | error | Enforces § 2.2 slice boundaries |
-| `no-restricted-imports` | error | Blocks `app/` → deep feature paths, and cross-slice internals |
-| size rules from § 3.1 | warn | Blocking via `--max-warnings 0` |
+| Rule                                      | Setting | Why                                                           |
+| ----------------------------------------- | ------- | ------------------------------------------------------------- |
+| `@typescript-eslint/no-explicit-any`      | error   | `docs/07-prompt-coder.md:28` already forbids `any`            |
+| `@typescript-eslint/no-floating-promises` | error   | An unawaited promise in a worker silently loses a job         |
+| `import/no-cycle`                         | error   | Cycles are how small modules quietly become one big one       |
+| `import/no-internal-modules`              | error   | Enforces § 2.2 slice boundaries                               |
+| `no-restricted-imports`                   | error   | Blocks `app/` → deep feature paths, and cross-slice internals |
+| size rules from § 3.1                     | warn    | Blocking via `--max-warnings 0`                               |
 
 `strict-type-checked` requires type information, which makes lint slower than a syntax-only pass. Worth it: it is what catches floating promises and unsafe `any` propagation, both of which matter more in a queue-driven system than in a typical app.
 
@@ -311,18 +311,18 @@ An item that survives two roadmap tasks is either promoted to a real task or del
 
 These rules were chosen for our own development, but the platform generates code for users, so most of them have to hold on both sides. What transfers, and what does not:
 
-| Convention | Platform dev | Generated projects |
-|---|---|---|
-| Branch per task, rebase | yes | yes — § 1.1, needs schema fields (§ 1.5) |
-| Conventional Commits | yes | yes — Coder already close (`docs/07-prompt-coder.md:85`) |
-| Feature-sliced structure | yes | **no** — see below |
-| Size limits | yes | yes — same ESLint config in the sandbox image |
-| Prettier + ESLint gate | yes | yes — add both to `runner.js` |
-| Refactoring cadence | yes | deferred — needs a task type the schema lacks |
+| Convention               | Platform dev | Generated projects                                       |
+| ------------------------ | ------------ | -------------------------------------------------------- |
+| Branch per task, rebase  | yes          | yes — § 1.1, needs schema fields (§ 1.5)                 |
+| Conventional Commits     | yes          | yes — Coder already close (`docs/07-prompt-coder.md:85`) |
+| Feature-sliced structure | yes          | **no** — see below                                       |
+| Size limits              | yes          | yes — same ESLint config in the sandbox image            |
+| Prettier + ESLint gate   | yes          | yes — add both to `runner.js`                            |
+| Refactoring cadence      | yes          | deferred — needs a task type the schema lacks            |
 
 **Feature slicing does not transfer, deliberately.** Generated projects follow the stock Next.js layout the Coder prompt already specifies — `app/[resource]/page.tsx`, `components/`, `lib/actions/` (`docs/07-prompt-coder.md:26`). A user's first app is small, and Aider works more reliably against the convention it has seen most in training. Revisit if generated projects start outgrowing it.
 
-**Refactoring in the product is deferred, not rejected.** It would need a task *type* on `Task` to distinguish a refactor from a feature (`docs/03-data-model.md:102` has no such field), and the Reviewer would need grounds to demand one — its quality mandate at `docs/08-prompt-reviewer.md:19` covers readability and duplication but appears in neither the ACCEPTED nor REJECTED criteria, so it cannot currently act on either. Both are MVP-1 concerns at the earliest.
+**Refactoring in the product is deferred, not rejected.** It would need a task _type_ on `Task` to distinguish a refactor from a feature (`docs/03-data-model.md:102` has no such field), and the Reviewer would need grounds to demand one — its quality mandate at `docs/08-prompt-reviewer.md:19` covers readability and duplication but appears in neither the ACCEPTED nor REJECTED criteria, so it cannot currently act on either. Both are MVP-1 concerns at the earliest.
 
 **The Reviewer gains one enforceable criterion now:** reject when the diff introduces a file over 200 lines or a function over 50. That is mechanical, needs no judgment, and gives the existing quality clause something it can actually act on.
 
@@ -332,31 +332,37 @@ These rules were chosen for our own development, but the platform generates code
 
 Not yet updated — these are edits for the scaffolding task, where paths change alongside real files:
 
-| Document | What is now wrong |
-|---|---|
-| `docs/10-infrastructure.md` | `npm ci` (→ Yarn), flat `src/` + `prisma/` paths (→ workspace layout), build contexts |
-| `docs/11-sandbox.md` | Lint failure non-fatal (`:204`), no Prettier or `prisma validate`, `--no-git` vs. `no-auto-commits: false` contradiction (`:90`/`:114`), no commit call in `runner.js` |
-| `docs/03-data-model.md` | `Task` missing `branchName`/`headCommit`/`mergedAt`, missing `dependencies` relation, `priority` Int vs. string enum |
-| `docs/02-architecture.md` | Serialization rationale at `:125` weakened by branch-per-task; `:69` claims Prettier and `prisma validate` run automatically |
-| `docs/07-prompt-coder.md` | Commit instruction (`:18`) contradicts the runner; needs branch and scoped-commit rules |
-| `docs/08-prompt-reviewer.md` | Add the size criterion from § 6 to the REJECTED list |
-| ~~`docs/12-open-questions.md`~~ | ~~#3 (concurrency) loses its premise~~ — **done 2026-08-02**, #3 marked Resolved |
+| Document                        | What is now wrong                                                                                                                                                                                                       |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ~~`docs/10-infrastructure.md`~~ | ~~`npm ci` (→ Yarn), flat `src/` + `prisma/` paths, build contexts~~ — **done 2026-08-02**: Yarn 4 + Node 22, workspace paths, root build context                                                                       |
+| ~~`docs/11-sandbox.md`~~        | ~~Lint failure non-fatal, no Prettier or `prisma validate`, `--no-git` vs. `no-auto-commits` contradiction~~ — **done 2026-08-02**. Still open: no commit call in `runner.js` (Task 3.1, where the runner becomes real) |
+| ~~`docs/03-data-model.md`~~     | ~~`Task` missing Git fields, missing `dependencies` relation, `priority` Int vs. enum~~ — **done 2026-08-02**, schemas written; `WeakMap` → `Map` corrected (C1)                                                        |
+| `docs/02-architecture.md`       | Serialization rationale at `:125` weakened by branch-per-task; `:69` claims Prettier and `prisma validate` run automatically                                                                                            |
+| `docs/07-prompt-coder.md`       | Commit instruction (`:18`) contradicts the runner; needs branch and scoped-commit rules                                                                                                                                 |
+| `docs/08-prompt-reviewer.md`    | Add the size criterion from § 6 to the REJECTED list                                                                                                                                                                    |
+| ~~`docs/12-open-questions.md`~~ | ~~#3 (concurrency) loses its premise~~ — **done 2026-08-02**, #3 marked Resolved                                                                                                                                        |
 
-### Known defect: `yarn verify` cannot pass on a clean tree
+### Resolved defect: `yarn verify` on a clean tree
 
-Found 2026-08-02 while running the gate. `yarn lint` fails with three parsing errors that have nothing to do with any source file:
+Found 2026-08-02 while running the gate, fixed the same day in the scaffolding
+task. `yarn lint` failed on three files unrelated to any source change:
+`.pnp.cjs`, `.pnp.loader.mjs`, `eslint.config.mjs`.
 
-```
-.pnp.cjs          Parsing error: was not found by the project service
-.pnp.loader.mjs   Parsing error: was not found by the project service
-eslint.config.mjs Parsing error: was not found by the project service
-```
+Cause: `projectService: true` (§ 4.2) requires every linted file to belong to a
+tsconfig. The ignore list covered `**/*.config.js` but not `.mjs`, and did not
+exclude Yarn PnP's generated artifacts.
 
-Cause: `eslint.config.mjs` sets `projectService: true` (§ 4.2), which requires every linted file to belong to a tsconfig. Its ignore list covers `**/*.config.js` but not `.mjs`, and does not exclude Yarn PnP's generated `.pnp.cjs` / `.pnp.loader.mjs` at all.
+Fixed in two parts, because there were two problems:
 
-Consequence: `yarn verify` — the command § 4.5 and `CLAUDE.md` both name as the gate to run before marking work done — currently fails for reasons unrelated to the work being gated. `typecheck` passes for all 9 projects; only `lint` fails.
+1. **Ignore list** — added `**/*.config.mjs`, `eslint.config.mjs` and `.pnp.*`.
+2. **PnP turned off** — `.yarnrc.yml` now sets `nodeLinker: node-modules`. PnP
+   also broke `format:check`: Prettier could not resolve
+   `prettier-plugin-tailwindcss` from the PnP store. Rather than work around
+   each symptom, the linker was switched. The same toolchain goes into the
+   sandbox image, where an unresolvable plugin is more expensive than the disk
+   PnP saves.
 
-Fix is a one-line ignore-list change (`**/*.config.mjs` plus the two PnP artifacts, or `.pnp.*`). Not applied here because it belongs to whoever owns the scaffolding task, and blindly widening a lint ignore list deserves its own review.
-
-
-
+Worth recording because the gate proved itself in the same session: a
+deliberately over-long function was caught by `max-lines-per-function` (63 lines
+against a limit of 50), so `--max-warnings 0` does block. Prior to this the
+enforcement claim was untested.

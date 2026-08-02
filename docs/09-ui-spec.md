@@ -27,6 +27,7 @@ For the Customer the sidebar contains only Dashboard, Researcher, Deployments. T
 **Purpose:** list the user's projects, create a new one.
 
 ### Components
+
 - **Header:** AI Studio logo, profile icon (logout, settings).
 - **"New project" button:** opens a modal with a "Project name" field and a "Create" button.
 - **Project list:** project cards showing:
@@ -37,6 +38,7 @@ For the Customer the sidebar contains only Dashboard, Researcher, Deployments. T
 - **Empty state:** icon, text "You have no projects yet. Create your first project to get started."
 
 ### Behavior
+
 - On project creation the user is redirected to the Researcher at `/projects/[id]/research`.
 
 ## 4. Screen: Researcher (the Customer's main screen)
@@ -45,6 +47,7 @@ For the Customer the sidebar contains only Dashboard, Researcher, Deployments. T
 **Purpose:** interview with the AI Analyst, review and approval of the specification.
 
 ### Layout
+
 - **Left panel (20% width):** project artifacts:
   - "Specification" (with version).
   - "Uploaded files" (list, deletable).
@@ -58,11 +61,13 @@ For the Customer the sidebar contains only Dashboard, Researcher, Deployments. T
   - "Approve specification" button (becomes disabled after approval; a "Start generation" button appears).
 
 ### States
+
 - **Waiting for the Analyst's reply:** "typing..." indicator with animated dots.
 - **SPEC generation:** progress bar, message "The Analyst is preparing the specification...".
 - **Error:** message "Something went wrong, please try again".
 
 ### Customer actions
+
 1. Enters the idea description.
 2. Answers clarifying questions.
 3. Clicks "Create specification".
@@ -71,6 +76,7 @@ For the Customer the sidebar contains only Dashboard, Researcher, Deployments. T
 6. Clicks "Start generation" → redirected to /tasks with the process running.
 
 ### Engineer actions
+
 - Can edit SPEC.md manually ("Edit" button in the right panel, opens Monaco in Markdown mode).
 - Can add files via the "Upload" button (left panel).
 
@@ -80,6 +86,7 @@ For the Customer the sidebar contains only Dashboard, Researcher, Deployments. T
 **Purpose:** review the plan and task execution status.
 
 ### Components
+
 - **Top bar:**
   - "Start generation" button (if the plan has not been started).
   - "Restart everything" button (with confirmation).
@@ -94,6 +101,7 @@ For the Customer the sidebar contains only Dashboard, Researcher, Deployments. T
   - Buttons: "Restart task" (if failed), "View diff" (link to the editor in diff mode).
 
 ### States
+
 - Plan not generated: "Generate plan" button (available after the specification is approved).
 - Plan generating: loading indicator.
 - Tasks executing: statuses update in real time over WebSocket.
@@ -104,6 +112,7 @@ For the Customer the sidebar contains only Dashboard, Researcher, Deployments. T
 **Purpose:** manual code editing, Git history review.
 
 ### Layout
+
 - **Left panel:** project file tree (hierarchy, file type icons).
   - Clicking a file opens it in the editor.
   - Context menu: create file/folder, delete, rename.
@@ -115,6 +124,7 @@ For the Customer the sidebar contains only Dashboard, Researcher, Deployments. T
   - Diff viewer: changes in the selected commit.
 
 ### Behavior
+
 - A manually changed file is marked "modified" in the tree.
 - "Save" (or Ctrl+S) saves the file and commits on behalf of the user.
 - "Build" starts a deployment.
@@ -126,6 +136,7 @@ For the Customer the sidebar contains only Dashboard, Researcher, Deployments. T
 **Purpose:** manage embeddable agents (chatbots, support).
 
 ### Components
+
 - Active agent list (table): name, type, status (active/inactive), creation date.
 - "Add agent" button → choose from templates:
   - "Support Bot" (RAG over SPEC.md and documentation).
@@ -143,6 +154,7 @@ For the Customer the sidebar contains only Dashboard, Researcher, Deployments. T
 **Purpose:** review deployment statuses and logs.
 
 ### Components
+
 - Deployment table: date, status (icon), version (image tag), URL (if deployed).
 - Clicking a row opens the full build log.
 - "Deploy now" button (starts a new build from the current repository state).
@@ -150,34 +162,41 @@ For the Customer the sidebar contains only Dashboard, Researcher, Deployments. T
 ## 9. Shared Elements and States
 
 ### Sidebar
+
 - Customer: "My projects", "Researcher", "Deployments" (current project).
 - Engineer: adds "Tasks", "Editor", "Agents".
 
 ### Modals
+
 - Confirm deletion of a project/file/task.
 - Create a new project.
 
 ### Notifications
+
 - Toast notifications in the top right corner: success (green), error (red), warning (yellow).
 - Long operations (specification generation, planning, deploy) show progress as a header indicator or a toast.
 
 ### Theme
+
 - Light theme by default, minimalist design, accent color blue (#2563EB).
 - Font: Inter (system).
 
 ## 10. Responsiveness (MVP)
+
 - Below 768px width the side panels collapse behind a hamburger menu.
 - Chat and editor take 100% width.
 
 ## 11. User Flows (brief)
 
 ### Customer flow (Aunt Zina)
+
 1. Login → Dashboard → Create project → Researcher.
 2. Describe the idea in chat → Create specification → Review SPEC → Approve → Start generation.
 3. Automatic redirect to /tasks → watch progress.
 4. After deploy → go to /deployments → open the application by URL.
 
 ### Engineer flow (Uncle Vasya)
+
 1. Login → Dashboard → create or open a project.
 2. Researcher: upload files, dialog, approve SPEC.
 3. Run the planner manually (or automatically), review tasks.
