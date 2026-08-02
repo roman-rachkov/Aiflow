@@ -1,0 +1,280 @@
+// AI Studio — per-project schema template
+//
+// NOT migrated by `prisma migrate`. This file is the source for a generated SQL
+// script, applied into project_{uuid} when a project is created.
+// See docs/03-data-model.md § 8.
+//
+// Model gaps closed here (found by running the Analyst against our own docs):
+//   - Task dependencies      — TaskDependency join table (was: priority only)
+//   - Specification approval — approvedAt / approvedBy (UI gates on it)
+//   - ChatMessage            — was marked "to be added", fields undefined
+//   - RAG storage            — Document + DocumentChunk, project-scoped
+//   - Manual-edit protection — FileLock
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/project"
+}
+
+// LLM provider and model configuration per AI role.
+// `config` holds API keys AES-256-GCM encrypted as {"__encrypted__": "..."}.
+model ModelConfig {
+  id        String   @id @default(uuid())
+  projectId String   @unique
+  config    Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Immutable specification version. Never updated — a new version is inserted.
+model Specification {
+  id         String   @id @default(uuid())
+  version    Int
+  content    String   @db.Text
+  createdAt  DateTime @default(now())
+  createdBy  SpecAuthor
+
+  // Approval is a fact about a version, not a mutable project flag: approving
+  // v2 must not silently approve v3. UI gates code generation on this.
+  approvedAt DateTime?
+  approvedBy String?
+
+  tasks Task[]
+
+  @@unique([version])
+  @@index([approvedAt])
+}
+
+enum SpecAuthor {
+  USER
+  AI
+}
+
+// One atomic unit of work for the Coder.
+model Task {
+  id          String     @id @default(uuid())
+  title       String
+  description String     @db.Text // full prompt for the Coder
+  acceptance  String     @db.Text
+  status      TaskStatus @default(PENDING)
+  priority    Priority   @default(MEDIUM)
+
+  // Manual reordering on the roadmap needs a stable sort key that is
+  // independent of priority.
+  sortOrder   Int        @default(0)
+
+  specificationId String?
+  specification   Specification? @relation(fields: [specificationId], references: [id])
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  startedAt   DateTime?
+  completedAt DateTime?
+
+  logs       TaskLog[]
+  dependsOn  TaskDependency[] @relation("dependent")
+  dependedBy TaskDependency[] @relation("prerequisite")
+  fileLocks  FileLock[]
+
+  @@index([status])
+  @@index([sortOrder])
+}
+
+// Explicit dependency edges. The docs and UI both describe dependency lines on
+// the roadmap, but the model carried only a numeric priority — a plan could not
+// express "B needs A".
+//
+// `kind` distinguishes what the Planner conflated: HARD blocks execution, SOFT
+// only affects ordering. Raised in the planner self-report.
+model TaskDependency {
+  id             String         @id @default(uuid())
+  dependentId    String
+  dependent      Task           @relation("dependent", fields: [dependentId], references: [id], onDelete: Cascade)
+  prerequisiteId String
+  prerequisite   Task           @relation("prerequisite", fields: [prerequisiteId], references: [id], onDelete: Cascade)
+  kind           DependencyKind @default(HARD)
+
+  @@unique([dependentId, prerequisiteId])
+  @@index([prerequisiteId])
+}
+
+enum DependencyKind {
+  HARD
+  SOFT
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  AWAITING_REVIEW
+  DONE
+  FAILED
+  CANCELLED
+}
+
+enum Priority {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+}
+
+// Task progress checkpoint. Survives Redis loss — workers resume from here,
+// so this table is the durable half of the queue.
+model TaskLog {
+  id        String   @id @default(uuid())
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  message   String   @db.Text
+  level     LogLevel @default(INFO)
+  createdAt DateTime @default(now())
+
+  @@index([taskId, createdAt])
+}
+
+enum LogLevel {
+  INFO
+  WARN
+  ERROR
+}
+
+// Analyst interview history. The roadmap listed this model as "to be added"
+// with no fields specified.
+model ChatMessage {
+  id        String      @id @default(uuid())
+  role      ChatRole
+  content   String      @db.Text
+  createdAt DateTime    @default(now())
+
+  @@index([createdAt])
+}
+
+enum ChatRole {
+  USER
+  ASSISTANT
+  SYSTEM
+}
+
+// Uploaded file metadata. Bytes live in MinIO under storageKey.
+model UserFile {
+  id         String   @id @default(uuid())
+  fileName   String
+  fileSize   Int
+  mimeType   String
+  storageKey String   @unique
+  createdAt  DateTime @default(now())
+
+  document Document?
+}
+
+// A RAG-indexed source. Vector storage was absent from the data model
+// entirely; it belongs in the project schema so pgvector indexes stay
+// project-scoped and are dropped with the schema.
+model Document {
+  id         String         @id @default(uuid())
+  userFileId String?        @unique
+  userFile   UserFile?      @relation(fields: [userFileId], references: [id], onDelete: Cascade)
+  sourceType DocumentSource
+  title      String
+  url        String?
+  status     IndexStatus    @default(PENDING)
+  createdAt  DateTime       @default(now())
+  indexedAt  DateTime?
+
+  chunks DocumentChunk[]
+
+  @@index([status])
+}
+
+enum DocumentSource {
+  UPLOAD
+  URL
+  SPECIFICATION
+}
+
+enum IndexStatus {
+  PENDING
+  INDEXING
+  INDEXED
+  FAILED
+}
+
+// Chunk + embedding. The vector column is added by the generated SQL script,
+// not here: Prisma has no native vector type.
+//   ALTER TABLE "DocumentChunk" ADD COLUMN embedding vector(1536);
+//   CREATE INDEX ON "DocumentChunk" USING hnsw (embedding vector_cosine_ops);
+model DocumentChunk {
+  id         String   @id @default(uuid())
+  documentId String
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  chunkIndex Int
+  content    String   @db.Text
+  tokenCount Int?
+  createdAt  DateTime @default(now())
+
+  @@unique([documentId, chunkIndex])
+}
+
+// Protects hand-written code from being overwritten by generation — an MVP-1
+// readiness criterion with no described mechanism.
+model FileLock {
+  id        String   @id @default(uuid())
+  filePath  String   @unique
+  reason    LockReason
+  taskId    String?
+  task      Task?    @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+}
+
+enum LockReason {
+  MANUAL_EDIT
+  ACTIVE_TASK
+}
+
+// Embedded agent shipped inside the generated application.
+model EmbeddedAgent {
+  id        String      @id @default(uuid())
+  name      String
+  type      AgentType   @default(SUPPORT_BOT)
+  config    Json
+  status    AgentStatus @default(INACTIVE)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+}
+
+enum AgentType {
+  SUPPORT_BOT
+  CUSTOM
+}
+
+enum AgentStatus {
+  INACTIVE
+  TRAINING
+  ACTIVE
+  FAILED
+}
+
+// Full build record. DeploymentMeta in public carries only the summary.
+model Deployment {
+  id          String           @id @default(uuid())
+  projectId   String
+  status      DeploymentStatus @default(BUILDING)
+  log         String?          @db.Text
+  url         String?
+  imageTag    String?
+  createdAt   DateTime         @default(now())
+  completedAt DateTime?
+
+  @@index([createdAt])
+}
+
+enum DeploymentStatus {
+  BUILDING
+  DEPLOYED
+  FAILED
+}

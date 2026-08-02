@@ -47,10 +47,11 @@ next-env.d.ts
 
 # --- Prisma ------------------------------------------------------------------
 # Generated client is a build artifact. Migrations themselves are committed.
-prisma/generated/
-prisma/*.db
-prisma/*.db-journal
-!prisma/migrations/
+packages/db/generated/
+packages/db/prisma/generated/
+**/prisma/*.db
+**/prisma/*.db-journal
+!**/prisma/migrations/
 
 # --- Tests and coverage ------------------------------------------------------
 coverage/

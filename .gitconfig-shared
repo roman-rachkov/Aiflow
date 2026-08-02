@@ -1,0 +1,7 @@
+[pull]
+    rebase = true
+[merge]
+    ff = only
+[rebase]
+    autoStash = true
+    autosquash = true

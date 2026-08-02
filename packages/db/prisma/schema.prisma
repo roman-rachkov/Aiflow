@@ -1,0 +1,132 @@
+// AI Studio — public schema (shared data)
+//
+// Only User, ProjectMeta and DeploymentMeta live here, plus the NextAuth
+// adapter models. Everything else is per-project — see
+// schema_project_template.prisma.
+//
+// See docs/03-data-model.md § 2.
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+  // Explicit output: two schemas generating into the same default location
+  // would collide. Resolves decision C2 in docs/14-decisions-needed.md.
+  output   = "../generated/public"
+}
+
+// Platform user.
+//
+// `role` and `uiMode` are deliberately separate concerns:
+//   - role   — authorization. Only USER is exercised in MVP; ADMIN and OWNER
+//              are carried so the future admin panel needs no migration.
+//   - uiMode — presentation. This is what the earlier documents called
+//              "Customer" and "Engineer": two modes of one application,
+//              switched by the user, not a permission boundary.
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String?
+  avatarUrl String?
+  role      UserRole @default(USER)
+  uiMode    UiMode   @default(BASIC)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projects ProjectMeta[]
+  accounts Account[]
+  sessions Session[]
+}
+
+enum UserRole {
+  OWNER
+  ADMIN
+  USER
+}
+
+enum UiMode {
+  BASIC
+  PRO
+}
+
+// Project metadata — the pointer to the project's own schema.
+model ProjectMeta {
+  id          String        @id @default(uuid())
+  name        String
+  description String?       @db.Text
+  schemaName  String        @unique // e.g. project_abc123
+  ownerId     String
+  owner       User          @relation(fields: [ownerId], references: [id])
+  status      ProjectStatus @default(ACTIVE)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  deployments DeploymentMeta[]
+
+  @@index([ownerId])
+}
+
+enum ProjectStatus {
+  ACTIVE
+  ARCHIVED
+  DELETED
+}
+
+// Deploy summary. Full build logs live in the project schema (Deployment).
+model DeploymentMeta {
+  id        String           @id @default(uuid())
+  projectId String
+  project   ProjectMeta      @relation(fields: [projectId], references: [id])
+  status    DeploymentStatus @default(BUILDING)
+  url       String?
+  createdAt DateTime         @default(now())
+
+  @@index([projectId, createdAt])
+}
+
+enum DeploymentStatus {
+  BUILDING
+  DEPLOYED
+  FAILED
+}
+
+// --- NextAuth adapter models -------------------------------------------------
+
+model Account {
+  id                String  @id @default(uuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}

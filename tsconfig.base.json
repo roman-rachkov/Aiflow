@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "allowJs": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "isolatedModules": true,
+    "incremental": true,
+    "paths": {
+      "@aiflow/db": ["./packages/db/src"],
+      "@aiflow/queue": ["./packages/queue/src"],
+      "@aiflow/crypto": ["./packages/crypto/src"],
+      "@aiflow/ai-roles": ["./packages/ai-roles/src"],
+      "@aiflow/ui": ["./packages/ui/src"]
+    }
+  },
+  "exclude": ["node_modules", ".next", "dist", "build"]
+}
