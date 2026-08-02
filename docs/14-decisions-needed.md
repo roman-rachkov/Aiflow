@@ -33,8 +33,13 @@ apps/web/            Next.js — frontend, REST API, WebSocket proxy
 apps/worker/         BullMQ workers — four queues
 services/model-router/
 services/registry-proxy/
-packages/db/         Prisma schema, generated client, shared types
+packages/db/         Prisma schema, generated client, shared domain types
+packages/queue/      BullMQ queue definitions, job payload types
+packages/ai-roles/   role prompts + model-router invocation
+packages/ui/         design system: primitives, tokens
 ```
+
+Internal structure within `apps/web` is feature-sliced — see [15-engineering-conventions.md](15-engineering-conventions.md) § 2.
 
 This overrides the flat layout implied by `docs/10-infrastructure.md` (`src/`, `model-router/`, `prisma/` at root) and aligns with the "monorepo" wording in [04-roadmap.md](04-roadmap.md) § 5. Consequence: every `build.context` and `dockerfile` path in the compose file changes, and the app/worker Dockerfiles must copy the workspace manifests before installing so hoisting works.
 
@@ -100,6 +105,11 @@ Compose references `./registry-proxy` with `ALLOWED_HOSTS`, but nothing specifie
 | Repository visibility | Private; license deferred until opened | A2 |
 | Package manager | Yarn + Lerna — overrides `npm ci` in the Dockerfiles | A3 |
 | Repository layout | Monorepo, Yarn workspaces: `apps/`, `services/`, `packages/` | A4 |
+| Git workflow | Branch per task, PR, rebase only — linear `main` | [15-engineering-conventions.md](15-engineering-conventions.md) § 1 |
+| Module architecture | Feature-sliced in `apps/web`, shared logic in workspace packages | [15](15-engineering-conventions.md) § 2 |
+| Size limits | File ≤ 200, function ≤ 50, complexity ≤ 10 — ESLint warn, blocking in CI | [15](15-engineering-conventions.md) § 3 |
+| Linter / formatter | ESLint flat config (strict-type-checked) + Prettier, three gates | [15](15-engineering-conventions.md) § 4 |
+| Refactoring cadence | Per roadmap task boundary, 90-minute timebox | [15](15-engineering-conventions.md) § 5 |
 | Port allocation | App 3000, model-router 3001, Gitea 3002 (container-internal 3000) | [10-infrastructure.md](10-infrastructure.md) |
 | Deployer prompt | Deferred until local MVP is judged satisfactory | [13-agent-tooling.md](13-agent-tooling.md) T3 |
 | Documentation language | English, including role names | [`CLAUDE.md`](../CLAUDE.md) |

@@ -43,10 +43,45 @@ Two personas drive every design decision: the **Customer** ("Aunt Zina", non-tec
 These override what the older docs show. `docs/10-infrastructure.md` and `docs/11-sandbox.md` predate them and are partly stale — reconciling those files is part of the scaffolding task.
 
 - **Yarn + Lerna**, not npm. The `npm ci` calls in the Dockerfiles are outdated.
-- **Monorepo via Yarn workspaces**: `apps/web` (Next.js), `apps/worker` (BullMQ), `services/model-router`, `services/registry-proxy`, `packages/db` (Prisma + shared types). The flat `src/` + `prisma/` layout in the compose file is outdated.
+- **Monorepo via Yarn workspaces**: `apps/web` (Next.js), `apps/worker` (BullMQ), `services/model-router`, `services/registry-proxy`, `packages/db` (Prisma + shared types), plus `packages/queue`, `packages/ai-roles`, `packages/ui`. The flat `src/` + `prisma/` layout in the compose file is outdated.
 - **Repo is private.** No LICENSE file; the license question is deferred until it opens.
 
 Full rationale and the list of affected paths: `docs/14-decisions-needed.md`.
+
+## Keep this file current — it exists to prevent re-exploration
+
+Every task should start from documented state, not from a fresh sweep of the repo. Searching the codebase to rediscover what was already decided is the most wasteful thing that happens in a long project: it burns tokens, it burns time, and it produces answers that are sometimes wrong.
+
+So treat state files as part of the deliverable, updated in the same commit as the change:
+
+| What changed | Update |
+|---|---|
+| A decision was made or reversed | `docs/14-decisions-needed.md` — move it to the resolved table with the rationale |
+| An architectural invariant, command, or convention | This file |
+| Directory layout, a new package or feature slice | `docs/16-code-map.md` (create at scaffolding; see below) |
+| A doc became stale because of a decision | The stale-documents table in `docs/15-engineering-conventions.md` § 7 |
+| An MCP server, skill, or subagent was tried | `docs/13-agent-tooling.md` + the prompt test log |
+| An open question was settled | `docs/12-open-questions.md` status table |
+
+**`docs/16-code-map.md` does not exist yet and should be created by the scaffolding task.** It is the one file that makes "read, don't search" possible: for each package and feature slice, one line on what it owns, its public entry point, and what it depends on. Plus where the cross-cutting things live — auth, the Prisma client factory, the queue definitions, the encryption helpers. Kept to roughly a screen; a code map that needs scrolling is a code map nobody reads.
+
+When you finish a task, the test is simple: could the next session act on this area without grepping for it? If not, the state files are behind.
+
+## Engineering conventions
+
+`docs/15-engineering-conventions.md` is the full specification. The parts you will hit immediately:
+
+**One task, one branch, one PR, rebased.** `task/{id}-{slug}` off `main`; `main` stays linear. Rebase and fast-forward only — no merge commits, no squash. Push with `--force-with-lease`, never bare `--force`. Conventional Commits with a workspace scope: `feat(web): ...`.
+
+**Feature-sliced inside `apps/web`.** `features/{slice}/{api,ui,model}` with a single `index.ts` public surface. Dependencies flow one way: `app/` → `features/` → `shared/` → `packages/`. Never import another slice's internals, and never put logic in `app/` — routing only.
+
+**Size limits are enforced, not advisory.** File ≤ 200 lines, function ≤ 50, complexity ≤ 10. Configured as ESLint `warn`, but `--max-warnings 0` in CI and the sandbox makes them blocking. Exemptions need an inline reason after `--`.
+
+**Refactor at each roadmap task boundary**, timeboxed to 90 minutes, on a `chore/refactor-*` branch. Behaviour-preserving: if a test has to change, it is not a refactor. Refactor immediately, without waiting, on a third duplicate, an import cycle, or a file past 300 lines.
+
+**`yarn verify`** reproduces the CI gate locally: typecheck, lint, format check, tests. Run it before marking anything done.
+
+Two known gaps to fix while scaffolding, both of which currently make the quality gate fictional: `runner.js` treats an ESLint failure as non-fatal (`docs/11-sandbox.md:204`), and Prettier is configured nowhere despite being named as acceptance tooling (`docs/02-architecture.md:69`).
 
 ## Commands
 
