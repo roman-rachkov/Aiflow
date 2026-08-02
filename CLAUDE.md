@@ -38,6 +38,16 @@ The docs are the source of truth. `docs/README.md` is the index — read it firs
 
 Two personas drive every design decision: the **Customer** ("Aunt Zina", non-technical) and the **Engineer** ("Uncle Vasya"). Five internal AI roles: Analyst, Planner, Coder, Reviewer, Deployer.
 
+## Stack decisions already made
+
+These override what the older docs show. `docs/10-infrastructure.md` and `docs/11-sandbox.md` predate them and are partly stale — reconciling those files is part of the scaffolding task.
+
+- **Yarn + Lerna**, not npm. The `npm ci` calls in the Dockerfiles are outdated.
+- **Monorepo via Yarn workspaces**: `apps/web` (Next.js), `apps/worker` (BullMQ), `services/model-router`, `services/registry-proxy`, `packages/db` (Prisma + shared types). The flat `src/` + `prisma/` layout in the compose file is outdated.
+- **Repo is private.** No LICENSE file; the license question is deferred until it opens.
+
+Full rationale and the list of affected paths: `docs/14-decisions-needed.md`.
+
 ## Commands
 
 **None exist yet.** Do not search for a build script — there isn't one. The commands below are *prescribed by the docs* for the future implementation, cited so you can verify them:

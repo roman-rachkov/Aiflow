@@ -8,34 +8,37 @@ Distinct from [12-open-questions.md](12-open-questions.md) (architectural questi
 
 ## A. Blocking — answer before the first commit
 
-### A1. Git identity
+**All resolved 2026-08-02.** Kept here for the rationale; see the summary table at the bottom.
 
-The global Git config currently reads:
+### A1. Git identity — RESOLVED
+
+`user.email` was `pakycb84@gail.com`. Confirmed a typo; corrected globally to `pakycb84@gmail.com`. `user.name` stays `Roman Rachkov`, inherited from the global config — no per-repo override. The first commit carries the corrected address, so no history rewrite is needed.
+
+### A2. Repository visibility and license — RESOLVED
+
+**Private.** The license question is deferred until the repo is opened, and is moot while it stays private. No `LICENSE` file for now.
+
+### A3. Package manager — RESOLVED
+
+**Yarn**, with **Lerna** for monorepo task orchestration. This overrides the `npm ci` calls in the `docs/10-infrastructure.md` Dockerfiles and the sandbox image in [11-sandbox.md](11-sandbox.md) — both need updating to `yarn install --frozen-lockfile` before those files become real.
+
+One caveat worth noting before implementation: Lerna's original purpose — versioning and publishing independent packages to a registry — does not apply here, since nothing in this repo is published. Yarn workspaces alone cover dependency hoisting and cross-package linking. Lerna adds value mainly through `lerna run --scope` task filtering and changed-package detection. If that filtering is not used, Lerna is an extra dependency for nothing. Not a blocker, just something to revisit once the workspace layout exists.
+
+### A4. Repository layout — RESOLVED
+
+**Monorepo with Yarn workspaces**, in the shape below:
 
 ```
-user.name  = Roman Rachkov
-user.email = pakycb84@gail.com
+apps/web/            Next.js — frontend, REST API, WebSocket proxy
+apps/worker/         BullMQ workers — four queues
+services/model-router/
+services/registry-proxy/
+packages/db/         Prisma schema, generated client, shared types
 ```
 
-`gail.com` looks like a typo for `gmail.com`. Commits carry the author email permanently; fixing it later means rewriting history or living with a broken attribution.
+This overrides the flat layout implied by `docs/10-infrastructure.md` (`src/`, `model-router/`, `prisma/` at root) and aligns with the "monorepo" wording in [04-roadmap.md](04-roadmap.md) § 5. Consequence: every `build.context` and `dockerfile` path in the compose file changes, and the app/worker Dockerfiles must copy the workspace manifests before installing so hoisting works.
 
-Also: should this repo use a local `user.email` override (e.g. a GitHub noreply address) instead of the global one?
-
-### A2. Repository visibility and license
-
-`git@github.com:roman-rachkov/Aiflow.git` is empty. Public or private? If public, a `LICENSE` file is needed before the first push — absent one, default copyright applies and nobody can legally reuse the code, which conflicts with an open-development posture. If private, this is moot for now.
-
-### A3. Package manager
-
-`docs/10-infrastructure.md` Dockerfiles use `npm ci`. Confirm npm, or switch to pnpm before `package.json` exists. Switching later means regenerating lock files, editing both Dockerfiles, and updating the sandbox image.
-
-### A4. Repository layout: monorepo or flat
-
-`docs/04-roadmap.md` § 5 says "monorepo in Gitea (Next.js, workers, Docker Compose config)". `docs/10-infrastructure.md` shows a flat layout: `src/`, `model-router/`, `registry-proxy/`, `prisma/` at root, no workspace tooling.
-
-Flat with a shared `package.json` is simpler and matches the compose file. A real monorepo (pnpm workspaces / Turborepo) isolates the worker and model-router dependency trees. Decide now — this is the directory structure everything else assumes.
-
-### A5. Node version
+### A5. Node version — OPEN
 
 Images pin `node:20-alpine` (app, worker) and `node:20-bookworm-slim` (sandbox). Node 20 entered maintenance in late 2025. Stay on 20 for the MVP, or start on 22 LTS?
 
@@ -93,8 +96,21 @@ Compose references `./registry-proxy` with `ALLOWED_HOSTS`, but nothing specifie
 
 | Decision | Value | Where |
 |---|---|---|
+| Git author | `Roman Rachkov <pakycb84@gmail.com>`, global config, no per-repo override | A1 |
+| Repository visibility | Private; license deferred until opened | A2 |
+| Package manager | Yarn + Lerna — overrides `npm ci` in the Dockerfiles | A3 |
+| Repository layout | Monorepo, Yarn workspaces: `apps/`, `services/`, `packages/` | A4 |
 | Port allocation | App 3000, model-router 3001, Gitea 3002 (container-internal 3000) | [10-infrastructure.md](10-infrastructure.md) |
 | Deployer prompt | Deferred until local MVP is judged satisfactory | [13-agent-tooling.md](13-agent-tooling.md) T3 |
 | Documentation language | English, including role names | [`CLAUDE.md`](../CLAUDE.md) |
 | Internal agent traffic | English; user-facing output in the user's language | [`CLAUDE.md`](../CLAUDE.md) |
 | Superseded drafts | `ide.md`, `ide-analize.md` intentionally removed | [README.md](README.md) |
+
+## Consequences for existing documents
+
+A3 and A4 contradict what `docs/10-infrastructure.md` and `docs/11-sandbox.md` currently show. Those files were written before these decisions and are now partly stale. They are **not** yet updated — doing so is part of the scaffolding task, not a documentation edit to make in isolation:
+
+- Compose `build.context` / `dockerfile` paths must point at `apps/web`, `apps/worker`, `services/model-router`, `services/registry-proxy`.
+- Both Dockerfiles: `npm ci` → `yarn install --frozen-lockfile`, and workspace manifests must be copied before install for hoisting to work.
+- Volume mounts `./src`, `./prisma` → `./apps/web/src`, `./packages/db/prisma`.
+- The sandbox image generates *user project* code, which is a standalone Next.js app, not part of this monorepo. Its `npm` usage may legitimately stay — decide when writing the image.
