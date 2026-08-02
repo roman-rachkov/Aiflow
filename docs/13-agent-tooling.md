@@ -14,7 +14,7 @@ So every entry carries a **Scope** column:
 | `product` | Needed inside the product, for user projects. |
 | `both` | Both. The most valuable category — verify once, use twice. |
 
-And a **Status** column: `untested` / `verified` / `rejected`. Everything starts `untested`. Listing a candidate before testing is fine and encouraged; inflating its status is not.
+And a **Status** column: `untested` / `verified` / `rejected` / `in use`. Everything starts `untested`. Listing a candidate before testing is fine and encouraged; inflating its status is not.
 
 **Maintenance rule:** tried a capability — update the table. Ran a prompt — append a row to the test log at the bottom.
 
@@ -45,6 +45,7 @@ Skills are packaged instruction sets for a specific class of task.
 | Prisma schema work | Models, migrations, validation | `both` | untested | Blocked on open question #2 (migrations without DB access) |
 | Diff review | Structural check of changes | `both` | untested | Overlaps the `reviewer` subagent — decide what is a skill and what is a prompt |
 | docker-compose generation | Deploy artifact assembly | `product` | untested | Needed by the Deployer ([04-roadmap.md](04-roadmap.md), Task 4.3) |
+| `ai-studio-internals` | Lazy-loaded context for rarely-needed AI Studio internals (ports, isolation, hardening, generated-code conventions) | `dev` | verified | Not a product candidate — a pure context-cost measure. Receives sections moved out of `CLAUDE.md`, which is billed on every turn of every session |
 
 **Observation.** AI Studio's roles are structurally close to skills: the Analyst is an interviewing skill, the Coder a change-application skill. A skill that works well here likely transfers into the product with little rework. That is the main reason to keep this registry from day one.
 
@@ -52,7 +53,11 @@ Skills are packaged instruction sets for a specific class of task.
 
 ## 3. Subagents
 
-Definitions live in [`.claude/agents/`](../.claude/agents/) and are **mirrors of the production prompts**. Copied verbatim — a modified prompt tests nothing about the version that ships.
+Definitions live in [`.claude/agents/`](../.claude/agents/), and they fall into two groups.
+
+**The five role agents are mirrors of the production prompts.** Copied verbatim — a modified prompt tests nothing about the version that ships. These have a `Prompt source`.
+
+**The three dev-only agents below the divider are ours.** They mirror nothing, ship nowhere, and exist to make mechanical work cheap. They run on the free local slot (see § 5) and hold read-only tools by design.
 
 | Subagent | Role | Prompt source | Tools | Scope | Status | Tested on |
 |---|---|---|---|---|---|---|
@@ -61,10 +66,18 @@ Definitions live in [`.claude/agents/`](../.claude/agents/) and are **mirrors of
 | `coder` | Coder | [07-prompt-coder.md](07-prompt-coder.md) | Read, Write, Edit, Bash, Glob, Grep | `both` | untested | — |
 | `reviewer` | Reviewer | [08-prompt-reviewer.md](08-prompt-reviewer.md) | Read, Glob, Grep, Bash | `both` | untested | — |
 | `deployer` | Deployer | **missing** | — | `product` | no prompt | — |
+| — | — | — | — | — | — | — |
+| `classifier` | — | none (dev-only) | Read, Grep, Glob | `dev` | untested | — |
+| `doc-checker` | — | none (dev-only) | Read, Grep, Glob | `dev` | untested | — |
+| `lang-lint` | — | none (dev-only) | Read, Grep, Glob | `dev` | untested | — |
 
 **Gap: the Deployer has no prompt.** The role is declared in [01-system-spec.md](01-system-spec.md) § 2.3 and in the roadmap (Task 4.3), but no `prompt-deployer` document exists. The subagent was deliberately not created — writing a prompt "in the spirit of" the spec would mean inventing specification content. Deferred by decision: revisit once local MVP development is judged satisfactory. Tracked as T3 below.
 
 **Permission rationale.** The Reviewer deliberately has no write access: it issues a verdict, it does not fix code — matching the ACCEPTED/REJECTED loop in [08-prompt-reviewer.md](08-prompt-reviewer.md). The Planner is read-only: its output is JSON, not files. The Coder is the only one with full write and command execution.
+
+The three dev-only agents are read-only for a different reason: they run on a locally-served model. A weaker model with write or exec rights is a bad trade at any price — it reports, the caller applies. This is a standing rule for the free slot, not a per-agent judgement.
+
+**What belongs on the cheap slot.** Mechanical work with a closed answer set: sorting into known buckets, checking a claim against a file, scanning for a character range. Not: anything producing prose a human reads, anything where a plausible-but-wrong answer is expensive to detect, anything driving `Edit` (exact string matching — a weak model retries, and retries cost more than the downgrade saves).
 
 ---
 
@@ -82,7 +95,61 @@ _(the row above is a format sample, not a real run; delete it on first real entr
 
 ---
 
-## 5. Open tooling questions
+## 5. Model tiering
+
+Cost per agent-turn is not uniform, and until 2026-08-02 nothing here acted on that: no agent declared a model, so all inherited `CLAUDE_CODE_SUBAGENT_MODEL` and every role ran on the paid slot — including the most mechanical ones.
+
+### The two slots
+
+| Tier | Alias | Resolves to | Cost | Holds |
+|---|---|---|---|---|
+| Paid | `sonnet`, `opus` | `coding` (via the local proxy) | metered | `analyst`, `planner`, `coder`, `reviewer` |
+| Free | `haiku` | `lmstudio/qwen/qwen3-coder-30b` (LM Studio, local) | zero | `classifier`, `doc-checker`, `lang-lint` |
+
+**The aliases do not mean what they say.** `ANTHROPIC_BASE_URL` points at a local router, and the three `ANTHROPIC_DEFAULT_*_MODEL` variables are remapped there. `sonnet` and `opus` both collapse to a single `coding` target, so the two names are currently indistinguishable. `haiku` is not Anthropic Haiku — it is a local Qwen. Writing `model: haiku` in an agent is a *routing* instruction, not a statement about which model runs.
+
+Verified against the installed CLI (v2.1.220) rather than documentation: `MAX_THINKING_TOKENS`, `CLAUDE_CODE_MAX_OUTPUT_TOKENS`, and `CLAUDE_CODE_SUBAGENT_MODEL` all exist. `DISABLE_NON_ESSENTIAL_MODEL_CALLS` does **not** — the real name is `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC`, which also disables telemetry, so it was left unset deliberately.
+
+### Why the four roles stayed on the paid slot
+
+Each was considered for downgrade and each was kept. The saving comes from new work landing on the free slot, not from degrading the roles that matter.
+
+| Role | Why it stays |
+|---|---|
+| `analyst` | Interview + RAG reconciliation, user-facing prose, largest context demand |
+| `planner` | Its output is strict JSON and its reasoning is structural. A weaker model degrades exactly the part that matters |
+| `reviewer` | Security judgement. A false `ACCEPTED` costs a debugging cycle — more than the tokens saved |
+| `coder` | Mechanical in scope but drives `Edit`; a weak model retries |
+
+### Availability caveat
+
+The free slot depends on LM Studio running locally. If it is down, a `model: haiku` agent **fails** — the router cannot reach the backend. That is the correct behaviour: a silent fallback to the paid slot would hide the cost it was meant to avoid. Treat a free-slot agent as unavailable, not as slow.
+
+**Not yet verified:** that a `model: haiku` request actually terminates at LM Studio. Both aliases resolve to real entries in the router's model list, but an authenticated end-to-end probe was blocked by the permission classifier. Until someone confirms it, the routing is inferred from configuration, not observed. Tracked as T6.
+
+### Escalation — the product-side counterpart
+
+Anthropic's `advisor` tool (cheap primary, stronger model consulted at decision points) does not work in this setup: it requires the direct Anthropic API, while `ANTHROPIC_BASE_URL` points at a router that does not forward requests intact, and the pairing check rejects unrecognized model names. Not attempted.
+
+The *pattern* is worth having inside AI Studio, where we own the router. Tracked as an open question in [12-open-questions.md](12-open-questions.md) — escalation of hard decisions to a stronger model.
+
+---
+
+## 6. Slash commands
+
+Commands live in [`.claude/commands/`](../.claude/commands/). They are the cheapest mechanism available: nothing enters context until invoked, and each can pin its own model. Mechanical workflows belong here rather than in `CLAUDE.md`, which is billed on every turn whether or not it is relevant.
+
+| Command | Purpose | Scope | Status |
+|---|---|---|---|
+| `/verify` | Runs `yarn verify` and reports the first failing gate | `dev` | untested |
+| `/task-start <id> <slug>` | Branch per [15-engineering-conventions.md](15-engineering-conventions.md) § 1.1, plus the roadmap checklist and any blocking open questions | `dev` | untested |
+| `/state-sync` | Checks whether the state files in `CLAUDE.md` have fallen behind; delegates the scan to `doc-checker` | `dev` | untested |
+
+`/state-sync` is the pattern worth copying: the expensive model reads a summary, the free model does the file-by-file work.
+
+---
+
+## 7. Open tooling questions
 
 Same style as [12-open-questions.md](12-open-questions.md): decision points, not criticism.
 
@@ -132,11 +199,24 @@ The project has adopted: **internal agent-to-agent traffic in English, user-faci
 The prompts in `docs/05`–`08` have been translated accordingly. The remaining decision is enforcement: how do we prevent a future prompt edit from reintroducing Russian into internal traffic?
 
 Options:
-- A lint rule in the acceptance loop that rejects Cyrillic in Planner/Reviewer JSON output.
+- A lint rule in the acceptance loop that rejects Cyrillic in Planner/Reviewer JSON output. **Partly built:** the `lang-lint` agent (§ 3) implements the check and runs free. What is missing is the *loop* — an agent someone has to remember to invoke is not enforcement, so this stays Open.
 - A shared prompt preamble stating the policy, included by every role.
 - Rely on the policy stated in `CLAUDE.md` and review discipline.
 
-**Affected artifacts:** [`CLAUDE.md`](../CLAUDE.md), docs 05–08
+**Affected artifacts:** [`CLAUDE.md`](../CLAUDE.md), docs 05–08, [`.claude/agents/lang-lint.md`](../.claude/agents/lang-lint.md)
+
+### T6. Confirm the free slot actually routes free
+
+`model: haiku` is configured to reach a local Qwen in LM Studio, and § 5 records the whole tiering policy on that basis. The routing has not been observed end to end — both aliases resolve to real entries in the router's model list, but an authenticated probe was blocked by the permission classifier before it ran.
+
+Until this is confirmed, three dev-only agents may be quietly billing to the paid slot, which inverts the point of the exercise.
+
+Options:
+- Send one authenticated request per alias through the router and compare the `model` field in the response against what was asked for.
+- Watch the LM Studio server log while invoking `classifier` on a trivial input.
+- Stop the LM Studio server and confirm a `model: haiku` agent fails rather than silently succeeding — the more valuable test, since it proves there is no hidden fallback.
+
+**Affected artifacts:** [`.claude/agents/`](../.claude/agents/) (the three dev-only agents), § 5 of this document
 
 ---
 
@@ -148,4 +228,5 @@ Options:
 | T2 | Prompt mirror sync | Open |
 | T3 | Deployer prompt | Deferred (post-MVP local) |
 | T4 | User-facing tooling | Open |
-| T5 | Enforcing the language policy | Open |
+| T5 | Enforcing the language policy | Open — `lang-lint` built, not wired into a gate |
+| T6 | Verify free-slot routing end to end | Open — see § 5, availability caveat |

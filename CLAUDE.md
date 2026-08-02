@@ -24,11 +24,9 @@ The prompts in `docs/05`–`08` have been translated to match. What remains open
 
 ## Repository status
 
-**This repo contains design documents only — there is no source code yet.** No `package.json`, no `Dockerfile`, no `docker-compose.yml`. Just `docs/` (14 Markdown files, Russian), `.claude/`, and `.idea/`.
+**Scaffolding is in progress.** The monorepo is laid out (`apps/web`, `apps/worker`, `services/`, `packages/`) with `package.json`, `yarn.lock`, `tsconfig.base.json`, `eslint.config.mjs`. A few services are still stubs — see the code map at `docs/16-code-map.md` (create it if it does not exist yet; this file's instructions demand one).
 
-The first implementation task is scaffolding the Next.js project per `docs/04-roadmap.md` § 2.2, Task 1.1. Until that exists, nothing in the "Commands" section below is runnable.
-
-The docs are the source of truth. `docs/README.md` is the index — read it first.
+`docs/` is the source of truth. `docs/README.md` is the index — read it first.
 
 `docs/` was split out of two earlier drafts, `ide.md` and `ide-analize.md`. Those files are gone by design — they were superseded, not lost. `docs/12-open-questions.md:3` and `docs/README.md:3` still link to them; the links are dead and that is expected. Don't go looking for them.
 
@@ -85,15 +83,23 @@ Two known gaps to fix while scaffolding, both of which currently make the qualit
 
 ## Commands
 
-**None exist yet.** Do not search for a build script — there isn't one. The commands below are *prescribed by the docs* for the future implementation, cited so you can verify them:
+**Real now** (`package.json`), run with `yarn`:
+
+| Command | Purpose |
+|---|---|
+| `yarn verify` | The CI gate: typecheck → lint → format:check → test. Run before marking anything done |
+| `yarn typecheck` / `yarn lint` / `yarn test` | Individual gates, via Lerna |
+| `yarn format` | Fix formatting; `format:check` only reports |
+
+Or as slash commands: **`/verify`** runs the gate and reports the first failure, **`/task-start <id> <slug>`** opens a correctly-named branch with the roadmap checklist, **`/state-sync`** checks whether the state files below have fallen behind.
+
+Still *prescribed by the docs* rather than runnable, cited so you can verify them:
 
 | Command | Purpose | Source |
 |---|---|---|
 | `ENVIRONMENT=dev docker compose up --build` | Start the full stack | `docs/10-infrastructure.md:265` |
 | `docker compose up --scale worker=3` | Scale BullMQ workers | `docs/10-infrastructure.md:283` |
 | `npx prisma migrate dev` | Migrate the `public` schema **only** | `docs/03-data-model.md:223` |
-| `npx tsc --noEmit` | Sandbox verification gate 1 | `docs/11-sandbox.md:152` |
-| `npx eslint . --ext .ts,.tsx --max-warnings 0` | Sandbox verification gate 2 | `docs/11-sandbox.md:162` |
 
 Project schemas (`project_{uuid}`) are **not** migrated by `prisma migrate` — they are created from a generated SQL script derived from `schema_project_template.prisma` (`docs/03-data-model.md` § 8).
 
@@ -109,37 +115,25 @@ Four component groups, all under Docker Compose. Details in `docs/02-architectur
 
 **Redis is disposable.** Task progress is checkpointed to `TaskLog` in Postgres, so losing Redis means workers resume from the log rather than losing work. Never make Redis the only home for state.
 
-**Isolation runs on two axes.**
+**Isolation runs on two axes.** *Data* — one PostgreSQL schema per project (`project_{uuid}`); only `User`, `ProjectMeta`, `DeploymentMeta` live in `public`. *Network* — the `sandbox` network is `internal: true`, so sandboxes reach nothing but `registry-proxy`.
 
-*Data* — one PostgreSQL schema per project (`project_{uuid}`), reached by string-replacing the connection URL: `baseUrl.replace('schema=public', \`schema=${schemaName}\`)` (`docs/03-data-model.md:185`). Clients are cached in a WeakMap. Only `User`, `ProjectMeta`, and `DeploymentMeta` live in `public`; everything else is per-project.
+**Sandboxes are ephemeral and locked down**, destroyed after every task. Aider runs headless at a pinned version.
 
-*Network* — the `sandbox` network is declared `internal: true`, so sandbox containers cannot reach Postgres, Redis, or Gitea. Their only egress is `registry-proxy`, which filters by `ALLOWED_HOSTS`.
+**Secrets** are AES-256-GCM encrypted under `ENCRYPTION_KEY`.
 
-**Sandboxes are ephemeral and locked down** (`docs/11-sandbox.md`): `ReadonlyRootfs: true`, `CapDrop: ['ALL']`, `no-new-privileges`, 512 MB, 1 CPU, tmpfs mounted `noexec,nosuid`. Destroyed after every task. Aider runs headless at a pinned version.
+The specifics of all three — the URL-rewriting trick, the container hardening flags, the encrypted value shape, and the codegen lifecycle — are in [`ai-studio-internals`](.claude/skills/ai-studio-internals/SKILL.md). Read it before touching compose, sandbox config, per-project DB access, or secret handling.
 
 **`model-router`** (Express, port 3001) unifies routerai.ru / OpenAI / Anthropic / Ollama behind an OpenAI-compatible API, with a fallback chain and a 1-hour Redis response cache. It stores no keys — they arrive encrypted, are decrypted for the call, then wiped from memory.
 
-**Secrets**: `ModelConfig.config` is AES-256-GCM encrypted under `process.env.ENCRYPTION_KEY` (32 bytes) and stored as `{"__encrypted__": "<base64>"}`.
-
-**Codegen lifecycle** (`docs/02-architecture.md` § 4): user approves `SPEC.md` → `plan:generate` → planner emits atomic tasks into `code:execute` → coder worker clones from Gitea into a volume, runs Aider, then tsc + ESLint → success commits to Gitea; failure goes to the reviewer, which either re-queues with clarification or marks FAILED → after all tasks, `deploy:run`.
-
 Gitea holds one repo per project, with `SPEC.md` at the repo root so requirements are versioned alongside code.
 
-## Conventions for generated application code
+## Conventions for generated application code → `/ai-studio-internals`
 
-The target stack is fixed — Next.js + Prisma + PostgreSQL only (`docs/01-system-spec.md:105`). Per `docs/07-prompt-coder.md`, code produced for user projects should follow:
+These rules govern code the *product* generates, not code we write. Needed only when touching the Coder prompt. The full section is in [`ai-studio-internals`](.claude/skills/ai-studio-internals/SKILL.md).
 
-- Next.js **App Router**: pages at `app/[resource]/page.tsx`, APIs as Route Handlers in `app/api/...`
-- Components in `components/`, server actions in `lib/actions/`
-- Strict TypeScript; type across the server/client boundary with `@prisma/client` types, avoid `any`
-- Functional React components, Tailwind for styling
-- Errors handled: try/catch in APIs, `error.tsx` for pages
+## Port allocation → `/ai-studio-internals`
 
-## Port allocation
-
-Host ports: **3000** Next.js app, **3001** model-router, **3002** Gitea, 5432 Postgres, 6379 Redis, 9000/9001 MinIO. Full explanation at `docs/10-infrastructure.md:274`.
-
-Gitea listens on 3000 *inside* its container (its default) and publishes to 3002 on the host. So `GITEA_URL` is `http://gitea:3000` for inter-service calls, its healthcheck targets `localhost:3000` (runs inside the container), but `GITEA__server__ROOT_URL` is `http://localhost:3002/`. Both numbers are correct in their own context — don't "fix" one to match the other.
+Host ports: 3000, 3001, 3002, 5432, 6379, 9000/9001. The Gitea 3000/3002 split and all details are in [`ai-studio-internals`](.claude/skills/ai-studio-internals/SKILL.md).
 
 ## One thing that will waste your time
 
@@ -161,3 +155,9 @@ Two have the most immediate impact:
 `docs/13-agent-tooling.md` is the registry of MCP servers, skills, and subagents — both those used to *build* AI Studio and those that may ship *inside* it. Every entry carries a dual-use verdict (dev-time / product-time / both) and a test status.
 
 Update it whenever you try a capability. The four subagents in `.claude/agents/` mirror the production prompts in `docs/05`–`08`, so using them here doubles as prompt testing — record results in the prompt test log at the bottom of that file.
+
+### Model tiering
+
+Two slots. Paid (`sonnet`/`opus`, both → `coding`) runs the four role agents. Free (`haiku` → local Qwen in LM Studio) runs the mechanical read-only ones: `classifier`, `doc-checker`, `lang-lint`.
+
+The aliases lie — `haiku` is not Anthropic Haiku, and the free slot fails loudly when LM Studio is down rather than falling back to paid. Full policy, rationale, and the caveat that end-to-end routing is still unverified: [`docs/13-agent-tooling.md`](docs/13-agent-tooling.md) § 5.

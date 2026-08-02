@@ -87,6 +87,8 @@ Cheapest option is a check in the acceptance loop rejecting Cyrillic in Planner/
 
 Both prompts require strict JSON. `docs/06-prompt-planner.md` recommends "GPT-4o or similar with structured outputs / function calling". Does `model-router` guarantee structured-output support across all providers, or does the platform validate and retry on parse failure? Affects the router's API surface.
 
+Decide this alongside question #9 in [12-open-questions.md](12-open-questions.md) (escalation to a stronger model). Escalation is a second routed request, so whatever guarantee C3 settles on has to hold for the advisor call too — and if the answer is validate-and-retry, the retry budget interacts with the disagreement case.
+
 ### C4. Aider version pin
 
 `docs/11-sandbox.md` pins `aider-chat==0.60.0`. That release is from 2024. Keep the pin for reproducibility, or move to a current version before building the image?

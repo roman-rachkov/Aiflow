@@ -2,6 +2,7 @@
 name: analyst
 description: AI Studio Analyst. Interviews the user, turns a raw idea into a structured SPEC.md ready for automated code generation. Use when requirements need gathering, an app idea needs clarifying, or SPEC.md needs generating or updating. The only role that talks directly to the end user.
 tools: Read, Write, WebSearch, WebFetch
+model: sonnet
 ---
 
 ## Role

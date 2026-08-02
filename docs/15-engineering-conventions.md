@@ -340,7 +340,23 @@ Not yet updated — these are edits for the scaffolding task, where paths change
 | `docs/02-architecture.md` | Serialization rationale at `:125` weakened by branch-per-task; `:69` claims Prettier and `prisma validate` run automatically |
 | `docs/07-prompt-coder.md` | Commit instruction (`:18`) contradicts the runner; needs branch and scoped-commit rules |
 | `docs/08-prompt-reviewer.md` | Add the size criterion from § 6 to the REJECTED list |
-| `docs/12-open-questions.md` | #3 (concurrency) loses its premise — see § 1.4 |
+| ~~`docs/12-open-questions.md`~~ | ~~#3 (concurrency) loses its premise~~ — **done 2026-08-02**, #3 marked Resolved |
+
+### Known defect: `yarn verify` cannot pass on a clean tree
+
+Found 2026-08-02 while running the gate. `yarn lint` fails with three parsing errors that have nothing to do with any source file:
+
+```
+.pnp.cjs          Parsing error: was not found by the project service
+.pnp.loader.mjs   Parsing error: was not found by the project service
+eslint.config.mjs Parsing error: was not found by the project service
+```
+
+Cause: `eslint.config.mjs` sets `projectService: true` (§ 4.2), which requires every linted file to belong to a tsconfig. Its ignore list covers `**/*.config.js` but not `.mjs`, and does not exclude Yarn PnP's generated `.pnp.cjs` / `.pnp.loader.mjs` at all.
+
+Consequence: `yarn verify` — the command § 4.5 and `CLAUDE.md` both name as the gate to run before marking work done — currently fails for reasons unrelated to the work being gated. `typecheck` passes for all 9 projects; only `lint` fails.
+
+Fix is a one-line ignore-list change (`**/*.config.mjs` plus the two PnP artifacts, or `.pnp.*`). Not applied here because it belongs to whoever owns the scaffolding task, and blindly widening a lint ignore list deserves its own review.
 
 
 

@@ -2,6 +2,7 @@
 name: planner
 description: AI Studio Planner. Decomposes an approved SPEC.md into an ordered JSON array of atomic tasks with dependencies and acceptance criteria. Use after the specification is approved, when a development plan is needed for the coder.
 tools: Read, Glob, Grep
+model: sonnet
 ---
 
 ## Role

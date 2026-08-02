@@ -123,6 +123,35 @@ Its recommendation:
 
 ---
 
+## 9. Escalation of hard decisions to a stronger model
+
+**Cost per role is not uniform across a run. Should a cheap model handle the routine turns and consult a stronger one at the few decisions that determine the outcome?**
+
+Today every role runs entirely on one model, chosen per project in `ModelConfig`. But the work inside a run is not evenly demanding: most Planner and Coder turns are mechanical, while a handful of structural decisions — the dependency graph, the choice of approach — decide whether the output is usable at all. Paying the top-tier rate on every turn to cover those few is the expensive default, and it is what we have.
+
+The alternative is a second model consulted at decision points: it receives the conversation so far and returns a recommendation the primary applies before continuing. Cheap primary plus strong advisor generally costs less than running the strong model throughout, because the escalation fires at a few points rather than every turn.
+
+**Best candidate: the Planner.** Its expensive reasoning is concentrated in dependency decisions, not in emitting the JSON — exactly the shape escalation suits.
+
+**Where it fits.** `services/model-router` already owns provider selection and the fallback chain ([02-architecture](02-architecture.md) § 2.5), so an escalation call is a second routed request, not a new subsystem. `ModelConfig.config` currently holds `{role: {provider, model}}` ([03-data-model](03-data-model.md) § 5) and would gain an optional advisor model per role.
+
+One constraint borrowed from Anthropic's implementation of this pattern: the advisor must be at least as capable as the primary, and a delegated subagent re-checks that pairing against its own model rather than its parent's. An escalation target weaker than the caller is worse than no escalation.
+
+Options:
+- Model-decided: the primary calls escalation when it judges it necessary. Flexible, unpredictable cost.
+- Worker-decided: fixed trigger points (before planning, on repeated failure, before marking complete). Predictable, may miss the cases that matter.
+- Skip it: accept uniform per-role cost, revisit if spend becomes a problem.
+
+Sub-questions if adopted: how does escalation interact with the 1-hour Redis response cache — is an escalated response cacheable at all? Does it compound with C3 in [14-decisions-needed](14-decisions-needed.md) (structured-output guarantees across providers)? What is the retry budget when advisor and primary disagree?
+
+**Explicitly post-MVP.** `services/model-router/src/index.ts` is still a stub, so this is recorded to keep the router from being built in a way that forecloses it — not to schedule the work.
+
+Anthropic's own `advisor` tool was evaluated for dev-time use here and rejected: it requires the direct Anthropic API, while this environment routes through a local gateway. Details in [13-agent-tooling](13-agent-tooling.md) § 5.
+
+**Affected artifacts:** [02-architecture](02-architecture.md), [03-data-model](03-data-model.md), [14-decisions-needed](14-decisions-needed.md), [13-agent-tooling](13-agent-tooling.md)
+
+---
+
 ## Question Status
 
 | # | Question | Status |
@@ -135,3 +164,4 @@ Its recommendation:
 | 6 | Proxy allowlist | Open |
 | 7 | Reviewer role | Open |
 | 8 | MVP-1 timeline | Open |
+| 9 | Escalation to a stronger model | Open — post-MVP |
