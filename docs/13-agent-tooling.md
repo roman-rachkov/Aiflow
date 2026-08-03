@@ -46,6 +46,7 @@ Skills are packaged instruction sets for a specific class of task.
 | Diff review                 | Structural check of changes                                                                                         | `both`    | untested | Overlaps the `reviewer` subagent — decide what is a skill and what is a prompt                                                                                            |
 | docker-compose generation   | Deploy artifact assembly                                                                                            | `product` | untested | Needed by the Deployer ([04-roadmap.md](04-roadmap.md), Task 4.3)                                                                                                         |
 | `ai-studio-internals`       | Lazy-loaded context for rarely-needed AI Studio internals (ports, isolation, hardening, generated-code conventions) | `dev`     | verified | Not a product candidate — a pure context-cost measure. Receives sections moved out of `CLAUDE.md`, which is billed on every turn of every session                         |
+| `notes`                     | Capture an idea for later without acting on it — verbatim, expanded, critiqued                                      | `both`    | in use   | Ours, no external dependency. Deliberately cannot develop: no Bash in `/note`'s tool cap. Product counterpart is the Analyst parking a request that is out of SPEC scope  |
 
 **Observation.** AI Studio's roles are structurally close to skills: the Analyst is an interviewing skill, the Coder a change-application skill. A skill that works well here likely transfers into the product with little rework. That is the main reason to keep this registry from day one.
 
@@ -143,6 +144,7 @@ Commands live in [`.claude/commands/`](../.claude/commands/). They are the cheap
 | `/verify`                 | Runs `yarn verify` and reports the first failing gate                                                                                       | `dev` | untested |
 | `/task-start <id> <slug>` | Branch per [15-engineering-conventions.md](15-engineering-conventions.md) § 1.1, plus the roadmap checklist and any blocking open questions | `dev` | untested |
 | `/state-sync`             | Checks whether the state files in `CLAUDE.md` have fallen behind; delegates the scan to `doc-checker`                                       | `dev` | untested |
+| `/note <idea>`            | Captures an idea into `notes/` without interrupting the current task; expansion runs in a background subagent                               | `dev` | in use   |
 
 `/state-sync` is the pattern worth copying: the expensive model reads a summary, the free model does the file-by-file work.
 
