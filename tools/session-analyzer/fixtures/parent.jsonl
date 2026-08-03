@@ -1,0 +1,8 @@
+{"uuid":"u1","sessionId":"s1","timestamp":"2026-08-04T10:00:00.000Z","gitBranch":"main","slug":"fixture","message":{"content":[{"type":"tool_use","id":"t1","name":"Read","input":{"file_path":"/a.ts"}}]}}
+{"uuid":"u2","sessionId":"s1","timestamp":"2026-08-04T10:00:01.000Z","message":{"content":[{"type":"tool_result","tool_use_id":"t1","content":"ok"}]}}
+{"uuid":"u3","sessionId":"s1","timestamp":"2026-08-04T10:00:02.000Z","message":{"content":[{"type":"tool_use","id":"t2","name":"Bash","input":{"command":"grep -r foo ."}}]}}
+{"uuid":"u4","sessionId":"s1","timestamp":"2026-08-04T10:00:03.000Z","toolDenialKind":"automode-unavailable","message":{"content":[{"type":"tool_result","tool_use_id":"t2","content":"<tool_use_error>smart[1m] is temporarily unavailable, so auto mode cannot determine</tool_use_error>","is_error":true}]}}
+{"uuid":"u5","sessionId":"s1","timestamp":"2026-08-04T10:00:04.000Z","message":{"content":[{"type":"tool_use","id":"t3","name":"PowerShell","input":{}}]}}
+{"uuid":"u6","sessionId":"s1","timestamp":"2026-08-04T10:00:05.000Z","message":{"content":[{"type":"tool_result","tool_use_id":"t3","content":"<tool_use_error>Error: No such tool available: PowerShell</tool_use_error>","is_error":true}]}}
+{"uuid":"u7","sessionId":"s1","timestamp":"2026-08-04T10:00:06.000Z","message":{"content":[{"type":"text","text":"not a tool call"}]}}
+{"uuid":"u8","sessionId":"s1","timestamp":"2026-08-04T10:00:07.000Z","message":{"content":[{"type":"tool_

@@ -61,7 +61,7 @@ So treat state files as part of the deliverable, updated in the same commit as t
 | An MCP server, skill, or subagent was tried        | `docs/13-agent-tooling.md` + the prompt test log                                 |
 | An open question was settled                       | `docs/12-open-questions.md` status table                                         |
 
-**`docs/16-code-map.md` does not exist yet and should be created by the scaffolding task.** It is the one file that makes "read, don't search" possible: for each package and feature slice, one line on what it owns, its public entry point, and what it depends on. Plus where the cross-cutting things live — auth, the Prisma client factory, the queue definitions, the encryption helpers. Kept to roughly a screen; a code map that needs scrolling is a code map nobody reads.
+**`docs/16-code-map.md` exists and is maintained alongside the scaffolding — a stale map is worse than none.** It is the one file that makes "read, don't search" possible: for each package and feature slice, one line on what it owns, its public entry point, and what it depends on. Plus where the cross-cutting things live — auth, the Prisma client factory, the queue definitions, the encryption helpers. Kept to roughly a screen; a code map that needs scrolling is a code map nobody reads.
 
 When you finish a task, the test is simple: could the next session act on this area without grepping for it? If not, the state files are behind.
 
@@ -79,7 +79,7 @@ When you finish a task, the test is simple: could the next session act on this a
 
 **`yarn verify`** reproduces the CI gate locally: typecheck, lint, format check, tests. Run it before marking anything done.
 
-Two known gaps to fix while scaffolding, both of which currently make the quality gate fictional: `runner.js` treats an ESLint failure as non-fatal (`docs/11-sandbox.md:204`), and Prettier is configured nowhere despite being named as acceptance tooling (`docs/02-architecture.md:69`).
+The quality gate is real: `--max-warnings 0` blocks lint failures, and Prettier is configured (`eslint-config-prettier` + `format`/`format:check` in `package.json`). Still open: `runner.js` has no commit call (`docs/11-sandbox.md`, Task 3.1).
 
 ## Commands
 
@@ -91,7 +91,7 @@ Two known gaps to fix while scaffolding, both of which currently make the qualit
 | `yarn typecheck` / `yarn lint` / `yarn test` | Individual gates, via Lerna                                                           |
 | `yarn format`                                | Fix formatting; `format:check` only reports                                           |
 
-Or as slash commands: **`/verify`** runs the gate and reports the first failure, **`/task-start <id> <slug>`** opens a correctly-named branch with the roadmap checklist, **`/state-sync`** checks whether the state files below have fallen behind.
+Or as slash commands: **`/verify`** runs the gate and reports the first failure, **`/task-start <id> <slug>`** opens a correctly-named branch with the roadmap checklist, **`/state-sync`** checks whether the state files below have fallen behind, **`/note <идея>`** captures an idea into `notes/` without interrupting the current task, **`/session-review [window]`** analyses the tool flow of recent sessions and writes a retrospective to `reports/`, **`/tool-scout <need>`** finds tooling for a need and returns a licence verdict per `docs/15` § 8.
 
 Still _prescribed by the docs_ rather than runnable, cited so you can verify them:
 
@@ -141,7 +141,7 @@ Host ports: 3000, 3001, 3002, 5432, 6379, 9000/9001. The Gitea 3000/3002 split a
 
 ## Unresolved architectural decisions
 
-`docs/12-open-questions.md` tracks eight decisions, **all currently marked "Open"**. Check it before implementing sandboxing, Prisma migrations, queue concurrency, or secret passing — and update its status table when one is settled.
+`docs/12-open-questions.md` tracks nine questions; #3 (`code:execute` concurrency) is Resolved 2026-08-02 — read the status table, not the intro. Check it before implementing sandboxing, Prisma migrations, queue concurrency, or secret passing — and update its status table when one is settled.
 
 `docs/14-decisions-needed.md` is separate and more urgent: decisions that must be made _before_ scaffolding starts, because a late answer means rewriting code. Git identity, package manager, repo layout, and the SPEC.md storage question live there.
 

@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["node"],
+    // Run directly through tsx, never emitted, so explicit .ts specifiers are
+    // both correct at runtime and required by NodeNext-style resolution.
+    "allowImportingTsExtensions": true
+  },
+  "include": ["src"],
+  "references": []
+}

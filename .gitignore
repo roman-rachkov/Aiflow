@@ -154,3 +154,11 @@ $RECYCLE.BIN/
 *.swo
 *~
 .tmp/
+
+# --- Local dev artifacts -----------------------------------------------------
+# session-report HTML output — a dev artifact, never a doc (see docs/13)
+reports/*.html
+# Raw analyzer JSON: an intermediate /session-review consumes, not a document.
+reports/.session-analysis.json
+# reports/*.md IS tracked on purpose — a retrospective the next session cannot
+# read is a retrospective that was never worth writing (docs/17-session-review.md).

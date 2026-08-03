@@ -1,0 +1,4 @@
+{"uuid":"u1","sessionId":"s1","timestamp":"2026-08-04T10:00:00.000Z","gitBranch":"main","slug":"fixture","message":{"content":[{"type":"tool_use","id":"t1","name":"Read","input":{"file_path":"/a.ts"}}]}}
+{"uuid":"u2","sessionId":"s1","timestamp":"2026-08-04T10:00:01.000Z","message":{"content":[{"type":"tool_result","tool_use_id":"t1","content":"ok"}]}}
+{"uuid":"u9","sessionId":"s2","timestamp":"2026-08-04T11:00:00.000Z","gitBranch":"main","slug":"fork","message":{"content":[{"type":"tool_use","id":"t9","name":"Glob","input":{"pattern":"**/*.ts"}}]}}
+{"uuid":"u10","sessionId":"s2","timestamp":"2026-08-04T11:00:01.000Z","message":{"content":[{"type":"tool_result","tool_use_id":"t9","content":"a.ts"}]}}

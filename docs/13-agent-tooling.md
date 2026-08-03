@@ -16,6 +16,8 @@ So every entry carries a **Scope** column:
 
 And a **Status** column: `untested` / `verified` / `rejected` / `in use`. Everything starts `untested`. Listing a candidate before testing is fine and encouraged; inflating its status is not.
 
+And a **License** column, governed by § 8 of [15-engineering-conventions.md](15-engineering-conventions.md). The rule is asymmetric on purpose: `scope: dev` only has to _record_ the licence, while `scope: product` or `both` must be on the allowlist (MIT, Apache-2.0, BSD, ISC, 0BSD, Unlicense). `unverified` is a rejection, not a pending state — and promoting an entry from `dev` to `product` re-triggers the check.
+
 **Maintenance rule:** tried a capability — update the table. Ran a prompt — append a row to the test log at the bottom.
 
 ---
@@ -24,14 +26,27 @@ And a **Status** column: `untested` / `verified` / `rejected` / `in use`. Everyt
 
 Candidates derived from the architecture (see [02-architecture.md](02-architecture.md), [10-infrastructure.md](10-infrastructure.md)): every infrastructure service is a potential integration point.
 
-| Server            | Purpose                                                 | Scope  | Status   | Notes                                                                                                                                           |
-| ----------------- | ------------------------------------------------------- | ------ | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `filesystem`      | Read/write project files                                | `both` | untested | In product: sandbox working directory only, not the host FS                                                                                     |
-| `postgres`        | Schema inspection, verifying `project_{uuid}` isolation | `both` | untested | In product the sandbox has **no** network path to the DB (see [12-open-questions.md](12-open-questions.md) #2) — usable only on the worker side |
-| `git` / `gitea`   | History, diffs, commits                                 | `both` | untested | Reviewer needs the diff; the spec currently fetches it via Gitea API ([08-prompt-reviewer.md](08-prompt-reviewer.md))                           |
-| `docker`          | Sandbox lifecycle                                       | `dev`  | untested | In product the worker drives dockerode directly; an MCP layer is redundant                                                                      |
-| `fetch` / `web`   | Reading library documentation                           | `both` | untested | In product: Analyst only. The Coder has no network ([07-prompt-coder.md](07-prompt-coder.md))                                                   |
-| `jetbrains` (IDE) | Inspections, refactoring, build                         | `dev`  | in use   | Connected in the current session. Does not ship — there is no IDE in production                                                                 |
+| Server            | Purpose                                                 | Scope  | License    | Status   | Notes                                                                                                                                             |
+| ----------------- | ------------------------------------------------------- | ------ | ---------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `context7`        | Up-to-date library documentation                        | `both` | MIT        | in use   | Configured in `.mcp.json`. `@upstash/context7-mcp`, verified via `npm view`. Product counterpart: the Analyst reading docs the Coder cannot fetch |
+| `omniroute`       | Model routing                                           | `dev`  | MIT        | untested | In `.mcp.json` but not in `enabledMcpjsonServers`. Overlaps our own `model-router` — decide which owns routing before promoting it to `product`   |
+| `filesystem`      | Read/write project files                                | `both` | untested   | untested | In product: sandbox working directory only, not the host FS                                                                                       |
+| `postgres`        | Schema inspection, verifying `project_{uuid}` isolation | `both` | untested   | untested | In product the sandbox has **no** network path to the DB (see [12-open-questions.md](12-open-questions.md) #2) — usable only on the worker side   |
+| `git` / `gitea`   | History, diffs, commits                                 | `both` | untested   | untested | Reviewer needs the diff; the spec currently fetches it via Gitea API ([08-prompt-reviewer.md](08-prompt-reviewer.md))                             |
+| `docker`          | Sandbox lifecycle                                       | `dev`  | untested   | untested | In product the worker drives dockerode directly; an MCP layer is redundant                                                                        |
+| `fetch` / `web`   | Reading library documentation                           | `both` | untested   | untested | In product: Analyst only. The Coder has no network ([07-prompt-coder.md](07-prompt-coder.md))                                                     |
+| `jetbrains` (IDE) | Inspections, refactoring, build                         | `dev`  | Apache-2.0 | in use   | Connected in the current session. Does not ship — there is no IDE in production                                                                   |
+
+### 1.1 Measured capability gaps
+
+Not candidates someone proposed — capabilities the agent **tried to use and found
+absent**, counted by `tools/session-analyzer` (`capabilityGaps`). A repeated call
+to a nonexistent tool is the toolset stating a requirement, so it earns a row here
+rather than a workaround ([17-session-review.md](17-session-review.md) § 3.4).
+
+| Candidate    | Attempts | Scope | Verdict                                                                                                                                                                        |
+| ------------ | -------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `PowerShell` | 16       | `dev` | **Open.** On this Windows host `Bash` (Git Bash) is the only shell. Either accept that and stop reaching for PowerShell, or add it — but 16 attempts means the ambiguity costs |
 
 ---
 
@@ -39,14 +54,16 @@ Candidates derived from the architecture (see [02-architecture.md](02-architectu
 
 Skills are packaged instruction sets for a specific class of task.
 
-| Skill                       | Purpose                                                                                                             | Scope     | Status   | Notes                                                                                                                                                                     |
-| --------------------------- | ------------------------------------------------------------------------------------------------------------------- | --------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Next.js project scaffolding | Starter application template                                                                                        | `both`    | untested | Directly tied to [12-open-questions.md](12-open-questions.md) #1: Aider is poor at creating multi-file structures from scratch. A templating skill is one possible answer |
-| Prisma schema work          | Models, migrations, validation                                                                                      | `both`    | untested | Blocked on open question #2 (migrations without DB access)                                                                                                                |
-| Diff review                 | Structural check of changes                                                                                         | `both`    | untested | Overlaps the `reviewer` subagent — decide what is a skill and what is a prompt                                                                                            |
-| docker-compose generation   | Deploy artifact assembly                                                                                            | `product` | untested | Needed by the Deployer ([04-roadmap.md](04-roadmap.md), Task 4.3)                                                                                                         |
-| `ai-studio-internals`       | Lazy-loaded context for rarely-needed AI Studio internals (ports, isolation, hardening, generated-code conventions) | `dev`     | verified | Not a product candidate — a pure context-cost measure. Receives sections moved out of `CLAUDE.md`, which is billed on every turn of every session                         |
-| `notes`                     | Capture an idea for later without acting on it — verbatim, expanded, critiqued                                      | `both`    | in use   | Ours, no external dependency. Deliberately cannot develop: no Bash in `/note`'s tool cap. Product counterpart is the Analyst parking a request that is out of SPEC scope  |
+| Skill                       | Purpose                                                                                                             | Scope     | License    | Status                 | Notes                                                                                                                                                                     |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------- | --------- | ---------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Next.js project scaffolding | Starter application template                                                                                        | `both`    | untested   | untested               | Directly tied to [12-open-questions.md](12-open-questions.md) #1: Aider is poor at creating multi-file structures from scratch. A templating skill is one possible answer |
+| Prisma schema work          | Models, migrations, validation                                                                                      | `both`    | untested   | untested               | Blocked on open question #2 (migrations without DB access)                                                                                                                |
+| Diff review                 | Structural check of changes                                                                                         | `both`    | untested   | untested               | Overlaps the `reviewer` subagent — decide what is a skill and what is a prompt                                                                                            |
+| docker-compose generation   | Deploy artifact assembly                                                                                            | `product` | untested   | untested               | Needed by the Deployer ([04-roadmap.md](04-roadmap.md), Task 4.3)                                                                                                         |
+| `ai-studio-internals`       | Lazy-loaded context for rarely-needed AI Studio internals (ports, isolation, hardening, generated-code conventions) | `dev`     | ours       | verified               | Not a product candidate — a pure context-cost measure. Receives sections moved out of `CLAUDE.md`, which is billed on every turn of every session                         |
+| `notes`                     | Capture an idea for later without acting on it — verbatim, expanded, critiqued                                      | `both`    | ours       | in use                 | Ours, no external dependency. Deliberately cannot develop: no Bash in `/note`'s tool cap. Product counterpart is the Analyst parking a request that is out of SPEC scope  |
+| `session-report`            | HTML report of token/cache/subagent cost                                                                            | `dev`     | Apache-2.0 | in use                 | Anthropic's, run **unmodified** — cost only, no tool-flow data. Deliberately not forked; we wrote `tools/session-analyzer` alongside it (§ 8.3 of conventions)            |
+| `find-skills`               | Discovering installable skills                                                                                      | `dev`     | unverified | rejected for `product` | Ships no LICENSE file. Also recommends by install count, not licence — unusable as a `product` gate. Fine for dev browsing; `/tool-scout` is the licence-aware path       |
 
 **Observation.** AI Studio's roles are structurally close to skills: the Analyst is an interviewing skill, the Coder a change-application skill. A skill that works well here likely transfers into the product with little rework. That is the main reason to keep this registry from day one.
 
@@ -139,12 +156,14 @@ The _pattern_ is worth having inside AI Studio, where we own the router. Tracked
 
 Commands live in [`.claude/commands/`](../.claude/commands/). They are the cheapest mechanism available: nothing enters context until invoked, and each can pin its own model. Mechanical workflows belong here rather than in `CLAUDE.md`, which is billed on every turn whether or not it is relevant.
 
-| Command                   | Purpose                                                                                                                                     | Scope | Status   |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ----- | -------- |
-| `/verify`                 | Runs `yarn verify` and reports the first failing gate                                                                                       | `dev` | untested |
-| `/task-start <id> <slug>` | Branch per [15-engineering-conventions.md](15-engineering-conventions.md) § 1.1, plus the roadmap checklist and any blocking open questions | `dev` | untested |
-| `/state-sync`             | Checks whether the state files in `CLAUDE.md` have fallen behind; delegates the scan to `doc-checker`                                       | `dev` | untested |
-| `/note <idea>`            | Captures an idea into `notes/` without interrupting the current task; expansion runs in a background subagent                               | `dev` | in use   |
+| Command                    | Purpose                                                                                                                                     | Scope | License | Status   |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ----- | ------- | -------- |
+| `/verify`                  | Runs `yarn verify` and reports the first failing gate                                                                                       | `dev` | ours    | untested |
+| `/task-start <id> <slug>`  | Branch per [15-engineering-conventions.md](15-engineering-conventions.md) § 1.1, plus the roadmap checklist and any blocking open questions | `dev` | ours    | untested |
+| `/state-sync`              | Checks whether the state files in `CLAUDE.md` have fallen behind; delegates the scan to `doc-checker`                                       | `dev` | ours    | untested |
+| `/note <idea>`             | Captures an idea into `notes/` without interrupting the current task; expansion runs in a background subagent                               | `dev` | ours    | in use   |
+| `/session-review [window]` | Runs `tools/session-analyzer` and writes a tool-flow retrospective to `reports/`                                                            | `dev` | ours    | in use   |
+| `/tool-scout <need>`       | Finds MCP servers / skills / agents for a need and returns an SPDX licence plus an allow/deny verdict per § 8                               | `dev` | ours    | untested |
 
 `/state-sync` is the pattern worth copying: the expensive model reads a summary, the free model does the file-by-file work.
 
@@ -224,15 +243,30 @@ Options:
 
 **Affected artifacts:** [`.claude/agents/`](../.claude/agents/) (the three dev-only agents), § 5 of this document
 
+### T7. Whether the tool-flow findings should feed the product
+
+`tools/session-analyzer` now measures what the agent calls, where it fails, and what it reaches for and cannot find. AI Studio runs the same loop for user projects, so the same instrumentation would answer "is the Coder struggling" with data instead of anecdote.
+
+Open because the shape is not obvious: `TaskLog` currently checkpoints task-level progress, and tool-level telemetry is a schema change plus a decision about retention.
+
+Options:
+
+- Extend `TaskLog` with per-tool outcomes and reuse the taxonomy (including the `ourProblem` split — a task that failed because the model router was down must not be re-planned as if the code were wrong).
+- Keep it dev-only; the product's failure modes are different enough that shared code would be a false economy.
+- Emit the analyzer's JSON shape from the sandbox runner and analyze it out of band.
+
+**Affected artifacts:** [03-data-model.md](03-data-model.md) (`TaskLog`), [11-sandbox.md](11-sandbox.md), `tools/session-analyzer`
+
 ---
 
 ## Question status
 
-| #   | Question                            | Status                                          |
-| --- | ----------------------------------- | ----------------------------------------------- |
-| T1  | Coder: Claude Code or Aider         | Open                                            |
-| T2  | Prompt mirror sync                  | Open                                            |
-| T3  | Deployer prompt                     | Deferred (post-MVP local)                       |
-| T4  | User-facing tooling                 | Open                                            |
-| T5  | Enforcing the language policy       | Open — `lang-lint` built, not wired into a gate |
-| T6  | Verify free-slot routing end to end | Open — see § 5, availability caveat             |
+| #   | Question                            | Status                                                       |
+| --- | ----------------------------------- | ------------------------------------------------------------ |
+| T1  | Coder: Claude Code or Aider         | Open                                                         |
+| T2  | Prompt mirror sync                  | Open                                                         |
+| T3  | Deployer prompt                     | Deferred (post-MVP local)                                    |
+| T4  | User-facing tooling                 | Open — licence policy now settled (conventions § 8), set not |
+| T5  | Enforcing the language policy       | Open — `lang-lint` built, not wired into a gate              |
+| T6  | Verify free-slot routing end to end | Open — see § 5, availability caveat                          |
+| T7  | Tool-flow telemetry in the product  | Open — analyzer built dev-side, product shape undecided      |

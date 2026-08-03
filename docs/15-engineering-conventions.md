@@ -328,6 +328,8 @@ These rules were chosen for our own development, but the platform generates code
 
 ---
 
+---
+
 ## 7. Documents this makes stale
 
 Not yet updated — these are edits for the scaffolding task, where paths change alongside real files:
@@ -366,3 +368,75 @@ Worth recording because the gate proved itself in the same session: a
 deliberately over-long function was caught by `max-lines-per-function` (63 lines
 against a limit of 50), so `--max-warnings 0` does block. Prior to this the
 enforcement claim was untested.
+
+---
+
+## 8. Tooling licences
+
+The repository is private today and the licence question for the product itself is
+deferred (A3 in [14-decisions-needed.md](14-decisions-needed.md)). What is _not_
+deferred is what we take in: AI Studio is a commercial product, and a dependency
+admitted now under a copyleft licence becomes expensive to remove later, once code
+is written against it.
+
+### 8.1 The distinction that actually matters
+
+Copyleft obligations are triggered by **distribution**, not by use. An
+Apache-2.0 or even AGPL tool that runs on a developer's machine and never ships
+imposes essentially nothing. The same tool placed in AI Studio's
+`docker-compose` — where a user interacts with it over a network — can oblige us
+to publish source.
+
+So the rule follows the `Scope` column already in
+[13-agent-tooling.md](13-agent-tooling.md), and the two levels are deliberately
+not equally strict:
+
+| Scope             | Requirement                                                                                 |
+| ----------------- | ------------------------------------------------------------------------------------------- |
+| `dev`             | **Record the licence** in the registry. No allowlist. It does not ship, so it cannot oblige |
+| `product`, `both` | **Allowlist only.** Anything outside it is rejected before a line is written against it     |
+
+### 8.2 Allowlist for `product` and `both`
+
+Permitted: **MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, 0BSD, Unlicense.**
+
+Rejected, with the reason (the reason matters — it is what lets us re-evaluate a
+specific case rather than argue from the label):
+
+| Licence                                 | Why rejected                                                                  |
+| --------------------------------------- | ----------------------------------------------------------------------------- |
+| GPL-2.0, GPL-3.0, LGPL                  | Linking obliges us to publish source of the combined work                     |
+| **AGPL-3.0**                            | The network-use clause is triggered by exactly our deployment model           |
+| SSPL, BUSL, Elastic, "source available" | Not open source; commercial hosting is restricted or requires a licence       |
+| CC-BY-NC, CC-BY-SA                      | Non-commercial, or share-alike applied to prompts and templates               |
+| **No licence file**                     | No grant means no rights. Silence is a rejection, not a default of permissive |
+
+Two rules that close the ways this gets bypassed in practice:
+
+1. **Unverified is rejected.** A licence inferred from a README badge, an npm
+   registry field alone, or a sibling package is not verified. Read the LICENSE
+   file or the package's own `license` field, and record which one you checked.
+2. **Reclassification re-triggers the check.** Moving an entry from `dev` to
+   `product` or `both` requires the allowlist check at that moment. This is the
+   likely failure path: a tool adopted casually for development, later found
+   useful, and promoted without anyone re-reading its licence.
+
+### 8.3 Derivative works
+
+Copying a third-party file and editing it creates a derivative work, carrying the
+original's attribution obligations and its upstream drift. Preferred order:
+invoke the tool as-is, then write our own alongside it, and only then fork.
+
+Worked example: the tool-flow analyzer (`tools/session-analyzer`) was written from
+scratch rather than forked from Anthropic's Apache-2.0 `session-report`, even
+though that script parses the same transcripts. Forking would have meant carrying
+an Apache-2.0 NOTICE and manually tracking upstream changes, to gain cost metrics
+we can already get by running the original unmodified. The two are complementary:
+`session-report` answers "what did this cost", ours answers "how did the tooling
+behave".
+
+### 8.4 Where this is recorded
+
+`docs/13-agent-tooling.md` carries a `License` column in every table. `/tool-scout`
+will not report a candidate without one, and returns `deny — licence unverified`
+rather than a guess.
