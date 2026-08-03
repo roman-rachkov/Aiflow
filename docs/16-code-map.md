@@ -54,20 +54,22 @@ tools/                    Dev-only workspaces. Ship nowhere; still gated by
 
 ## Cross-cutting
 
-| Concern                                                             | Where                                      |
-| ------------------------------------------------------------------- | ------------------------------------------ |
-| Auth helpers (`requireUser`, `requireEngineer`, `canAccessProject`) | `apps/web/src/features/auth` (Task 1.2)    |
-| Prisma client factory                                               | `packages/db/src/index.ts` (planned)       |
-| Queue definitions                                                   | `packages/queue/src`                       |
-| Encryption helpers                                                  | `packages/crypto/src`                      |
-| Gitea client                                                        | `apps/web/src/shared/gitea`                |
-| MinIO client                                                        | `apps/web/src/shared/minio`                |
-| Env validation                                                      | `.env.example` + `apps/web/src/shared/env` |
+| Concern                                                             | Where                                                |
+| ------------------------------------------------------------------- | ---------------------------------------------------- |
+| Auth helpers (`requireUser`, `requireEngineer`, `canAccessProject`) | `apps/web/src/features/auth` (Task 1.2)              |
+| Prisma client factory                                               | `packages/db/src/index.ts` (planned)                 |
+| Queue definitions                                                   | `packages/queue/src`                                 |
+| Encryption helpers                                                  | `packages/crypto/src`                                |
+| Gitea client                                                        | `apps/web/src/shared/gitea` (planned)                |
+| MinIO client                                                        | `apps/web/src/shared/minio` (planned)                |
+| Env validation                                                      | `.env.example` + `apps/web/src/shared/env` (planned) |
 
 ## Rules that keep it readable
 
 - One `index.ts` per package is the only public surface; `import/no-internal-modules`
   enforces it. `apps/web` features export through their slice `index.ts` (§ 2.2).
+  `tools/*` are exempt: they are executables, not libraries, and expose a `bin`
+  entry rather than an importable surface.
 - Generated clients (`packages/db/generated/*`) and `next-env.d.ts` are build
   artifacts, gitignored, and exempt from the size rules.
 - `packages/crypto`, `packages/ai-roles` and `packages/ui` are declared but empty

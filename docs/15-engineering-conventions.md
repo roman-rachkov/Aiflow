@@ -437,6 +437,8 @@ behave".
 
 ### 8.4 Where this is recorded
 
-`docs/13-agent-tooling.md` carries a `License` column in every table. `/tool-scout`
-will not report a candidate without one, and returns `deny — licence unverified`
-rather than a guess.
+`docs/13-agent-tooling.md` carries a `License` column in the tables listing
+third-party tooling — § 1 (MCP servers), § 2 (skills), § 6 (slash commands). § 3
+(subagents) does not, deliberately: those are our own prompt files, with no
+upstream licence to record. `/tool-scout` will not report a candidate without a
+licence, and returns `deny — licence unverified` rather than a guess.

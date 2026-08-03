@@ -83,9 +83,13 @@ Cheapest option is a check in the acceptance loop rejecting Cyrillic in Planner/
 
 `docs/04-roadmap.md` Task 1.2 lists "NextAuth (Email magic link, GitHub OAuth)". Email magic links need an SMTP provider that is not in the compose file. Options: add Mailhog/Mailpit for dev, GitHub OAuth only for MVP-0, or credentials provider to start.
 
-### B4. Test framework
+### B4. Test framework — RESOLVED
 
-`docs/04-roadmap.md` § 5 defers CI but Task 4.1 requires "unit test generation by an agent" and the sandbox runs tests. Nothing specifies the framework. Vitest or Jest? The Coder prompt will need to name it, and generated project code must match.
+**Vitest.** It reuses the Vite/esbuild transform the Next.js app already depends on, so a TypeScript ESM monorepo needs no `ts-jest` or Babel layer to run a test — Jest would add a second transform pipeline to configure and keep in sync. The Jest-compatible `expect`/`describe`/`it` surface means the Coder prompt and generated project code carry no unusual API.
+
+Wired at the repository root (`vitest.config.ts`), not per workspace: one config, one `include` glob covering `apps/*`, `services/*`, `packages/*` and `tools/*`. `passWithNoTests: false` is the load-bearing setting — a workspace with zero tests fails the gate loudly instead of exiting 0 and looking green, which is exactly the defect this replaced (`docs/17-session-review.md` § 3.2).
+
+Coverage via `@vitest/coverage-v8`. Both packages are MIT.
 
 ---
 

@@ -24,7 +24,7 @@ The prompts in `docs/05`–`08` have been translated to match. What remains open
 
 ## Repository status
 
-**Scaffolding is in progress.** The monorepo is laid out (`apps/web`, `apps/worker`, `services/`, `packages/`) with `package.json`, `yarn.lock`, `tsconfig.base.json`, `eslint.config.mjs`. A few services are still stubs — see the code map at `docs/16-code-map.md` (create it if it does not exist yet; this file's instructions demand one).
+**Scaffolding is in progress.** The monorepo is laid out (`apps/web`, `apps/worker`, `services/`, `packages/`, `tools/`) with `package.json`, `yarn.lock`, `tsconfig.base.json`, `eslint.config.mjs`. A few services are still stubs — see the code map at `docs/16-code-map.md`.
 
 `docs/` is the source of truth. `docs/README.md` is the index — read it first.
 
@@ -41,7 +41,7 @@ Two personas drive every design decision: the **Customer** ("Aunt Zina", non-tec
 These override what the older docs show. `docs/10-infrastructure.md` and `docs/11-sandbox.md` predate them and are partly stale — reconciling those files is part of the scaffolding task.
 
 - **Yarn + Lerna**, not npm. The `npm ci` calls in the Dockerfiles are outdated.
-- **Monorepo via Yarn workspaces**: `apps/web` (Next.js), `apps/worker` (BullMQ), `services/model-router`, `services/registry-proxy`, `packages/db` (Prisma + shared types), plus `packages/queue`, `packages/ai-roles`, `packages/ui`. The flat `src/` + `prisma/` layout in the compose file is outdated.
+- **Monorepo via Yarn workspaces**: `apps/web` (Next.js), `apps/worker` (BullMQ), `services/model-router`, `services/registry-proxy`, `packages/db` (Prisma + shared types), plus `packages/queue`, `packages/ai-roles`, `packages/ui`, and `tools/*` for dev-only tooling that ships nowhere. The flat `src/` + `prisma/` layout in the compose file is outdated.
 - **Repo is private.** No LICENSE file; the license question is deferred until it opens.
 
 Full rationale and the list of affected paths: `docs/14-decisions-needed.md`.
@@ -56,7 +56,7 @@ So treat state files as part of the deliverable, updated in the same commit as t
 | -------------------------------------------------- | -------------------------------------------------------------------------------- |
 | A decision was made or reversed                    | `docs/14-decisions-needed.md` — move it to the resolved table with the rationale |
 | An architectural invariant, command, or convention | This file                                                                        |
-| Directory layout, a new package or feature slice   | `docs/16-code-map.md` (create at scaffolding; see below)                         |
+| Directory layout, a new package or feature slice   | `docs/16-code-map.md`                                                            |
 | A doc became stale because of a decision           | The stale-documents table in `docs/15-engineering-conventions.md` § 7            |
 | An MCP server, skill, or subagent was tried        | `docs/13-agent-tooling.md` + the prompt test log                                 |
 | An open question was settled                       | `docs/12-open-questions.md` status table                                         |
@@ -85,11 +85,11 @@ The quality gate is real: `--max-warnings 0` blocks lint failures, and Prettier 
 
 **Real now** (`package.json`), run with `yarn`:
 
-| Command                                      | Purpose                                                                               |
-| -------------------------------------------- | ------------------------------------------------------------------------------------- |
-| `yarn verify`                                | The CI gate: typecheck → lint → format:check → test. Run before marking anything done |
-| `yarn typecheck` / `yarn lint` / `yarn test` | Individual gates, via Lerna                                                           |
-| `yarn format`                                | Fix formatting; `format:check` only reports                                           |
+| Command                                      | Purpose                                                                                  |
+| -------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `yarn verify`                                | The CI gate: typecheck → lint → format:check → test. Run before marking anything done    |
+| `yarn typecheck` / `yarn lint` / `yarn test` | Individual gates. `typecheck` fans out via Lerna; `lint` and `test` run once at the root |
+| `yarn format`                                | Fix formatting; `format:check` only reports                                              |
 
 Or as slash commands: **`/verify`** runs the gate and reports the first failure, **`/task-start <id> <slug>`** opens a correctly-named branch with the roadmap checklist, **`/state-sync`** checks whether the state files below have fallen behind, **`/note <идея>`** captures an idea into `notes/` without interrupting the current task, **`/session-review [window]`** analyses the tool flow of recent sessions and writes a retrospective to `reports/`, **`/tool-scout <need>`** finds tooling for a need and returns a licence verdict per `docs/15` § 8.
 
@@ -147,14 +147,14 @@ Host ports: 3000, 3001, 3002, 5432, 6379, 9000/9001. The Gitea 3000/3002 split a
 
 Two have the most immediate impact:
 
-- **#3 — `code:execute` concurrency.** The spec requires sandboxes to run sequentially per project, but BullMQ pulls tasks in parallel by default. Unresolved, and it will corrupt Git state if implemented naively.
+- **#3 — `code:execute` concurrency.** **Resolved 2026-08-02** — branch-per-task removed the premise, so parallel BullMQ pulls no longer corrupt shared Git state. Kept here only because the naive implementation is still tempting.
 - **#8 — MVP-1 timeline.** The roadmap budgets 6 weeks for one engineer; the cited analysis says comparable scope usually takes 3–4 months.
 
 ## Agent tooling
 
 `docs/13-agent-tooling.md` is the registry of MCP servers, skills, and subagents — both those used to _build_ AI Studio and those that may ship _inside_ it. Every entry carries a dual-use verdict (dev-time / product-time / both) and a test status.
 
-Update it whenever you try a capability. The four subagents in `.claude/agents/` mirror the production prompts in `docs/05`–`08`, so using them here doubles as prompt testing — record results in the prompt test log at the bottom of that file.
+Update it whenever you try a capability. The four role agents in `.claude/agents/` mirror the production prompts in `docs/05`–`08`, so using them here doubles as prompt testing — record results in the prompt test log at the bottom of that file. The other three (`classifier`, `doc-checker`, `lang-lint`) are ours and mirror nothing.
 
 ### Model tiering
 
