@@ -33,7 +33,7 @@ export function SignInForm() {
           name="email"
           required
           autoComplete="email"
-          className="rounded-md border border-slate-300 px-3 py-2 outline-none focus:border-slate-900"
+          className="rounded-md border border-slate-300 px-3 py-2 outline-hidden focus:border-slate-900"
         />
       </label>
 
@@ -44,7 +44,7 @@ export function SignInForm() {
           name="password"
           required
           autoComplete="current-password"
-          className="rounded-md border border-slate-300 px-3 py-2 outline-none focus:border-slate-900"
+          className="rounded-md border border-slate-300 px-3 py-2 outline-hidden focus:border-slate-900"
         />
       </label>
 

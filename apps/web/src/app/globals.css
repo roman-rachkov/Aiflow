@@ -1,3 +1,26 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/*
+ * `source(none)` disables v4's automatic source detection, which on Windows
+ * walked out of the repo and into the user profile (EPERM on
+ * `C:\Users\…\Application Data`). Sources are listed explicitly below instead;
+ * paths are relative to this file and forward-slashed, so they hold on both
+ * platforms.
+ */
+@import 'tailwindcss' source(none);
+
+@source '../../src/**/*.{ts,tsx}';
+
+/*
+ * Design tokens. Ported from the v3 `tailwind.config.js` theme.extend, which
+ * v4 replaces with CSS-declared tokens.
+ *
+ * `--color-primary` is load-bearing: `app/loading.tsx` uses `border-primary`,
+ * and a missing token emits no rule and no error — the ring just renders
+ * transparent. See docs/09-ui-spec.md § 9 for the accent and font mandate.
+ *
+ * These move to `packages/ui/src/styles/theme.css` in Task 1.2d, once there
+ * is a second consumer to share them with.
+ */
+@theme {
+  --color-primary: #2563eb;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+}
