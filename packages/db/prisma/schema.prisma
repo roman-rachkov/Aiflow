@@ -129,6 +129,9 @@ model Account {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
+  // NextAuth looks up accounts by userId on every authenticated request —
+  // without this index those lookups scan.
+  @@index([userId])
 }
 
 model Session {
@@ -138,6 +141,9 @@ model Session {
   expires      DateTime
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // NextAuth looks up sessions by userId on every authenticated request.
+  @@index([userId])
 }
 
 model VerificationToken {
@@ -146,4 +152,8 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+  // The magic-link / reset flow lists valid tokens for an identifier first;
+  // the composite unique above can serve a leading-column scan, but a focused
+  // index avoids relying on that coincidence.
+  @@index([identifier])
 }
