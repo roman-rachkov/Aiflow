@@ -6,10 +6,14 @@
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "baseUrl": ".",
     // `paths` replaces the base config's map rather than merging with it, so
-    // every @aiflow/* alias this app uses has to be repeated here.
+    // every @aiflow/* alias must be repeated here. Kept in sync with
+    // tsconfig.base.json so any @aiflow/* package resolves in this app.
     "paths": {
       "@/*": ["./src/*"],
       "@aiflow/db": ["../../packages/db/src"],
+      "@aiflow/queue": ["../../packages/queue/src"],
+      "@aiflow/crypto": ["../../packages/crypto/src"],
+      "@aiflow/ai-roles": ["../../packages/ai-roles/src"],
       "@aiflow/ui": ["../../packages/ui/src"]
     }
   },
