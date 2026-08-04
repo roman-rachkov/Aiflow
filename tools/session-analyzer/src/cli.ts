@@ -10,8 +10,9 @@ import { buildReport } from './report.ts';
  * Usage:
  *   npx tsx src/cli.ts [--since 7d|24h|30d|all] [--project D--work-AIFlow] [--out path]
  *
- * Defaults to this project's transcripts, all time. Prints JSON to stdout, or to
- * --out. The slash command that consumes this is /session-review.
+ * Defaults to this project's transcripts, last 7 days. Prints JSON to stdout, or
+ * to --out. The slash command that consumes this is /session-review, which also
+ * defaults to 7d.
  */
 
 interface Args {
@@ -21,7 +22,7 @@ interface Args {
 }
 
 function parseArgs(argv: string[]): Args {
-  const args: Args = { since: 'all', project: 'D--work-AIFlow', out: null };
+  const args: Args = { since: '7d', project: 'D--work-AIFlow', out: null };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === '--since') args.since = argv[i + 1] ?? args.since;

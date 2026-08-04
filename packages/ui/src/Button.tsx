@@ -15,7 +15,7 @@ const button = cva(
         primary: 'bg-primary hover:bg-primary-hover text-white',
         secondary: 'border-border bg-surface text-fg hover:bg-surface-muted border',
         ghost: 'text-fg-muted hover:bg-surface-muted hover:text-fg',
-        danger: 'bg-danger text-white hover:bg-red-700',
+        danger: 'bg-danger text-white hover:bg-danger-hover',
       },
       size: {
         sm: 'h-8 gap-1.5 px-3 text-sm',

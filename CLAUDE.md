@@ -40,8 +40,9 @@ Two personas drive every design decision: the **Customer** ("Aunt Zina", non-tec
 
 These override what the older docs show. `docs/10-infrastructure.md` and `docs/11-sandbox.md` predate them and are partly stale — reconciling those files is part of the scaffolding task.
 
-- **Yarn + Lerna**, not npm. The `npm ci` calls in the Dockerfiles are outdated.
-- **Monorepo via Yarn workspaces**: `apps/web` (Next.js), `apps/worker` (BullMQ), `services/model-router`, `services/registry-proxy`, `packages/db` (Prisma + shared types), plus `packages/queue`, `packages/ai-roles`, `packages/ui`, and `tools/*` for dev-only tooling that ships nowhere. The flat `src/` + `prisma/` layout in the compose file is outdated.
+- **Yarn + Lerna**, not npm.
+- **Monorepo via Yarn workspaces**: `apps/web` (Next.js), `apps/worker` (BullMQ), `services/model-router`, `services/registry-proxy`, `packages/db` (Prisma + shared types), plus `packages/queue`, `packages/ai-roles`, `packages/ui`, and `tools/*` for dev-only tooling that ships nowhere.
+- **Docker Compose uses prebuilt images only.** `docker-compose.yml` has no `build:` keys — Postgres/Redis/MinIO/Gitea come from published images, and app/worker/sandbox images are deferred to the tasks that build them. The old "flat `src/` + `prisma/` layout in the compose file" and "`npm ci` calls in the Dockerfiles" notes are moot: there are no Dockerfiles and no app build context yet.
 - **Repo is private.** No LICENSE file; the license question is deferred until it opens.
 - **Tailwind v4**, not v3. Tokens are declared in CSS (`@theme`) and there is no `tailwind.config.js`; the PostCSS plugin is `@tailwindcss/postcss`. Two traps: `outline-none` means `outline-style: none` in v4 (use `outline-hidden`), and automatic source detection is disabled via `source(none)` because on Windows it walks out of the repo — so **a new source directory needs an explicit `@source`** in `apps/web/src/app/globals.css` or its classes are silently missing from the CSS.
 

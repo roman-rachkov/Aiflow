@@ -26,6 +26,7 @@
   --color-success: #16a34a;
   --color-warning: #d97706;
   --color-danger: #dc2626;
+  --color-danger-hover: #b91c1c;
 
   /* Semantic neutrals, so components stop reaching for raw slate-*. */
   --color-fg: #0f172a;
