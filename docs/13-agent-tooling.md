@@ -44,9 +44,55 @@ absent**, counted by `tools/session-analyzer` (`capabilityGaps`). A repeated cal
 to a nonexistent tool is the toolset stating a requirement, so it earns a row here
 rather than a workaround ([17-session-review.md](17-session-review.md) § 3.6).
 
-| Candidate    | Attempts | Scope | Verdict                                                                                                                                                                        |
-| ------------ | -------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `PowerShell` | 16       | `dev` | **Open.** On this Windows host `Bash` (Git Bash) is the only shell. Either accept that and stop reaching for PowerShell, or add it — but 16 attempts means the ambiguity costs |
+| Candidate    | Attempts | Scope | Verdict                                                                                                                                                                                                                                   |
+| ------------ | -------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PowerShell` | 16       | `dev` | **Resolved 2026-08-04** — route documented below. Git Bash is the only shell; PowerShell is reached _through_ it. Three runs reported the same count of 16 because earlier entries recorded the absence without recording the replacement |
+| `WebFetch`   | 15       | `dev` | **Unavailable.** 15 calls, 0 successes — domain verification fails, some calls refused for trust mode. Use `context7` for library docs, otherwise ask the user to paste content                                                           |
+| `WebSearch`  | 16       | `dev` | **Unavailable.** 16 calls, 0 successes. Same mitigation                                                                                                                                                                                   |
+
+**The PowerShell route.** Windows process and port operations go through
+`powershell.exe -Command "…"` inside `Bash`. To stop a server holding a port:
+
+```sh
+powershell.exe -Command "Get-NetTCPConnection -LocalPort 3000 -State Listen | Select-Object -ExpandProperty OwningProcess | ForEach-Object { Stop-Process -Id \$_ -Force }"
+```
+
+Two approaches that fail **silently** and were both tried first in task 1.2a:
+`pkill -f "next dev"` exits 0 without killing anything, and filtering
+`Get-Process` on `CommandLine` matches nothing.
+
+### 1.2 Enforced rules (hookify)
+
+Four rules in `.claude/hookify.*.local.md`, committed rather than gitignored
+because they encode findings measured against this repo. They exist because
+writing a rule into [17-session-review.md](17-session-review.md) demonstrably did
+**not** change behaviour — the `cd`-prefix count rose from 290 to 332 in the run
+after the rule was documented.
+
+| Rule                           | Event  | Action  | Guards against                                                      |
+| ------------------------------ | ------ | ------- | ------------------------------------------------------------------- |
+| `block-bash-cd-prefix`         | `bash` | `block` | Relative `cd` in a Bash command — 34% of Bash calls, 18 path errors |
+| `block-false-success-after-rm` | `bash` | `block` | `rm -f … && echo ok` — `rm -f` exits 0 on a missing path            |
+| `warn-destructive-prisma`      | `bash` | `warn`  | `migrate dev` / `migrate reset` / `db push` offering a reset        |
+| `warn-webfetch-unavailable`    | `all`  | `warn`  | `WebFetch` / `WebSearch`, 0 successes in 31 calls                   |
+
+Verified 2026-08-04 by driving `hooks/pretooluse.py` directly with 12
+representative payloads: both blocking rules returned `permissionDecision: deny`,
+both warnings passed through, and eight legitimate commands (`yarn verify`,
+`migrate deploy`, `rm -v` without a chain, `yarn workspace …`, `git log`) were
+untouched.
+
+Two implementation details worth knowing before editing a rule, both learned by
+reading `core/`:
+
+- The loader globs a **relative** `.claude/hookify.*.local.md`, so rules only
+  load when the working directory is the repo root.
+- `rule_engine.py` emits a `permissionDecision` only when the payload carries
+  `hook_event_name`. A blocking rule tested without that field looks like a
+  warning — which is exactly how the first self-test run misreported.
+
+The hook fails open on any error, so a malformed rule is silently inert rather
+than loud. Test after editing.
 
 ---
 

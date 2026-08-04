@@ -135,6 +135,11 @@ storage/
 .claude/statsig/
 .mcp.local.json
 
+# Hookify rules are an exception to the *.local.md convention: they encode
+# measured findings about this repo (docs/17-session-review.md), so they belong
+# to the project rather than to one machine.
+!.claude/hookify.*.local.md
+
 # --- OS ----------------------------------------------------------------------
 .DS_Store
 .DS_Store?

@@ -118,6 +118,10 @@ it. The same session also hit `path-not-found` on a `cd` whose target had moved.
 The 290 `cd` prefixes in this window are not just inefficient — they create a
 class of failure that cannot occur with absolute paths.
 
+**Updated 2026-08-04:** the count rose to **332** (34% of all `Bash` calls) in
+the following run, after this rule was written. Documenting it changed nothing.
+See § 3.9 for the silent-failure mode it produces.
+
 **Rule:** every path in a `Bash` command is absolute. No `cd ... && cmd`. If a
 script genuinely needs a working directory, pass it as the command's `cwd`, not
 a shell prefix. This upgrades the § 3.3 guidance from preference to invariant.
@@ -143,6 +147,50 @@ empirical answer to "what is missing to make this IDE grown up".
 
 **Rule:** a repeated call to a nonexistent tool opens a row in
 [13-agent-tooling.md](13-agent-tooling.md), not a workaround.
+
+**Amended 2026-08-04, after three runs reported the identical count of 16.**
+Opening a row was not enough, because a row records that something is missing
+without recording what to do instead. The gap closes only when the replacement
+route is written down:
+
+> Windows process and port operations go through `powershell.exe -Command "..."`
+> inside `Bash`. To stop a server holding a port:
+> `powershell.exe -Command "Get-NetTCPConnection -LocalPort 3000 -State Listen |
+Select-Object -ExpandProperty OwningProcess | ForEach-Object { Stop-Process -Id $_ -Force }"`.
+> `pkill -f` exits 0 without killing anything, and filtering `Get-Process` on
+> `CommandLine` matches nothing — both were tried first and both failed silently.
+
+**Rule, amended:** a capability gap is closed by a documented working route, not
+by a row noting its absence.
+
+### 3.8 `WebFetch` and `WebSearch` do not work in this environment
+
+Measured 2026-08-04: **15 of 15** `WebFetch` calls and **16 of 16** `WebSearch`
+calls failed — 31 calls, zero successes. The failures split between domain
+verification (`Unable to verify if domain code.claude.com is safe to fetch`,
+also `github.com`) and outright trust-mode refusals. Several landed in the
+`command-failure` bucket, which is why earlier runs read them as shell problems.
+
+**Rule:** do not reach for `WebFetch` or `WebSearch` here. For library and
+framework documentation use `context7`, which has a 100% success rate over its
+calls in this window. For anything else, ask the user to paste the content — one
+message costs less than four failed fetches.
+
+### 3.9 A shell success code is not evidence the work happened
+
+Observed 2026-08-04, task 1.2a: `rm -f apps/web/src/spike-adapter.ts && echo "spike removed"`
+printed its confirmation while deleting nothing. The shell had reset to
+`packages/db` from an earlier `cd`, the relative path matched no file, and
+`rm -f` exits 0 on a missing path by design. The false confirmation stood until
+an unrelated `ls` contradicted it.
+
+This is § 3.4 with teeth: the `cd` tax does not only produce loud
+`ERR_MODULE_NOT_FOUND` failures, it produces silent ones that read as success.
+
+**Rule:** never chain a success message after a destructive command with `&&`.
+Verify separately — `rm -v`, or a following `ls` — and when a command reports
+success, check that the reported effect actually occurred. This generalises: a
+zero exit code means the command ran, not that it did what was intended.
 
 ### 3.7 Untracked work is lost work
 
