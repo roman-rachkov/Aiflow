@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync } from 'node:fs';
+import { readdirSync, readFileSync, type Dirent } from 'node:fs';
 import { join } from 'node:path';
 
 import type { ContentBlock, ToolResultBlock, ToolUseBlock, TranscriptEntry } from './types.ts';
@@ -27,8 +27,17 @@ export function isToolResult(block: ContentBlock): block is ToolResultBlock {
 
 /** Recursively collect .jsonl files, including the subagents/ subdirectories. */
 export function findTranscripts(root: string): string[] {
+  let entries: Dirent[];
+  try {
+    entries = readdirSync(root, { withFileTypes: true });
+  } catch (error) {
+    // A missing project dir (wrong --project, fresh machine) is "no transcripts",
+    // not a crash — same skip-don't-abort philosophy as parseLine below.
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
+    throw error;
+  }
   const out: string[] = [];
-  for (const entry of readdirSync(root, { withFileTypes: true })) {
+  for (const entry of entries) {
     const path = join(root, entry.name);
     if (entry.isDirectory()) out.push(...findTranscripts(path));
     else if (entry.name.endsWith('.jsonl')) out.push(path);

@@ -34,22 +34,31 @@ function parseArgs(argv: string[]): Args {
 
 const args = parseArgs(process.argv.slice(2));
 const transcriptRoot = join(homedir(), '.claude', 'projects', args.project);
-const cutoff = parseSince(args.since);
-const collected = collect(transcriptRoot, cutoff);
-const report = buildReport({
-  calls: collected.calls,
-  sessions: collected.sessions,
-  denials: collected.denials,
-  fileCount: collected.fileCount,
-  duplicateEntriesSkipped: collected.duplicateEntriesSkipped,
-  transcriptRoot,
-  since: args.since,
-});
 
-const json = JSON.stringify(report, null, 2);
-if (args.out === null) {
-  process.stdout.write(`${json}\n`);
-} else {
-  writeFileSync(args.out, json);
-  process.stdout.write(`Wrote report to ${args.out}\n`);
+try {
+  const cutoff = parseSince(args.since);
+  const collected = collect(transcriptRoot, cutoff);
+  const report = buildReport({
+    calls: collected.calls,
+    sessions: collected.sessions,
+    denials: collected.denials,
+    fileCount: collected.fileCount,
+    duplicateEntriesSkipped: collected.duplicateEntriesSkipped,
+    transcriptRoot,
+    since: args.since,
+  });
+
+  const json = JSON.stringify(report, null, 2);
+  if (args.out === null) {
+    process.stdout.write(`${json}\n`);
+  } else {
+    writeFileSync(args.out, json);
+    process.stdout.write(`Wrote report to ${args.out}\n`);
+  }
+} catch (error) {
+  // A single message + non-zero exit beats a raw stack trace for a dev tool.
+  // The parse layer (transcript.ts) already swallows per-line malformation;
+  // this catches the remaining throw paths (bad --since, unwritable --out).
+  process.stderr.write(`error: ${error instanceof Error ? error.message : String(error)}\n`);
+  process.exitCode = 1;
 }
