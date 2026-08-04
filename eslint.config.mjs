@@ -17,7 +17,11 @@ export default tseslint.config(
       '**/next-env.d.ts',
       // Config files are not part of any tsconfig, so projectService cannot
       // type them (the .mjs/.ts cases were missed originally and broke
-      // `yarn lint` — see docs/15-engineering-conventions.md § 7).
+      // `yarn lint` — see docs/15-engineering-conventions.md § 7). Routing
+      // them through allowDefaultProject instead is tracked as a separate
+      // task: its glob semantics differ from plain ignores and it surfaces
+      // the tseslint `config()` deprecation, neither of which belongs in a
+      // behaviour-preserving pass.
       '**/*.config.js',
       '**/*.config.mjs',
       '**/*.config.ts',
