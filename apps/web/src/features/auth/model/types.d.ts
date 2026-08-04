@@ -30,6 +30,9 @@ declare module 'next-auth' {
 // the interface it forwards.
 declare module '@auth/core/jwt' {
   interface JWT {
-    uiMode: 'BASIC' | 'PRO';
+    // Optional: the jwt() callback only sets it on initial sign-in (when the
+    // `user` claim is present). A token minted through a path that skips that
+    // branch carries no claim, and the session() callback defaults it to BASIC.
+    uiMode?: 'BASIC' | 'PRO';
   }
 }

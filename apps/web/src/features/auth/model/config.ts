@@ -84,7 +84,10 @@ export const authConfig = {
 
     session({ session, token }) {
       session.user.id = token.sub ?? '';
-      session.user.uiMode = token.uiMode;
+      // `uiMode` is optional on the JWT (see types.d.ts): a claim-less token
+      // reaches here as undefined. Default to the less-privileged mode — the
+      // same safe direction the jwt() callback uses above (lines 74-76).
+      session.user.uiMode = token.uiMode ?? 'BASIC';
       return session;
     },
   },
