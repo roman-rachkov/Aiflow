@@ -16,10 +16,11 @@ export default tseslint.config(
       '**/generated/**',
       '**/next-env.d.ts',
       // Config files are not part of any tsconfig, so projectService cannot
-      // type them. The .mjs case was missed originally and broke `yarn lint`
-      // on a clean tree — see docs/15-engineering-conventions.md § 7.
+      // type them (the .mjs/.ts cases were missed originally and broke
+      // `yarn lint` — see docs/15-engineering-conventions.md § 7).
       '**/*.config.js',
       '**/*.config.mjs',
+      '**/*.config.ts',
       'eslint.config.mjs',
       // Yarn PnP artifacts. PnP is off (see .yarnrc.yml), but a stale
       // .pnp.cjs in a working tree must not fail the gate.

@@ -1,4 +1,5 @@
 {
+  "worktree": { "bgIsolation": "none" },
   "permissions": {
     "allow": [
       "Bash(git status:*)",
@@ -11,7 +12,20 @@
       "Bash(npx tsc --noEmit)",
       "Bash(npx eslint:*)",
       "Bash(npx prisma validate:*)",
-      "Bash(npx prisma format:*)"
+      "Bash(npx prisma format:*)",
+      "Bash(sqlite3:*)",
+      "Bash(curl -s:*)",
+      "Bash(node -e:*)",
+      "Bash(wc:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(sort:*)",
+      "Bash(uniq:*)",
+      "Bash(awk:*)",
+      "Bash(cut:*)",
+      "Bash(ls:*)",
+      "Bash(cmp:*)",
+      "Fetch(*)"
     ]
   },
   "env": {

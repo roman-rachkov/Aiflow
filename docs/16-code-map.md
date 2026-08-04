@@ -27,12 +27,14 @@ packages/
 │                         ├── prisma/schema.prisma        → public schema
 │                         ├── prisma/schema_project_template.prisma → project schemas
 │                         ├── generated/public, generated/project (build artifacts)
-│                         ├── src/index.ts  — the Prisma client factory
-│                         │     (planned, not yet implemented — db is a stub):
-│                         │     getProjectClient(schemaName) — Map-cached,
-│                         │     evictProjectClient(schemaName) on archive/delete
+│                         ├── src/index.ts  — the Prisma client factory:
+│                         │     getPublicClient(), getProjectClient(schemaName)
+│                         │     Map-cached + name-validated, evictProjectClient()
+│                         │     on archive/delete, disconnectAll() on shutdown (C1)
 │                         └── scripts/generate-project-sql.ts — renders the
-│                             template to CREATE SCHEMA + DDL (C2, C1; planned)
+│                             template to CREATE SCHEMA + DDL + the pgvector
+│                             column and HNSW index. `yarn workspace @aiflow/db
+│                             project-sql project_x` (C2)
 ├── queue/                BullMQ definitions: the four queues + typed payloads,
 │                         concurrency 1, default job options
 ├── crypto/               AES-256-GCM helpers: encryptSecret/decryptSecret,
@@ -57,7 +59,7 @@ tools/                    Dev-only workspaces. Ship nowhere; still gated by
 | Concern                                                             | Where                                                |
 | ------------------------------------------------------------------- | ---------------------------------------------------- |
 | Auth helpers (`requireUser`, `requireEngineer`, `canAccessProject`) | `apps/web/src/features/auth` (Task 1.2)              |
-| Prisma client factory                                               | `packages/db/src/index.ts` (planned)                 |
+| Prisma client factory                                               | `packages/db/src/index.ts`                           |
 | Queue definitions                                                   | `packages/queue/src`                                 |
 | Encryption helpers                                                  | `packages/crypto/src`                                |
 | Gitea client                                                        | `apps/web/src/shared/gitea` (planned)                |
@@ -73,5 +75,5 @@ tools/                    Dev-only workspaces. Ship nowhere; still gated by
 - Generated clients (`packages/db/generated/*`) and `next-env.d.ts` are build
   artifacts, gitignored, and exempt from the size rules.
 - `packages/crypto`, `packages/ai-roles` and `packages/ui` are declared but empty
-  until their consumers arrive (Task 1.3 / 1.2); `packages/db` ships real Prisma
-  schemas but its `src/` factory is planned, not yet implemented.
+  until their consumers arrive (Task 1.3 / 1.2); `packages/db` is real — schemas,
+  client factory and the project-schema generator.

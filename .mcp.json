@@ -1,3 +1,13 @@
 {
-  "mcpServers": {}
+  "mcpServers": {
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp"]
+    },
+    "omniroute": {
+      "command": "omniroute",
+      "args": ["--mcp"],
+      "env": {}
+    }
+  }
 }

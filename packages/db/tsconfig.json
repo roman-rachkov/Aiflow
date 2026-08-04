@@ -1,5 +1,14 @@
 {
   "extends": "../../tsconfig.base.json",
-  "include": ["src"],
+  "compilerOptions": {
+    // The generator scripts use import.meta, which requires a module format
+    // that carries it. src/ is consumed by bundlers that handle this already.
+    "module": "ESNext",
+    "moduleResolution": "bundler"
+  },
+  // scripts/ is included deliberately: generate-project-sql.ts is real code
+  // that renders the project DDL, so it belongs under both tsc and ESLint
+  // rather than sitting in an unchecked corner.
+  "include": ["src", "scripts"],
   "references": []
 }

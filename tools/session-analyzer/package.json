@@ -3,9 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "bin": {
-    "session-analyzer": "./src/cli.ts"
-  },
+  "bin": "./src/cli.ts",
   "scripts": {
     "analyze": "tsx src/cli.ts",
     "typecheck": "tsc --noEmit"

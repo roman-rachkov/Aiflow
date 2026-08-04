@@ -43,10 +43,7 @@ Sandboxes are ephemeral and locked down (`docs/11-sandbox.md`):
 
 Destroyed after every task. Aider runs headless at a pinned version.
 
-Two known gaps that currently make the quality gate fictional, both to be fixed while scaffolding:
-
-- `runner.js` treats an ESLint failure as non-fatal (`docs/11-sandbox.md:204`)
-- Prettier is named as acceptance tooling (`docs/02-architecture.md:69`) but configured nowhere
+The lint gate is fatal (`docs/11-sandbox.md` sets `status = 'failure'` on ESLint problems) and Prettier is configured (`eslint-config-prettier` + `format`/`format:check`). Still open: `runner.js` has no commit call (Task 3.1).
 
 ## Secrets
 
