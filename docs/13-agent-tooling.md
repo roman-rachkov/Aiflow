@@ -42,7 +42,7 @@ Candidates derived from the architecture (see [02-architecture.md](02-architectu
 Not candidates someone proposed — capabilities the agent **tried to use and found
 absent**, counted by `tools/session-analyzer` (`capabilityGaps`). A repeated call
 to a nonexistent tool is the toolset stating a requirement, so it earns a row here
-rather than a workaround ([17-session-review.md](17-session-review.md) § 3.4).
+rather than a workaround ([17-session-review.md](17-session-review.md) § 3.6).
 
 | Candidate    | Attempts | Scope | Verdict                                                                                                                                                                        |
 | ------------ | -------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |

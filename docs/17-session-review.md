@@ -109,7 +109,32 @@ between calls, so absolute paths belong in the command rather than a `cd` prefix
 **Rule:** reach for `Grep`, `Glob`, and `Read` before `Bash`. Use `Bash` for
 things that genuinely are commands — git, package scripts, the analyzer itself.
 
-### 3.4 Capability gaps surface as calls to tools that do not exist
+### 3.4 The `cd` tax is no longer theoretical
+
+Observed 2026-08-04: a `cd packages/db` followed by a relative path produced
+`packages/db/packages/db/...` (`ERR_MODULE_NOT_FOUND`), because a prior failed
+command had already reset the working directory and the next call compounded on
+it. The same session also hit `path-not-found` on a `cd` whose target had moved.
+The 290 `cd` prefixes in this window are not just inefficient — they create a
+class of failure that cannot occur with absolute paths.
+
+**Rule:** every path in a `Bash` command is absolute. No `cd ... && cmd`. If a
+script genuinely needs a working directory, pass it as the command's `cwd`, not
+a shell prefix. This upgrades the § 3.3 guidance from preference to invariant.
+
+### 3.5 Retry discipline
+
+The top five thrash signatures this window are all the permission-classifier
+outage, repeated 16, 15, 14, 12 and 10 times within single sessions. The outage
+is environmental, so a single retry is justified — but sixteen is not a strategy.
+A second class, unrelated: one `Read` signature repeated 9 times against a path
+that did not exist, re-attempted rather than re-derived.
+
+**Rule:** after two identical failures, change the approach — different tool,
+different path, or hand the command to the user. A signature that has failed
+twice will not succeed on the tenth.
+
+### 3.6 Capability gaps surface as calls to tools that do not exist
 
 `No such tool available: PowerShell`, attempted 10 times. That is not a mistake
 to suppress — it is the toolset telling us what it lacks on this platform. The
@@ -119,7 +144,7 @@ empirical answer to "what is missing to make this IDE grown up".
 **Rule:** a repeated call to a nonexistent tool opens a row in
 [13-agent-tooling.md](13-agent-tooling.md), not a workaround.
 
-### 3.5 Untracked work is lost work
+### 3.7 Untracked work is lost work
 
 The `notes` skill, its `/note` command, and `notes/README.md` sat untracked while
 `CLAUDE.md` — a tracked file — already advertised the command. `docs/17` (this
