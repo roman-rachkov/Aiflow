@@ -1,5 +1,5 @@
 import { type VariantProps, cva } from 'class-variance-authority';
-import type { ButtonHTMLAttributes, ReactNode } from 'react';
+import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from 'react';
 
 import { cn } from './lib/cn';
 
@@ -30,8 +30,15 @@ const button = cva(
 export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> &
   VariantProps<typeof button> & { children?: ReactNode };
 
-export function Button({ className, variant, size, type = 'button', ...props }: ButtonProps) {
+// forwardRef so consumers can focus the button (command menus, form submit on
+// Enter, etc.) and libraries like react-hook-form can drive it.
+export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
+  { className, variant, size, type = 'button', ...props },
+  ref,
+) {
   // Default type="button": an untyped <button> submits its form, which is a
   // real bug every time it is not what was meant.
-  return <button type={type} className={cn(button({ variant, size }), className)} {...props} />;
-}
+  return (
+    <button ref={ref} type={type} className={cn(button({ variant, size }), className)} {...props} />
+  );
+});

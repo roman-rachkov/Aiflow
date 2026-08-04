@@ -1,4 +1,4 @@
-import type { InputHTMLAttributes } from 'react';
+import { forwardRef, type InputHTMLAttributes } from 'react';
 
 import { cn } from './lib/cn';
 
@@ -7,9 +7,14 @@ export type InputProps = InputHTMLAttributes<HTMLInputElement> & {
   invalid?: boolean;
 };
 
-export function Input({ className, invalid = false, ...props }: InputProps) {
+// forwardRef: form libraries (react-hook-form, formik) register the field by ref.
+export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
+  { className, invalid = false, ...props },
+  ref,
+) {
   return (
     <input
+      ref={ref}
       aria-invalid={invalid || undefined}
       className={cn(
         'h-10 w-full rounded-md border bg-surface px-3 py-2 text-fg placeholder:text-fg-muted',
@@ -21,7 +26,7 @@ export function Input({ className, invalid = false, ...props }: InputProps) {
       {...props}
     />
   );
-}
+});
 
 export type FieldProps = {
   label: string;
