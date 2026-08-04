@@ -7,7 +7,7 @@ structure by search. Layout per A4 in
 
 ```
 apps/
-├── web/                  Next.js (App Router, TS strict, Tailwind)
+├── web/                  Next.js (App Router, TS strict, Tailwind v4)
 │                         └── public entry: src/app, src/features/*
 │                             deps: @aiflow/{db,queue,crypto,ai-roles,ui}
 │                             layout: app/ (routing only) → features/ →
@@ -43,7 +43,13 @@ packages/
 ├── crypto/               AES-256-GCM helpers: encryptSecret/decryptSecret,
 │                         {"__encrypted__": ...} envelope (Task 1.3)
 ├── ai-roles/             Role prompts + model-router invocation (Task 1.3)
-└── ui/                   Design system: primitives, tokens (Task 1.2)
+└── ui/                   Design system (Task 1.2d). Primitives: Button, Input +
+                          Field, Card + CardTitle/CardDescription, Spinner.
+                          └── public entry: src/index.ts (components) and
+                              @aiflow/ui/styles/theme.css (the @theme tokens).
+                              deps: clsx, tailwind-merge, cva. React is a peer.
+                              No build step — apps/web transpiles the source.
+                              cn() in src/lib/cn.ts is the only shared helper.
 
 tools/                    Dev-only workspaces. Ship nowhere; still gated by
 │                         `yarn verify` — an unverified self-analysis tool
@@ -63,6 +69,7 @@ tools/                    Dev-only workspaces. Ship nowhere; still gated by
 | ------------------------------------------------------------------ | ---------------------------------------------------- |
 | Auth helpers (`requireUser`, `requireProMode`, `canAccessProject`) | `apps/web/src/features/auth` (Task 1.2a)             |
 | App shell (header, side menu)                                      | `apps/web/src/shared/ui` (Task 1.2a)                 |
+| UI primitives + design tokens                                      | `packages/ui/src` (Task 1.2d)                        |
 | Prisma client factory                                              | `packages/db/src/index.ts`                           |
 | Queue definitions                                                  | `packages/queue/src`                                 |
 | Encryption helpers                                                 | `packages/crypto/src`                                |
@@ -78,9 +85,15 @@ tools/                    Dev-only workspaces. Ship nowhere; still gated by
   entry rather than an importable surface.
 - Generated clients (`packages/db/generated/*`) and `next-env.d.ts` are build
   artifacts, gitignored, and exempt from the size rules.
-- `packages/crypto`, `packages/ai-roles` and `packages/ui` are declared but empty
-  until their consumers arrive (Task 1.3 / 1.2); `packages/db` is real — schemas,
-  client factory and the project-schema generator. `packages/ui` stays empty
-  through 1.2a on purpose: the shell components have one consumer, which fails
-  the promotion test in conventions § 2.3, so they live in `apps/web/src/shared/ui`
-  until a second consumer earns the move.
+- `packages/crypto` and `packages/ai-roles` are declared but empty until their
+  consumers arrive (Task 1.3); `packages/db` and `packages/ui` are real.
+- **`packages/ui` is a deliberate exception to the § 2.3 promotion test.** That
+  rule says a slice used by one app stays a slice, and `apps/web` is still the
+  only consumer. It was overridden by decision in Task 1.2d: the design system is
+  foundational rather than incidental, and retrofitting tokens across screens
+  built without them costs more than the build wiring saves. Recorded in
+  conventions § 2.3 and decisions #10 — the rule still holds everywhere else.
+- The boundary inside that exception: `packages/ui` holds **primitives and
+  tokens** — no knowledge of this app. App **composition** (header, side menu)
+  stays in `apps/web/src/shared/ui`, because it encodes this app's routes and a
+  shared package must not know them.

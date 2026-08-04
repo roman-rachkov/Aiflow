@@ -110,8 +110,52 @@ Skills are packaged instruction sets for a specific class of task.
 | `notes`                     | Capture an idea for later without acting on it — verbatim, expanded, critiqued                                      | `both`    | ours       | in use                 | Ours, no external dependency. Deliberately cannot develop: no Bash in `/note`'s tool cap. Product counterpart is the Analyst parking a request that is out of SPEC scope  |
 | `session-report`            | HTML report of token/cache/subagent cost                                                                            | `dev`     | Apache-2.0 | in use                 | Anthropic's, run **unmodified** — cost only, no tool-flow data. Deliberately not forked; we wrote `tools/session-analyzer` alongside it (§ 8.3 of conventions)            |
 | `find-skills`               | Discovering installable skills                                                                                      | `dev`     | unverified | rejected for `product` | Ships no LICENSE file. Also recommends by install count, not licence — unusable as a `product` gate. Fine for dev browsing; `/tool-scout` is the licence-aware path       |
+| `frontend-design`           | Aesthetic direction for UI: typography, colour, motion, spatial composition                                         | `dev`     | Apache-2.0 | rejected — see § 2.1   | Anthropic's, in `claude-plugins-official`. Licence verified via the plugin's own `LICENSE`. Rejected on **content**, not licence — it contradicts `09-ui-spec.md` § 9     |
 
 **Observation.** AI Studio's roles are structurally close to skills: the Analyst is an interviewing skill, the Coder a change-application skill. A skill that works well here likely transfers into the product with little rework. That is the main reason to keep this registry from day one.
+
+### 2.1 `frontend-design` — allowlisted licence, rejected on content
+
+Searched 2026-08-04 via `/tool-scout` for a design tool that would make mockups
+good from the start. `frontend-design` is the obvious candidate: Anthropic's own,
+in the official marketplace, Apache-2.0 (verified in the plugin's `LICENSE`, not
+a README badge). It passes § 8 mechanically.
+
+**It was still rejected, because its instructions contradict our UI spec:**
+
+| `frontend-design/SKILL.md`                                        | [09-ui-spec.md](09-ui-spec.md) § 9 |
+| ----------------------------------------------------------------- | ---------------------------------- |
+| "NEVER use ... overused font families (**Inter**, Roboto, Arial)" | "Font: **Inter** (system)"         |
+| "Pick an extreme: maximalist chaos, brutalist/raw ...", "BOLD"    | "**minimalist** design"            |
+| "Vary between light and dark themes"                              | "**Light theme** by default"       |
+
+The skill is built for memorable one-off landing pages. Our UI is a product
+surface with two personas and eight screens, where consistency is the point. A
+licence check would not have caught this — worth remembering that § 8 gates
+whether a tool is _usable_, not whether it is _appropriate_.
+
+**Recorded so the next session does not re-litigate it.** If a bold aesthetic is
+ever wanted, the conflict is with § 9 of the UI spec, and that is a design
+conversation to have first.
+
+### 2.2 UI library survey (same search)
+
+Licences verified via `npm view <pkg> license`, not badges. All are on the § 8
+allowlist, so any of them _could_ ship; the reasons for not adopting them are
+engineering, not legal. Recorded because the search should not be repeated.
+
+| Candidate                  | SPDX       | Scope  | Verdict                                                                                                                                            |
+| -------------------------- | ---------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `shadcn` (CLI)             | MIT        | `both` | allow, **not adopted** — templates assume React 19 and generate into an app, not a workspace package. Patterns adopted by hand instead (Task 1.2d) |
+| `@radix-ui/*`              | MIT        | `both` | allow — the likely path when Modal/Toast/Tabs arrive                                                                                               |
+| `class-variance-authority` | Apache-2.0 | `both` | **in use** — Button variants                                                                                                                       |
+| `tailwind-merge`, `clsx`   | MIT        | `both` | **in use** — `cn()` in `packages/ui/src/lib/cn.ts`                                                                                                 |
+| `lucide-react`             | ISC        | `both` | allow, not yet needed — no icons in the four primitives                                                                                            |
+| `tw-animate-css`           | MIT        | `both` | allow, not needed — v4 ships `animate-spin`                                                                                                        |
+| `@tailwindcss/forms`       | MIT        | `both` | allow, not adopted — `Input` styles the two fields we have directly                                                                                |
+| `daisyui`                  | MIT        | `both` | allow, rejected — class-based components collide with owning our own                                                                               |
+| `@headlessui/react`        | MIT        | `both` | allow, rejected — Radix is the stronger option if we need headless                                                                                 |
+| `storybook`                | MIT        | `dev`  | allow (dev only), deferred — four primitives do not justify the wiring                                                                             |
 
 ---
 

@@ -133,36 +133,59 @@ Compose references `./registry-proxy` with `ALLOWED_HOSTS`, but nothing specifie
 
 ---
 
+## D0. Design system before consumers — RESOLVED 2026-08-04
+
+Decided during Task 1.2d, and recorded here because it overrides a written rule. Referred to as **#10** in the summary table.
+
+**Conventions § 2.3 says a slice used by one app stays a slice.** `apps/web` is still the only consumer of `packages/ui` — `apps/worker` is headless BullMQ and will never import a button. By that rule the primitives belonged in `apps/web/src/shared/ui`, and the code map said so explicitly.
+
+**Overridden by decision.** The argument for the rule is that premature packaging costs build wiring; the argument against it here is that a design system is not an incidental extraction. Screens built without shared tokens have to be retrofitted with them, that cost scales with the number of screens, and 09-ui-spec plans eight of them. The wiring is paid once. The user's framing when deciding: `packages/ui` being deferred was a shortcoming, not a design.
+
+**The boundary that keeps the exception narrow.** `packages/ui` holds primitives and tokens that know nothing about any app. Composition that encodes this app's routes — `AppHeader`, `SideMenu` — stays in `apps/web/src/shared/ui`. Without that split the exception would justify moving anything.
+
+**What was rejected alongside it:**
+
+- **shadcn CLI.** Its templates assume React 19 and generate into an app, not a workspace package; every generated file would need editing. The patterns (cva variants, `cn`, Radix underneath) were adopted directly instead. All licences were verified allowlisted, so adding Radix later is unaffected.
+- **A full primitive set.** Four were built — Button, Input/Field, Card, Spinner — because those have consumers today. Modal, toast, tabs, timeline and file tree belong to screens that do not exist, and designing their APIs against an imagined caller is the same mistake in a different place.
+- **Dark theme.** 09-ui-spec § 9 mandates light only. A second colour scheme is a design decision, not a default.
+
+---
+
 ## D. Already decided — recorded to prevent re-litigation
 
-| Decision                | Value                                                                           | Where                                                              |
-| ----------------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| Git author              | `Roman Rachkov <pakycb84@gmail.com>`, global config, no per-repo override       | A1                                                                 |
-| Repository visibility   | Private; license deferred until opened                                          | A2                                                                 |
-| Package manager         | Yarn + Lerna — overrides `npm ci` in the Dockerfiles                            | A3                                                                 |
-| Repository layout       | Monorepo, Yarn workspaces: `apps/`, `services/`, `packages/`                    | A4                                                                 |
-| Git workflow            | Branch per task, PR, rebase only — linear `main`                                | [15-engineering-conventions.md](15-engineering-conventions.md) § 1 |
-| Node version            | Node 22 LTS (already on dev machine) — overrides `node:20` in images            | A5                                                                 |
-| SPEC storage            | `specs/{slug}/SPEC.md` directory; DB authoritative, Gitea gets a copy           | B1                                                                 |
-| SPEC in user repo       | `specs/SPEC.md` at the repo root, not the project root                          | B1                                                                 |
-| Prisma client cache     | `Map<string, PrismaClient>` with explicit eviction — `WeakMap` was invalid      | C1                                                                 |
-| Prisma generator output | `../generated/public` and `../generated/project` — separate, not colliding      | C2                                                                 |
-| `packages/crypto`       | Sixth workspace package — web, worker and model-router all need AES-256-GCM     | A4 (extended)                                                      |
-| UI mode vs role         | `User.uiMode` (BASIC                                                            | PRO) controls navigation; `User.role` is for future admin          | this task |
-| Module architecture     | Feature-sliced in `apps/web`, shared logic in workspace packages                | [15](15-engineering-conventions.md) § 2                            |
-| Size limits             | File ≤ 200, function ≤ 50, complexity ≤ 10 — ESLint warn, blocking in CI        | [15](15-engineering-conventions.md) § 3                            |
-| Linter / formatter      | ESLint flat config (strict-type-checked) + Prettier, three gates                | [15](15-engineering-conventions.md) § 4                            |
-| Refactoring cadence     | Per roadmap task boundary, 90-minute timebox                                    | [15](15-engineering-conventions.md) § 5                            |
-| Port allocation         | App 3000, model-router 3001, Gitea 3002 (container-internal 3000)               | [10-infrastructure.md](10-infrastructure.md)                       |
-| Deployer prompt         | Deferred until local MVP is judged satisfactory                                 | [13-agent-tooling.md](13-agent-tooling.md) T3                      |
-| Documentation language  | English, including role names                                                   | [`CLAUDE.md`](../CLAUDE.md)                                        |
-| Internal agent traffic  | English; user-facing output in the user's language                              | [`CLAUDE.md`](../CLAUDE.md)                                        |
-| Superseded drafts       | `ide.md`, `ide-analize.md` intentionally removed                                | [README.md](README.md)                                             |
-| Auth provider (MVP)     | Credentials, not Email magic link / GitHub OAuth — both need external services  | Task 1.2a                                                          |
-| Auth session strategy   | JWT, not database sessions — Credentials gets no `Session` row from the adapter | Task 1.2a                                                          |
-| PRO-mode guard name     | `requireProMode`, not `requireEngineer` — it checks `uiMode`, not a permission  | Task 1.2a                                                          |
-| `@auth/core` version    | Pinned via root `resolutions` — two copies made the adapter type unassignable   | Task 1.2a                                                          |
-| User avatar column      | `image`, renamed from `avatarUrl` — the adapter contract names it               | Task 1.2a                                                          |
+| Decision                | Value                                                                            | Where                                                              |
+| ----------------------- | -------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| Git author              | `Roman Rachkov <pakycb84@gmail.com>`, global config, no per-repo override        | A1                                                                 |
+| Repository visibility   | Private; license deferred until opened                                           | A2                                                                 |
+| Package manager         | Yarn + Lerna — overrides `npm ci` in the Dockerfiles                             | A3                                                                 |
+| Repository layout       | Monorepo, Yarn workspaces: `apps/`, `services/`, `packages/`                     | A4                                                                 |
+| Git workflow            | Branch per task, PR, rebase only — linear `main`                                 | [15-engineering-conventions.md](15-engineering-conventions.md) § 1 |
+| Node version            | Node 22 LTS (already on dev machine) — overrides `node:20` in images             | A5                                                                 |
+| SPEC storage            | `specs/{slug}/SPEC.md` directory; DB authoritative, Gitea gets a copy            | B1                                                                 |
+| SPEC in user repo       | `specs/SPEC.md` at the repo root, not the project root                           | B1                                                                 |
+| Prisma client cache     | `Map<string, PrismaClient>` with explicit eviction — `WeakMap` was invalid       | C1                                                                 |
+| Prisma generator output | `../generated/public` and `../generated/project` — separate, not colliding       | C2                                                                 |
+| `packages/crypto`       | Sixth workspace package — web, worker and model-router all need AES-256-GCM      | A4 (extended)                                                      |
+| UI mode vs role         | `User.uiMode` (BASIC                                                             | PRO) controls navigation; `User.role` is for future admin          | this task |
+| Module architecture     | Feature-sliced in `apps/web`, shared logic in workspace packages                 | [15](15-engineering-conventions.md) § 2                            |
+| Size limits             | File ≤ 200, function ≤ 50, complexity ≤ 10 — ESLint warn, blocking in CI         | [15](15-engineering-conventions.md) § 3                            |
+| Linter / formatter      | ESLint flat config (strict-type-checked) + Prettier, three gates                 | [15](15-engineering-conventions.md) § 4                            |
+| Refactoring cadence     | Per roadmap task boundary, 90-minute timebox                                     | [15](15-engineering-conventions.md) § 5                            |
+| Port allocation         | App 3000, model-router 3001, Gitea 3002 (container-internal 3000)                | [10-infrastructure.md](10-infrastructure.md)                       |
+| Deployer prompt         | Deferred until local MVP is judged satisfactory                                  | [13-agent-tooling.md](13-agent-tooling.md) T3                      |
+| Documentation language  | English, including role names                                                    | [`CLAUDE.md`](../CLAUDE.md)                                        |
+| Internal agent traffic  | English; user-facing output in the user's language                               | [`CLAUDE.md`](../CLAUDE.md)                                        |
+| Superseded drafts       | `ide.md`, `ide-analize.md` intentionally removed                                 | [README.md](README.md)                                             |
+| Auth provider (MVP)     | Credentials, not Email magic link / GitHub OAuth — both need external services   | Task 1.2a                                                          |
+| Auth session strategy   | JWT, not database sessions — Credentials gets no `Session` row from the adapter  | Task 1.2a                                                          |
+| PRO-mode guard name     | `requireProMode`, not `requireEngineer` — it checks `uiMode`, not a permission   | Task 1.2a                                                          |
+| `@auth/core` version    | Pinned via root `resolutions` — two copies made the adapter type unassignable    | Task 1.2a                                                          |
+| User avatar column      | `image`, renamed from `avatarUrl` — the adapter contract names it                | Task 1.2a                                                          |
+| Tailwind version        | v4 — CSS-first `@theme`, no `tailwind.config.js`, `@tailwindcss/postcss`         | Task 1.2c                                                          |
+| Tailwind source scan    | `source(none)` + explicit `@source` — auto-detection escapes the repo on Windows | Task 1.2c                                                          |
+| `packages/ui` promotion | Created with one consumer, overriding conventions § 2.3 — see #10 below          | Task 1.2d                                                          |
+| Component library       | None. Primitives hand-written; no shadcn CLI, no Radix yet                       | Task 1.2d                                                          |
+| Dark theme              | Not built — 09-ui-spec § 9 mandates light only                                   | Task 1.2d                                                          |
 
 ## Consequences for existing documents
 

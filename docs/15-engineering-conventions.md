@@ -135,6 +135,10 @@ apps/worker/src/
 
 Promote when it is imported by two apps, or when it stops being UI-facing at all. `queue/` and `db/` are packages because both `web` and `worker` need them. A slice used only by `web` stays a slice — premature packaging costs more in build wiring than it returns.
 
+**One standing exception: `packages/ui`** (Task 1.2d, decision #10). It was created while `apps/web` was still its only consumer, which this rule would forbid. The reasoning for overriding it: a design system is foundational rather than incidental — every screen built without shared tokens has to be retrofitted with them later, and that cost grows with each screen, whereas the build wiring is paid once. The rule is unchanged for everything else; an exception argued on these grounds needs the same kind of case, not merely an expectation that a second consumer might arrive.
+
+The exception carries a boundary, which is what keeps it from swallowing the rule: `packages/ui` holds primitives and tokens that know nothing about any particular app. App composition — the header and side menu, which encode this app's routes — stays in `apps/web/src/shared/ui`.
+
 ---
 
 ## 3. Size limits
@@ -334,15 +338,16 @@ These rules were chosen for our own development, but the platform generates code
 
 Not yet updated — these are edits for the scaffolding task, where paths change alongside real files:
 
-| Document                        | What is now wrong                                                                                                                                                                                                       |
-| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| ~~`docs/10-infrastructure.md`~~ | ~~`npm ci` (→ Yarn), flat `src/` + `prisma/` paths, build contexts~~ — **done 2026-08-02**: Yarn 4 + Node 22, workspace paths, root build context                                                                       |
-| ~~`docs/11-sandbox.md`~~        | ~~Lint failure non-fatal, no Prettier or `prisma validate`, `--no-git` vs. `no-auto-commits` contradiction~~ — **done 2026-08-02**. Still open: no commit call in `runner.js` (Task 3.1, where the runner becomes real) |
-| ~~`docs/03-data-model.md`~~     | ~~`Task` missing Git fields, missing `dependencies` relation, `priority` Int vs. enum~~ — **done 2026-08-02**, schemas written; `WeakMap` → `Map` corrected (C1)                                                        |
-| `docs/02-architecture.md`       | Serialization rationale at `:125` weakened by branch-per-task; `:69` claims Prettier and `prisma validate` run automatically                                                                                            |
-| `docs/07-prompt-coder.md`       | Commit instruction (`:18`) contradicts the runner; needs branch and scoped-commit rules                                                                                                                                 |
-| `docs/08-prompt-reviewer.md`    | Add the size criterion from § 6 to the REJECTED list                                                                                                                                                                    |
-| ~~`docs/12-open-questions.md`~~ | ~~#3 (concurrency) loses its premise~~ — **done 2026-08-02**, #3 marked Resolved                                                                                                                                        |
+| Document                        | What is now wrong                                                                                                                                                                                                                                                                         |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ~~`docs/10-infrastructure.md`~~ | ~~`npm ci` (→ Yarn), flat `src/` + `prisma/` paths, build contexts~~ — **done 2026-08-02**: Yarn 4 + Node 22, workspace paths, root build context                                                                                                                                         |
+| ~~`docs/11-sandbox.md`~~        | ~~Lint failure non-fatal, no Prettier or `prisma validate`, `--no-git` vs. `no-auto-commits` contradiction~~ — **done 2026-08-02**. Still open: no commit call in `runner.js` (Task 3.1, where the runner becomes real)                                                                   |
+| ~~`docs/03-data-model.md`~~     | ~~`Task` missing Git fields, missing `dependencies` relation, `priority` Int vs. enum~~ — **done 2026-08-02**, schemas written; `WeakMap` → `Map` corrected (C1)                                                                                                                          |
+| `docs/02-architecture.md`       | Serialization rationale at `:125` weakened by branch-per-task; `:69` claims Prettier and `prisma validate` run automatically                                                                                                                                                              |
+| `docs/07-prompt-coder.md`       | Commit instruction (`:18`) contradicts the runner; needs branch and scoped-commit rules                                                                                                                                                                                                   |
+| `docs/08-prompt-reviewer.md`    | Add the size criterion from § 6 to the REJECTED list                                                                                                                                                                                                                                      |
+| `docs/09-ui-spec.md`            | § 9 is still the whole styling mandate and names no implementation: the tokens now live in `packages/ui/src/styles/theme.css` and the primitives in `packages/ui`. Its component inventory (modal, toast, tabs, timeline, file tree) is unbuilt and arrives with the screens that need it |
+| ~~`docs/12-open-questions.md`~~ | ~~#3 (concurrency) loses its premise~~ — **done 2026-08-02**, #3 marked Resolved                                                                                                                                                                                                          |
 
 ### Resolved defect: `yarn verify` on a clean tree
 

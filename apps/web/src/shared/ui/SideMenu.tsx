@@ -15,13 +15,13 @@ const NAV_ITEMS = [
 
 export function SideMenu() {
   return (
-    <nav className="w-52 shrink-0 border-r border-slate-200 px-4 py-6">
+    <nav className="w-52 shrink-0 border-r border-border px-4 py-6">
       <ul className="flex flex-col gap-1">
         {NAV_ITEMS.map((item) => (
           <li key={item.href}>
             <Link
               href={item.href}
-              className="block rounded-md px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
+              className="block rounded-md px-3 py-2 text-sm text-fg hover:bg-surface-muted"
             >
               {item.label}
             </Link>

@@ -43,6 +43,7 @@ These override what the older docs show. `docs/10-infrastructure.md` and `docs/1
 - **Yarn + Lerna**, not npm. The `npm ci` calls in the Dockerfiles are outdated.
 - **Monorepo via Yarn workspaces**: `apps/web` (Next.js), `apps/worker` (BullMQ), `services/model-router`, `services/registry-proxy`, `packages/db` (Prisma + shared types), plus `packages/queue`, `packages/ai-roles`, `packages/ui`, and `tools/*` for dev-only tooling that ships nowhere. The flat `src/` + `prisma/` layout in the compose file is outdated.
 - **Repo is private.** No LICENSE file; the license question is deferred until it opens.
+- **Tailwind v4**, not v3. Tokens are declared in CSS (`@theme`) and there is no `tailwind.config.js`; the PostCSS plugin is `@tailwindcss/postcss`. Two traps: `outline-none` means `outline-style: none` in v4 (use `outline-hidden`), and automatic source detection is disabled via `source(none)` because on Windows it walks out of the repo — so **a new source directory needs an explicit `@source`** in `apps/web/src/app/globals.css` or its classes are silently missing from the CSS.
 
 Full rationale and the list of affected paths: `docs/14-decisions-needed.md`.
 
@@ -72,6 +73,8 @@ When you finish a task, the test is simple: could the next session act on this a
 **One task, one branch, one PR, rebased.** `task/{id}-{slug}` off `main`; `main` stays linear. Rebase and fast-forward only — no merge commits, no squash. Push with `--force-with-lease`, never bare `--force`. Conventional Commits with a workspace scope: `feat(web): ...`.
 
 **Feature-sliced inside `apps/web`.** `features/{slice}/{api,ui,model}` with a single `index.ts` public surface. Dependencies flow one way: `app/` → `features/` → `shared/` → `packages/`. Never import another slice's internals, and never put logic in `app/` — routing only.
+
+**UI has two homes, and the split is load-bearing.** `packages/ui` (`@aiflow/ui`) owns **primitives and design tokens** — Button, Input/Field, Card, Spinner, plus `@aiflow/ui/styles/theme.css`. It knows nothing about this app. `apps/web/src/shared/ui` owns **app composition** — `AppHeader`, `SideMenu` — which encodes this app's routes and must not move into a shared package. Reach for a primitive before writing raw utilities, and use the semantic tokens (`text-fg-muted`, `border-border`, `bg-surface`) rather than raw `slate-*`. Note that `packages/ui` exists despite having one consumer, which conventions § 2.3 would forbid — a deliberate exception, argued in `docs/14-decisions-needed.md` § D0.
 
 **Size limits are enforced, not advisory.** File ≤ 200 lines, function ≤ 50, complexity ≤ 10. Configured as ESLint `warn`, but `--max-warnings 0` in CI and the sandbox makes them blocking. Exemptions need an inline reason after `--`.
 

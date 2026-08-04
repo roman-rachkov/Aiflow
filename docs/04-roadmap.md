@@ -48,12 +48,33 @@ impossible), and the guard is named `requireProMode` rather than
 `requireEngineer` because it checks `uiMode`, which is presentation and not a
 permission boundary.
 
+**Task 1.2c. Tailwind v4** — done
+
+- Upgrade `apps/web` from Tailwind 3.4 to 4.3: `@tailwindcss/postcss`, tokens
+  declared in CSS via `@theme`, `tailwind.config.js` deleted.
+- `outline-none` → `outline-hidden` (v4 changed its meaning), and
+  `source(none)` + explicit `@source` because auto-detection walks out of the
+  repo on Windows.
+
+**Task 1.2d. Design system** — done
+
+- `packages/ui` becomes real: Button, Input + Field, Card, Spinner, plus the
+  token layer at `@aiflow/ui/styles/theme.css` shared with `apps/web`.
+- Existing 1.2a components migrated onto the primitives; `AppHeader` and
+  `SideMenu` stay app-local.
+
+Overrides conventions § 2.3 (a slice with one consumer should stay a slice) by
+decision — rationale in `docs/14-decisions-needed.md` § D0. No component library
+was adopted: primitives are hand-written, and there is no dark theme because
+`09-ui-spec.md` § 9 mandates light only.
+
 **Task 1.2b. Projects CRUD**
 
 - Pages: dashboard project list, project card.
 - API: create, list, delete a project.
 - Create the `project_{uuid}` schema on project creation — the unfinished tail of
   Task 1.1, deferred pending open question #2 on migrations.
+- Builds on the 1.2d primitives — `Card` exists for the project list.
 
 **Task 1.3. Researcher chat (MVP variant)**
 

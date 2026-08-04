@@ -7,20 +7,17 @@
  */
 @import 'tailwindcss' source(none);
 
+/*
+ * Design tokens live in @aiflow/ui so the package and the app cannot drift.
+ * See packages/ui/src/styles/theme.css.
+ */
+@import '@aiflow/ui/styles/theme.css';
+
 @source '../../src/**/*.{ts,tsx}';
 
 /*
- * Design tokens. Ported from the v3 `tailwind.config.js` theme.extend, which
- * v4 replaces with CSS-declared tokens.
- *
- * `--color-primary` is load-bearing: `app/loading.tsx` uses `border-primary`,
- * and a missing token emits no rule and no error — the ring just renders
- * transparent. See docs/09-ui-spec.md § 9 for the accent and font mandate.
- *
- * These move to `packages/ui/src/styles/theme.css` in Task 1.2d, once there
- * is a second consumer to share them with.
+ * Required, and silent when wrong: Yarn symlinks the workspace into
+ * node_modules, which v4 skips, so without this every class used only inside
+ * @aiflow/ui is missing from the output — unstyled components, no error.
  */
-@theme {
-  --color-primary: #2563eb;
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-}
+@source '../../../../packages/ui/src/**/*.{ts,tsx}';

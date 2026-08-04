@@ -1,0 +1,43 @@
+/*
+ * Design tokens — the single source of truth for @aiflow/ui and its consumers.
+ *
+ * Imported by `apps/web/src/app/globals.css`. Tailwind v4 declares tokens in
+ * CSS rather than JS, so this file is the direct successor to what used to be
+ * `theme.extend` in `tailwind.config.js`.
+ *
+ * Mandate: docs/09-ui-spec.md § 9 — light theme, minimalist, #2563EB accent,
+ * Inter. There is deliberately no dark variant: the spec does not ask for one,
+ * and a second colour scheme is a design decision, not a default.
+ *
+ * Kept intentionally small. Radius, spacing, shadow and z-index are omitted
+ * because v4's defaults cover them; a parallel scale invented before a
+ * component needs it is the premature abstraction this package exists to avoid.
+ */
+
+@theme {
+  /* Accent. `border-primary` in apps/web/src/app/loading.tsx depends on this. */
+  --color-primary: #2563eb;
+  --color-primary-hover: #1d4ed8;
+
+  /*
+   * Status triad — § 9 names deployed / building / failed, and § 6 reuses the
+   * same three for toasts (success / error / warning).
+   */
+  --color-success: #16a34a;
+  --color-warning: #d97706;
+  --color-danger: #dc2626;
+
+  /* Semantic neutrals, so components stop reaching for raw slate-*. */
+  --color-fg: #0f172a;
+  --color-fg-muted: #475569;
+  --color-border: #e2e8f0;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f8fafc;
+
+  /*
+   * Composes with next/font, which puts --font-inter on <html>. The fallback
+   * chain matters: if the font fails to load the UI degrades to system sans
+   * rather than to serif.
+   */
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+}

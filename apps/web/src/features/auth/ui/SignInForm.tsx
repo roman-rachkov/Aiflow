@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 
+import { Button, Field, Input } from '@aiflow/ui';
+
 import { signInWithCredentials } from '../model/actions';
 
 /**
@@ -26,41 +28,29 @@ export function SignInForm() {
 
   return (
     <form action={onSubmit} className="flex w-full max-w-sm flex-col gap-4">
-      <label className="flex flex-col gap-1">
-        <span className="text-sm font-medium text-slate-700">Электронная почта</span>
-        <input
-          type="email"
-          name="email"
-          required
-          autoComplete="email"
-          className="rounded-md border border-slate-300 px-3 py-2 outline-hidden focus:border-slate-900"
-        />
-      </label>
+      <Field label="Электронная почта">
+        <Input type="email" name="email" required autoComplete="email" invalid={error !== null} />
+      </Field>
 
-      <label className="flex flex-col gap-1">
-        <span className="text-sm font-medium text-slate-700">Пароль</span>
-        <input
+      <Field label="Пароль">
+        <Input
           type="password"
           name="password"
           required
           autoComplete="current-password"
-          className="rounded-md border border-slate-300 px-3 py-2 outline-hidden focus:border-slate-900"
+          invalid={error !== null}
         />
-      </label>
+      </Field>
 
       {error !== null && (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="text-sm text-danger">
           {error}
         </p>
       )}
 
-      <button
-        type="submit"
-        disabled={pending}
-        className="rounded-md bg-slate-900 px-4 py-2 font-medium text-white disabled:opacity-50"
-      >
+      <Button type="submit" disabled={pending}>
         {pending ? 'Вход…' : 'Войти'}
-      </button>
+      </Button>
     </form>
   );
 }

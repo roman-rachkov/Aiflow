@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@aiflow/db": "workspace:^",
+    "@aiflow/ui": "workspace:^",
     "@auth/prisma-adapter": "2.7.4",
     "bcryptjs": "2.4.3",
     "next": "^15.0.0",

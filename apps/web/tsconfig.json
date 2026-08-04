@@ -5,9 +5,12 @@
     "jsx": "preserve",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "baseUrl": ".",
+    // `paths` replaces the base config's map rather than merging with it, so
+    // every @aiflow/* alias this app uses has to be repeated here.
     "paths": {
       "@/*": ["./src/*"],
-      "@aiflow/db": ["../../packages/db/src"]
+      "@aiflow/db": ["../../packages/db/src"],
+      "@aiflow/ui": ["../../packages/ui/src"]
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
