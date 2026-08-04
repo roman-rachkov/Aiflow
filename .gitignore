@@ -140,6 +140,12 @@ storage/
 # to the project rather than to one machine.
 !.claude/hookify.*.local.md
 
+# --- ZCode -------------------------------------------------------------------
+# AGENTS.md (workspace root) IS committed — it is the project's instruction
+# file. The plans/ dir, like .claude/plans/, is an auto-generated session
+# draft and not source: it changes out from under the working tree.
+.zcode/plans/
+
 # --- OS ----------------------------------------------------------------------
 .DS_Store
 .DS_Store?
