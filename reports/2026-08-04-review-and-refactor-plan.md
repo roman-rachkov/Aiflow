@@ -13,23 +13,25 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · `(skip)` deferred with 
 
 ## Progress (2026-08-04)
 
-**Streams A and B are complete.** 10 commits on `refactoring`, all `yarn verify` green:
+**Streams A and B are complete, plus A8.** All commits on `refactoring`, `yarn verify` green:
 
-| Commit  | Item     | Summary                                                        |
-| ------- | -------- | -------------------------------------------------------------- |
-| d35fc46 | A1       | Re-enable FSD slice-boundary rule (remove `'*/**'`)            |
-| a0af71a | A2       | Restore full `@aiflow/*` path map in web tsconfig              |
-| 3fae72d | A3+A5+A7 | `danger-hover` token, `--since 7d` default, fix Docker note    |
-| 212157b | A4       | session-analyzer ENOENT guard + error boundary                 |
-| a52be6a | A6\*     | Document why config-ignore narrowing is deferred               |
-| 4a23bdb | B1       | Stop logging the seeded password                               |
-| fb22c1f | B3       | `JWT.uiMode` optional + BASIC default                          |
-| 50c5a26 | B4       | Spinner English default + fixed `aria-hidden` logic            |
-| fecc8a9 | B2       | `forwardRef` on all UI primitives                              |
-| 4835053 | B5       | `Field` `htmlFor`/`aria-describedby` wiring via `cloneElement` |
+| Commit  | Item     | Summary                                                                  |
+| ------- | -------- | ------------------------------------------------------------------------ |
+| d35fc46 | A1       | Re-enable FSD slice-boundary rule (remove `'*/**'`)                      |
+| a0af71a | A2       | Restore full `@aiflow/*` path map in web tsconfig                        |
+| 3fae72d | A3+A5+A7 | `danger-hover` token, `--since 7d` default, fix Docker note              |
+| 212157b | A4       | session-analyzer ENOENT guard + error boundary                           |
+| a52be6a | A6\*     | Document why config-ignore narrowing is deferred                         |
+| 4a23bdb | B1       | Stop logging the seeded password                                         |
+| fb22c1f | B3       | `JWT.uiMode` optional + BASIC default                                    |
+| 50c5a26 | B4       | Spinner English default + fixed `aria-hidden` logic                      |
+| fecc8a9 | B2       | `forwardRef` on all UI primitives                                        |
+| 4835053 | B5       | `Field` `htmlFor`/`aria-describedby` wiring via `cloneElement`           |
+| 883d517 | hygiene  | Stop tracking `.zcode/plans/` (auto-generated drafts)                    |
+| (this)  | A8       | Full FSD enforcement via `eslint-plugin-boundaries` (replaces A1's rule) |
 
-**Remaining:** A6 (deferred — needs tseslint `config()`→`defineConfig()` migration), A8 (new —
-full cross-slice FSD enforcement), Stream C (schema — needs product decisions in C1).
+**Remaining:** A6 (deferred — needs tseslint `config()`→`defineConfig()` migration), Stream C
+(schema — needs product decisions in C1).
 
 ---
 
@@ -115,19 +117,36 @@ Goal: no observable runtime change. One or more `chore/refactor-*` PRs.
   - [x] Reworded to reflect current state (prebuilt images; app Dockerfiles deferred to their
         tasks).
 
-### A8 — Full cross-slice FSD enforcement _(Medium, new)_ [ ] todo
+### A8 — Full cross-slice FSD enforcement _(Medium, new)_ ✅ done
 
 - **Found during A1.** `no-internal-modules` blocks deep imports from `app/` (works), but it
   cannot enforce slice isolation for a slice importing another slice's internals via the `@/`
   alias: there is no TS-aware ESLint resolver configured, so the rule never resolves alias
   targets and stays silent. `docs/15 §2.2` calls this invariant load-bearing.
-- **Plan:**
-  - [ ] Add `eslint-import-resolver-typescript` (understands tsconfig `paths`).
-  - [ ] Configure `import/no-restricted-paths` with zones for the FSD layers
-        (`app/ → features/ → shared/ → packages/`, one-way; block cross-slice deep imports).
-  - [ ] Keep `no-internal-modules` for the `node_modules` subpath hygiene it now does.
-- **Verify:** empirically confirm a cross-slice deep import (`features/x/ui → features/y/model`)
-  is flagged; `yarn lint` green on the real tree.
+- **What changed during work (instrument swap):**
+  - Adding the TS resolver (`eslint-import-resolver-typescript`) made `no-internal-modules`
+    too aggressive — it started blocking legitimate intra-package imports (`./lib/cn`) and
+    barrel imports (`@/features/auth`), because it operates on node_modules subpaths, not FSD
+    layers. It is the wrong tool for FSD.
+  - `import/no-restricted-paths` with zones was tried but cannot distinguish same-slice from
+    cross-slice (both match `features/*/**`), so it blocked every internal import inside a
+    slice — also wrong.
+  - **Chose `eslint-plugin-boundaries`** instead: it classifies files into element types with
+    `capture: ['slice']`, and policies can match `captured.slice` against the importer's —
+    exactly the same-slice vs cross-slice distinction FSD needs.
+- **Plan (as executed):**
+  - [x] Added `eslint-import-resolver-typescript` (so alias imports resolve) and
+        `eslint-plugin-boundaries`.
+  - [x] Defined three element types — `app`, `feature` (with `capture: ['slice']`), `shared`.
+  - [x] `boundaries/dependencies` with `default: disallow` and five policies:
+        app→{feature,shared,app}, shared→shared, feature→shared, feature→same-slice.
+  - [x] Removed `import/no-internal-modules`, `import/no-restricted-paths`, and the per-app
+        `no-restricted-imports` block — all superseded by boundaries.
+- **Verify:** empirically confirmed (probe files) — cross-slice
+  (`features/auth → features/other/model`) **blocked** with a precise
+  `slice="auth" → slice="other"` message; same-slice (`features/auth/ui →
+  features/auth/model`) **allowed**; layer-up (`shared → features`) **blocked**. Full
+  `yarn verify` green (57 tests).
 
 ---
 
