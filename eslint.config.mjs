@@ -49,11 +49,16 @@ export default tseslint.config(
       '@typescript-eslint/no-floating-promises': 'error',
       'import/no-cycle': 'error',
 
-      // Slice boundaries — § 2.2
+      // Slice boundaries — § 2.2. The rule blocks deep imports into a feature slice's internals
+      // (e.g. `@/features/auth/model/config`); the barrel `@/features/auth` is allowed because it
+      // resolves to an `index.ts`, not a submodule. The previous allow list contained `'*/**'`,
+      // which under minimatch matches virtually every path and silently disabled the rule — see
+      // reports/2026-08-04-review-and-refactor-plan.md A1. `allow` now whitelists only the
+      // legitimate node_modules subpaths the codebase uses, plus our generated Prisma clients.
       'import/no-internal-modules': [
         'error',
         {
-          allow: ['**/features/*', '**/shared/**', '@aiflow/*', '*/**'],
+          allow: ['next/**', 'next-auth/**', '@auth/**', '@aiflow/*', '**/generated/**'],
         },
       ],
 
