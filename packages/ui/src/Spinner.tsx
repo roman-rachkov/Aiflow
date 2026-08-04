@@ -13,12 +13,17 @@ export type SpinnerProps = {
   label?: string | null;
 };
 
-export function Spinner({ size = 'md', className, label = 'Загрузка' }: SpinnerProps) {
+export function Spinner({ size = 'md', className, label = 'Loading' }: SpinnerProps) {
+  // Decorative when there is no label (null/undefined): hide from AT and drop
+  // the status role. Otherwise announce it. The previous `label === null ||
+  // undefined` never evaluated to true for `undefined`, so a label-less spinner
+  // advertised itself as a status while also being aria-hidden — contradictory.
+  const decorative = label == null;
   return (
     <div
-      role={label === null ? undefined : 'status'}
+      role={decorative ? undefined : 'status'}
       aria-label={label ?? undefined}
-      aria-hidden={label === null || undefined}
+      aria-hidden={decorative || undefined}
       className={cn(
         'animate-spin rounded-full border-primary border-t-transparent',
         SIZES[size],
