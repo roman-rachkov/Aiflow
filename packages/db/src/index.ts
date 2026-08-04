@@ -1,6 +1,12 @@
 import { PrismaClient as PublicClient } from '../generated/public';
 import { PrismaClient as ProjectClient } from '../generated/project';
 
+// Re-export the typed wrappers for the Json config columns so consumers go
+// through them rather than writing arbitrary JSON to ModelConfig.config /
+// EmbeddedAgent.config. See ./config-types.ts.
+export type { AgentConfigValue, EncryptedValue, ModelConfigValue } from './config-types';
+export { asEncryptedValue } from './config-types';
+
 /**
  * Data access for the two-schema split described in docs/03-data-model.md.
  *
