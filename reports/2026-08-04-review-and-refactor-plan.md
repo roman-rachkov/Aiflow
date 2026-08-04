@@ -11,9 +11,9 @@ behaviour-preserving refactor with bug-fixes and schema migrations (`docs/15`).
 
 Legend: `[ ]` todo · `[~]` in progress · `[x]` done · `(skip)` deferred with a reason.
 
-## Progress (2026-08-04)
+## Progress
 
-**Streams A and B are complete, plus A8.** All commits on `refactoring`, `yarn verify` green:
+**Streams A, B, and A8/A6 are complete.** All commits on `refactoring`, `yarn verify` green:
 
 | Commit  | Item     | Summary                                                                  |
 | ------- | -------- | ------------------------------------------------------------------------ |
@@ -28,10 +28,10 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · `(skip)` deferred with 
 | fecc8a9 | B2       | `forwardRef` on all UI primitives                                        |
 | 4835053 | B5       | `Field` `htmlFor`/`aria-describedby` wiring via `cloneElement`           |
 | 883d517 | hygiene  | Stop tracking `.zcode/plans/` (auto-generated drafts)                    |
-| (this)  | A8       | Full FSD enforcement via `eslint-plugin-boundaries` (replaces A1's rule) |
+| d4a11b9 | A8       | Full FSD enforcement via `eslint-plugin-boundaries` (replaces A1's rule) |
+| (this)  | A6       | Narrow config-file ignore: `allowDefaultProject` + CommonJS sourceType   |
 
-**Remaining:** A6 (deferred — needs tseslint `config()`→`defineConfig()` migration), Stream C
-(schema — needs product decisions in C1).
+**Remaining:** Stream C only (schema — needs product decisions in C1).
 
 ---
 
@@ -95,18 +95,26 @@ Goal: no observable runtime change. One or more `chore/refactor-*` PRs.
   - [x] Changed the CLI default to `'7d'`.
 - **Verify:** `yarn verify` green.
 
-### A6 — Narrow the config-file ignore _(Low)_ ⏸ deferred (a52be6a notes the deferral)
+### A6 — Narrow the config-file ignore _(Low)_ ✅ done
 
-- **Where:** `eslint.config.mjs:21-24`
-- **Problem:** blanket `**/*.config.{js,mjs,ts}` ignore hides config files from _all_ linting, not
-  just type-aware rules.
-- **Plan:**
-  - [ ] Switch to `projectService: { allowDefaultProject: ['*.config.*'] }`.
-- **Deferred because (found during work):** `allowDefaultProject` rejects `**` in its globs and
-  matches on a different axis than plain `ignores`; switching surfaced the tseslint
-  `config()` deprecation (a migration to `defineConfig()`) as a separate, blocking change.
-  Re-scoped out of this behaviour-preserving pass. The blanket ignore stays, with a comment
-  pointing here (commit a52be6a).
+- **Where:** `eslint.config.mjs` (the blanket `**/*.config.{js,mjs,ts}` ignore)
+- **Problem:** the ignore hid config files from _all_ linting, not just type-aware rules — a
+  syntax error or unused import in a config file would never be caught.
+- **Deferred once, then resolved.** First attempt found `allowDefaultProject`'s glob semantics
+  diverge from plain `ignores` (`**` is rejected) and surfaced a `tseslint.config()` deprecation.
+  On revisit: `defineConfig()` does not actually ship in typescript-eslint 8.65 (only `config`
+  is exported), so the "migration" was a phantom — the deprecation is pinned with an inline
+  `eslint-disable` and a note to switch on upgrade.
+- **Plan (as executed):**
+  - [x] Removed the blanket `**/*.config.*` ignore entries.
+  - [x] `projectService.allowDefaultProject` lists the three real config files explicitly
+        (`postcss.config.js`, `eslint.config.mjs`, `vitest.config.ts`) — exact paths, not globs,
+        so there is no glob-semantics ambiguity and the list self-documents.
+  - [x] Added a `**/*.config.js` block with `sourceType: 'commonjs'` + node globals, so
+        `module.exports` in `postcss.config.js` type-checks instead of flagging `module`.
+  - [x] Pinned the `tseslint.config()` deprecation with a described `eslint-disable`.
+- **Verify:** empirically confirmed an unused import in `vitest.config.ts` is now caught (it was
+  masked before); full `yarn verify` green (57 tests).
 
 ### A7 — Fix the stale "Dockerfiles outdated" note _(Low, docs)_ ✅ done (3fae72d)
 
@@ -145,7 +153,7 @@ Goal: no observable runtime change. One or more `chore/refactor-*` PRs.
 - **Verify:** empirically confirmed (probe files) — cross-slice
   (`features/auth → features/other/model`) **blocked** with a precise
   `slice="auth" → slice="other"` message; same-slice (`features/auth/ui →
-  features/auth/model`) **allowed**; layer-up (`shared → features`) **blocked**. Full
+features/auth/model`) **allowed**; layer-up (`shared → features`) **blocked**. Full
   `yarn verify` green (57 tests).
 
 ---

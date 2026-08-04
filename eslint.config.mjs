@@ -6,6 +6,10 @@ import unusedImports from 'eslint-plugin-unused-imports';
 import eslintComments from '@eslint-community/eslint-plugin-eslint-comments';
 import prettier from 'eslint-config-prettier';
 
+// `tseslint.config()` is deprecated in favour of `defineConfig()`, but the
+// latter does not ship until a future typescript-eslint release (8.65 exports
+// only `config`). Switch when available — this disable is a pin, not a fix.
+// eslint-disable-next-line @typescript-eslint/no-deprecated -- defineConfig not shipped yet (8.65); switch on upgrade
 export default tseslint.config(
   {
     ignores: [
@@ -16,17 +20,6 @@ export default tseslint.config(
       '**/coverage/**',
       '**/generated/**',
       '**/next-env.d.ts',
-      // Config files are not part of any tsconfig, so projectService cannot
-      // type them (the .mjs/.ts cases were missed originally and broke
-      // `yarn lint` — see docs/15-engineering-conventions.md § 7). Routing
-      // them through allowDefaultProject instead is tracked as a separate
-      // task: its glob semantics differ from plain ignores and it surfaces
-      // the tseslint `config()` deprecation, neither of which belongs in a
-      // behaviour-preserving pass.
-      '**/*.config.js',
-      '**/*.config.mjs',
-      '**/*.config.ts',
-      'eslint.config.mjs',
       // Yarn PnP artifacts. PnP is off (see .yarnrc.yml), but a stale
       // .pnp.cjs in a working tree must not fail the gate.
       '.pnp.*',
@@ -39,7 +32,20 @@ export default tseslint.config(
   {
     languageOptions: {
       parserOptions: {
-        projectService: true,
+        // Config files (postcss.config.js, vitest.config.ts, this file) are
+        // not part of any tsconfig, so projectService cannot type them.
+        // allowDefaultProject routes them through a default project so
+        // type-aware rules are off for them but syntax/import rules stay on —
+        // previously they were blanket-ignored, which hid syntax errors too.
+        // See docs/15-engineering-conventions.md § 7.
+        projectService: {
+          allowDefaultProject: [
+            'apps/web/postcss.config.js',
+            'eslint.config.mjs',
+            'vitest.config.ts',
+          ],
+          defaultProject: 'tsconfig.base.json',
+        },
         tsconfigRootDir: import.meta.dirname,
       },
     },
@@ -138,6 +144,18 @@ export default tseslint.config(
       complexity: ['warn', 10],
       'max-depth': ['warn', 4],
       'max-params': ['warn', 4],
+    },
+  },
+
+  // CommonJS config files (postcss.config.js) use module.exports — they need
+  // sourceType commonjs + node globals, otherwise ESLint flags `module`/`exports`
+  // as undefined. They are routed through allowDefaultProject above so type-aware
+  // rules stay off; this block only fixes the parser/globals.
+  {
+    files: ['**/*.config.js'],
+    languageOptions: {
+      sourceType: 'commonjs',
+      globals: { module: 'readonly', exports: 'readonly', require: 'readonly' },
     },
   },
 
