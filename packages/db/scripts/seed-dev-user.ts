@@ -34,7 +34,10 @@ async function main(): Promise<void> {
     update: { passwordHash },
   });
 
-  console.log(`Seeded ${user.email} (uiMode ${user.uiMode}) — password: ${password}`);
+  // Never echo the password — even the dev default. stdout is captured by CI,
+  // telemetry, and shell history. The default credentials are documented in the
+  // file header above; a caller who passed them explicitly already knows them.
+  console.log(`Seeded ${user.email} (uiMode ${user.uiMode})`);
 }
 
 main()
