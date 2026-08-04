@@ -26,15 +26,22 @@ generator client {
 //   - uiMode — presentation. This is what the earlier documents called
 //              "Customer" and "Engineer": two modes of one application,
 //              switched by the user, not a permission boundary.
+//
+// `image`, `emailVerified` and `passwordHash` serve NextAuth. The first two are
+// named by the adapter contract, not by us — @auth/prisma-adapter writes them
+// directly, so they cannot be renamed to house style. `passwordHash` backs the
+// dev-only Credentials provider (see docs/14-decisions-needed.md).
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  name      String?
-  avatarUrl String?
-  role      UserRole @default(USER)
-  uiMode    UiMode   @default(BASIC)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String    @id @default(uuid())
+  email         String    @unique
+  name          String?
+  image         String?
+  emailVerified DateTime?
+  passwordHash  String?
+  role          UserRole  @default(USER)
+  uiMode        UiMode    @default(BASIC)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   projects ProjectMeta[]
   accounts Account[]
