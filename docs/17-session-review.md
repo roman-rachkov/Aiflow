@@ -163,18 +163,20 @@ Select-Object -ExpandProperty OwningProcess | ForEach-Object { Stop-Process -Id 
 **Rule, amended:** a capability gap is closed by a documented working route, not
 by a row noting its absence.
 
-### 3.8 `WebFetch` and `WebSearch` do not work in this environment
+### 3.8 `WebFetch` does not work here; `WebSearch` is marginal
 
-Measured 2026-08-04: **15 of 15** `WebFetch` calls and **16 of 16** `WebSearch`
-calls failed — 31 calls, zero successes. The failures split between domain
-verification (`Unable to verify if domain code.claude.com is safe to fetch`,
-also `github.com`) and outright trust-mode refusals. Several landed in the
+Measured 2026-08-04, twice: **15 of 15** `WebFetch` calls failed in both windows —
+domain verification (`Unable to verify if domain code.claude.com is safe to
+fetch`, also `github.com`) and trust-mode refusals. Several landed in the
 `command-failure` bucket, which is why earlier runs read them as shell problems.
+`WebSearch` was dead in the first window (16 of 16) but recovered in the second
+(5 of 7) — a trust-mode or upstream change, not a fix on our side.
 
-**Rule:** do not reach for `WebFetch` or `WebSearch` here. For library and
-framework documentation use `context7`, which has a 100% success rate over its
-calls in this window. For anything else, ask the user to paste the content — one
-message costs less than four failed fetches.
+**Rule:** do not reach for `WebFetch` here — 0 for 30 over two windows.
+`WebSearch` may be tried once; if it fails, fall back. For library and framework
+documentation use `context7`, which has a 100% success rate over its calls in
+both windows. For anything else, ask the user to paste the content — one message
+costs less than four failed fetches.
 
 ### 3.9 A shell success code is not evidence the work happened
 
@@ -202,6 +204,26 @@ warns about under "One thing that will waste your time".
 
 **Rule:** a capability is finished when it is committed and registered in
 [13-agent-tooling.md](13-agent-tooling.md), not when it works locally.
+
+### 3.10 Enforcement must track the measured ranking, top-down
+
+The hookify rules landed (`222eb5f`, 2026-08-04) with two blocks: `bash-cd-prefix`
+and `false-success-after-rm`. Both fire — 10 denials in their first 2.7 h. But they
+sit at the _bottom_ of the measured anti-pattern ranking. The largest measured
+defect, `bash-instead-of-read` (732 of the window's calls), has no rule, and it
+cannot take a block — `cat file | jq` is legitimate processing, not a `Read`
+replacement.
+
+**Rule:** when a measured anti-pattern gets an enforcement hook, go top-down by
+count, and for tool-choice patterns (read/grep/glob displacement) use a **warn**,
+not a **block** — a block is only safe where the replacement is unambiguous
+(absolute paths for `cd`, `rm -v` for `rm`). Warn-granularity: match a bare
+`cat`/`head`/`tail` or `grep`/`find` as the whole command, not inside a pipeline.
+
+**Rule:** a window that straddles an enforcement change is unmeasurable. The
+10-denials-vs-1498-violations split looked like a broken hook; it was a 2.7 h-old
+one. Record the hook's start time in the retrospective; the next full window is
+the first real measurement.
 
 ---
 
