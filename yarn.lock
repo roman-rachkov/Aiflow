@@ -23,7 +23,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@aiflow/db@workspace:packages/db":
+"@aiflow/db@workspace:^, @aiflow/db@workspace:packages/db":
   version: 0.0.0-use.local
   resolution: "@aiflow/db@workspace:packages/db"
   dependencies:
@@ -96,11 +96,16 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@aiflow/web@workspace:apps/web"
   dependencies:
+    "@aiflow/db": "workspace:^"
+    "@auth/prisma-adapter": "npm:2.7.4"
+    "@types/bcryptjs": "npm:2.4.6"
     "@types/node": "npm:^22.0.0"
     "@types/react": "npm:^18.3.0"
     "@types/react-dom": "npm:^18.3.0"
     autoprefixer: "npm:^10.4.0"
+    bcryptjs: "npm:2.4.3"
     next: "npm:^15.0.0"
+    next-auth: "npm:5.0.0-beta.25"
     postcss: "npm:^8.4.0"
     react: "npm:^18.3.0"
     react-dom: "npm:^18.3.0"
@@ -135,6 +140,41 @@ __metadata:
     "@jridgewell/gen-mapping": "npm:^0.3.5"
     "@jridgewell/trace-mapping": "npm:^0.3.24"
   checksum: 10c0/81d63cca5443e0f0c72ae18b544cc28c7c0ec2cea46e7cb888bb0e0f411a1191d0d6b7af798d54e30777d8d1488b2ec0732aac2be342d3d7d3ffd271c6f489ed
+  languageName: node
+  linkType: hard
+
+"@auth/core@npm:0.37.4":
+  version: 0.37.4
+  resolution: "@auth/core@npm:0.37.4"
+  dependencies:
+    "@panva/hkdf": "npm:^1.2.1"
+    jose: "npm:^5.9.6"
+    oauth4webapi: "npm:^3.1.1"
+    preact: "npm:10.24.3"
+    preact-render-to-string: "npm:6.5.11"
+  peerDependencies:
+    "@simplewebauthn/browser": ^9.0.1
+    "@simplewebauthn/server": ^9.0.2
+    nodemailer: ^6.8.0
+  peerDependenciesMeta:
+    "@simplewebauthn/browser":
+      optional: true
+    "@simplewebauthn/server":
+      optional: true
+    nodemailer:
+      optional: true
+  checksum: 10c0/d3d18535141d17042b831d5984f3b069ffd97f84c05875fbbc34fb0371b40c916756fec0fea50a42e8fcc0427bba1113d123f266062bbec1dd6d1cace8b2f8de
+  languageName: node
+  linkType: hard
+
+"@auth/prisma-adapter@npm:2.7.4":
+  version: 2.7.4
+  resolution: "@auth/prisma-adapter@npm:2.7.4"
+  dependencies:
+    "@auth/core": "npm:0.37.4"
+  peerDependencies:
+    "@prisma/client": ">=2.26.0 || >=3 || >=4 || >=5"
+  checksum: 10c0/303556e4e6f3a8a370a6c0709821d9b666ad1dc6d1c1423606cd04f41a58f6faa6abb1137b52cd92f08401930dc55ab2a7e355bc02d1fb7723d8c7f215fa95c0
   languageName: node
   linkType: hard
 
@@ -1690,6 +1730,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@panva/hkdf@npm:^1.2.1":
+  version: 1.2.1
+  resolution: "@panva/hkdf@npm:1.2.1"
+  checksum: 10c0/1fabdec9bd2c19b8e88a3fa6fd0c25e25823c5000d9efdf4b6dfe32e9f370f8b9603cf776d120d160bec15fba17e079974cc34f0f52cebb24602cd832dfde19c
+  languageName: node
+  linkType: hard
+
 "@pkgjs/parseargs@npm:^0.11.0":
   version: 0.11.0
   resolution: "@pkgjs/parseargs@npm:0.11.0"
@@ -2034,6 +2081,13 @@ __metadata:
   dependencies:
     tslib: "npm:^2.4.0"
   checksum: 10c0/f9fde5c554455019f33af6c8215f1a1435028803dc2a2825b077d812bed4209a1a64444a4ca0ce2ea7e1175c8d88e2f9173a36a33c199e8a5c671aa31de8242d
+  languageName: node
+  linkType: hard
+
+"@types/bcryptjs@npm:2.4.6":
+  version: 2.4.6
+  resolution: "@types/bcryptjs@npm:2.4.6"
+  checksum: 10c0/1182663f0c081c5c58760019459cd309335e9b5fc6552780b0fd21b6c5f25661a844709e46218796f4bdbebe6736e11cfc5af0729bc2cdb0160943650aceb3da
   languageName: node
   linkType: hard
 
@@ -2947,6 +3001,13 @@ __metadata:
   bin:
     baseline-browser-mapping: dist/cli.cjs
   checksum: 10c0/6e46bf9e1e46d96d909b4f754968603a291dea22fbb051cf86aa73b53f3a4c8ba922bdc1d6b617f5147403b289746e8549e344affcee7a1be87a09020cd73ce1
+  languageName: node
+  linkType: hard
+
+"bcryptjs@npm:2.4.3":
+  version: 2.4.3
+  resolution: "bcryptjs@npm:2.4.3"
+  checksum: 10c0/b969467087ed7a01ff905a1c6a0c45014ec586248a448ea08370c8ed8bb314bda16a870ca23e0961d7d23bdce1a04c76fa70a9d680be814fa9ac7d8fc61870a3
   languageName: node
   linkType: hard
 
@@ -6287,6 +6348,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"jose@npm:^5.9.6":
+  version: 5.10.0
+  resolution: "jose@npm:5.10.0"
+  checksum: 10c0/e20d9fc58d7e402f2e5f04e824b8897d5579aae60e64cb88ebdea1395311c24537bf4892f7de413fab1acf11e922797fb1b42269bc8fc65089a3749265ccb7b0
+  languageName: node
+  linkType: hard
+
 "js-tokens@npm:^3.0.0 || ^4.0.0, js-tokens@npm:^4.0.0":
   version: 4.0.0
   resolution: "js-tokens@npm:4.0.0"
@@ -7304,6 +7372,28 @@ __metadata:
   languageName: node
   linkType: hard
 
+"next-auth@npm:5.0.0-beta.25":
+  version: 5.0.0-beta.25
+  resolution: "next-auth@npm:5.0.0-beta.25"
+  dependencies:
+    "@auth/core": "npm:0.37.2"
+  peerDependencies:
+    "@simplewebauthn/browser": ^9.0.1
+    "@simplewebauthn/server": ^9.0.2
+    next: ^14.0.0-0 || ^15.0.0-0
+    nodemailer: ^6.6.5
+    react: ^18.2.0 || ^19.0.0-0
+  peerDependenciesMeta:
+    "@simplewebauthn/browser":
+      optional: true
+    "@simplewebauthn/server":
+      optional: true
+    nodemailer:
+      optional: true
+  checksum: 10c0/d9bbaae7abad133c30eb1df41ef151e959998c2db5152fabd3389d4e13b5dd9226eb4b6cbba400250ae4713aeca2008fa9bcc29233b14a26777de4c3dc4d6a39
+  languageName: node
+  linkType: hard
+
 "next@npm:^15.0.0":
   version: 15.5.22
   resolution: "next@npm:15.5.22"
@@ -7712,6 +7802,13 @@ __metadata:
     nx: bin/nx.js
     nx-cloud: bin/nx-cloud.js
   checksum: 10c0/db3dac1463c908213584962efec77e8001cd7a897c09deca97fb2bf44736ca8e660455b26af79460ada00b257c8c42a1bc03a02ffcbfe8ced49bf9da598881c2
+  languageName: node
+  linkType: hard
+
+"oauth4webapi@npm:^3.1.1":
+  version: 3.8.6
+  resolution: "oauth4webapi@npm:3.8.6"
+  checksum: 10c0/479810716702c5616e4a0eb80d4f1c264a6a2b63b04061a62a59375e195d2726e947507ede98e41ee3f9ca800f159621ea371c36f5c4346d015b6ec03e477440
   languageName: node
   linkType: hard
 
@@ -8403,6 +8500,22 @@ __metadata:
     picocolors: "npm:^1.1.1"
     source-map-js: "npm:^1.2.1"
   checksum: 10c0/0a12c1e74b456c57122e81f684e02fd98ff4d57526f794d10c996df1147158808f5ae373ac82b988c8de6cbbaa82dbd7b13803b14f5dd3cf7cc6a42ccad5c9f2
+  languageName: node
+  linkType: hard
+
+"preact-render-to-string@npm:6.5.11":
+  version: 6.5.11
+  resolution: "preact-render-to-string@npm:6.5.11"
+  peerDependencies:
+    preact: ">=10"
+  checksum: 10c0/a68b704c1343756022fb41322154b45e39f6021b940cbc97e86c292627d017d019700339a17d67b42c308b14fc5323fc120c798f785d6a3e993c8f273610bfe2
+  languageName: node
+  linkType: hard
+
+"preact@npm:10.24.3":
+  version: 10.24.3
+  resolution: "preact@npm:10.24.3"
+  checksum: 10c0/c863df6d7be6a660480189762d8a8f2d4148733fc2bb9efbd9d2fd27315d2c7ede850a16077d716c91666c915c0349bd3c9699733e4f08457226a0519f408761
   languageName: node
   linkType: hard
 
