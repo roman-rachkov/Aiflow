@@ -35,12 +35,25 @@ Development is done by a single engineer using AI assistants (dogfooding as the 
 - Configure Prisma for the `public` schema (User, ProjectMeta, DeploymentMeta).
 - Implement the script that creates a project schema when a `ProjectMeta` record is created.
 
-**Task 1.2. Authentication and base UI**
+**Task 1.2a. Authentication and app shell** — done
 
-- Set up NextAuth (Email provider with magic link, GitHub OAuth).
-- Create the application layout (header, side menu).
-- Pages: sign in/sign up, dashboard (project list), project card.
+- NextAuth v5 with the Prisma adapter and a Credentials provider.
+- Application layout (header, side menu), sign-in page, dashboard shell.
+- Guards `requireUser`, `requireProMode`, `canAccessProject`.
+
+Two deviations from the original Task 1.2, both recorded in
+`docs/14-decisions-needed.md`: Credentials ships instead of the Email magic link
+and GitHub OAuth (both need external services that make local development
+impossible), and the guard is named `requireProMode` rather than
+`requireEngineer` because it checks `uiMode`, which is presentation and not a
+permission boundary.
+
+**Task 1.2b. Projects CRUD**
+
+- Pages: dashboard project list, project card.
 - API: create, list, delete a project.
+- Create the `project_{uuid}` schema on project creation — the unfinished tail of
+  Task 1.1, deferred pending open question #2 on migrations.
 
 **Task 1.3. Researcher chat (MVP variant)**
 

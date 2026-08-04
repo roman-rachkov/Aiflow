@@ -56,15 +56,16 @@ tools/                    Dev-only workspaces. Ship nowhere; still gated by
 
 ## Cross-cutting
 
-| Concern                                                             | Where                                                |
-| ------------------------------------------------------------------- | ---------------------------------------------------- |
-| Auth helpers (`requireUser`, `requireEngineer`, `canAccessProject`) | `apps/web/src/features/auth` (Task 1.2)              |
-| Prisma client factory                                               | `packages/db/src/index.ts`                           |
-| Queue definitions                                                   | `packages/queue/src`                                 |
-| Encryption helpers                                                  | `packages/crypto/src`                                |
-| Gitea client                                                        | `apps/web/src/shared/gitea` (planned)                |
-| MinIO client                                                        | `apps/web/src/shared/minio` (planned)                |
-| Env validation                                                      | `.env.example` + `apps/web/src/shared/env` (planned) |
+| Concern                                                            | Where                                                |
+| ------------------------------------------------------------------ | ---------------------------------------------------- |
+| Auth helpers (`requireUser`, `requireProMode`, `canAccessProject`) | `apps/web/src/features/auth` (Task 1.2a)             |
+| App shell (header, side menu)                                      | `apps/web/src/shared/ui` (Task 1.2a)                 |
+| Prisma client factory                                              | `packages/db/src/index.ts`                           |
+| Queue definitions                                                  | `packages/queue/src`                                 |
+| Encryption helpers                                                 | `packages/crypto/src`                                |
+| Gitea client                                                       | `apps/web/src/shared/gitea` (planned)                |
+| MinIO client                                                       | `apps/web/src/shared/minio` (planned)                |
+| Env validation                                                     | `.env.example` + `apps/web/src/shared/env` (planned) |
 
 ## Rules that keep it readable
 
@@ -76,4 +77,7 @@ tools/                    Dev-only workspaces. Ship nowhere; still gated by
   artifacts, gitignored, and exempt from the size rules.
 - `packages/crypto`, `packages/ai-roles` and `packages/ui` are declared but empty
   until their consumers arrive (Task 1.3 / 1.2); `packages/db` is real — schemas,
-  client factory and the project-schema generator.
+  client factory and the project-schema generator. `packages/ui` stays empty
+  through 1.2a on purpose: the shell components have one consumer, which fails
+  the promotion test in conventions § 2.3, so they live in `apps/web/src/shared/ui`
+  until a second consumer earns the move.
