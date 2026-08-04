@@ -31,9 +31,10 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · `(skip)` deferred with 
 | d4a11b9 | A8       | Full FSD enforcement via `eslint-plugin-boundaries` (replaces A1's rule)      |
 | 8862d99 | A6       | Lint config files via `allowDefaultProject` + CommonJS sourceType             |
 | (this)  | C-soft   | Soft delete (`deletedAt`) on 12 domain models; remove `ProjectStatus.DELETED` |
+| 3055709 | C2       | Index NextAuth hot-path FKs (`userId`, `identifier`)                          |
+| d982850 | C3       | Typed wrappers for encrypted `Json` config columns                            |
 
-**Remaining (standalone follow-ups, not blocking):** C2 (NextAuth FK indexes), C3 (typed Json
-config). C1 was superseded by soft delete.
+**All planned work is complete.** C1 was superseded by soft delete; no items remain.
 
 ---
 
@@ -253,16 +254,22 @@ Goal: data-model correctness. Done last, after the product decisions were made.
   delete would only happen via direct SQL, not through the app. No action taken; revisit only if a
   real hard-delete path is introduced.
 
-### C2 — FK indexes for NextAuth hot paths _(Low, not done)_ [ ] todo
+### C2 — FK indexes for NextAuth hot paths _(Low)_ ✅ done (3055709)
 
-- `Session.userId` and `Account.userId` still lack `@@index([userId])`. NextAuth queries by
-  `userId` on every authenticated request. Low volume in dev, but worth adding before any load.
-  Not part of the soft-delete work; left as a standalone follow-up.
+- `Session.userId`, `Account.userId`, and `VerificationToken.identifier` now carry
+  `@@index`. NextAuth queries by `userId` on every authenticated request — those
+  lookups scanned before. Migration `20260805010000_nextauth_fk_indexes` applied;
+  client regenerated.
 
-### C3 — Type the encrypted-config `Json` fields _(Medium, not done)_ [ ] todo
+### C3 — Type the encrypted-config `Json` fields _(Medium)_ ✅ done (d982850)
 
-- `ModelConfig.config` and `EmbeddedAgent.config` remain untyped `Json`. Needs a branded/validated
-  shape in `@aiflow/crypto` (not yet a real package). Left as a standalone follow-up.
+- `ModelConfig.config` and `EmbeddedAgent.config` were bare `Json` (any JSON writable, including a
+  plaintext key by mistake). Added branded types in `packages/db/src/config-types.ts`
+  (`EncryptedValue`, `ModelConfigValue`, `AgentConfigValue`) plus an `asEncryptedValue` runtime
+  guard that validates the `{ "__encrypted__": string }` shape. The brand compiles away so
+  existing rows read back unchanged; writes are forced through the guard. Re-exported from
+  `@aiflow/db`. No new dependency (zod absent; a shape check does not need it). Covered by 8 new
+  tests; full schema deferred to `@aiflow/crypto` when that package is real.
 
 ---
 
