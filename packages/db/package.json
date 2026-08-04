@@ -8,12 +8,15 @@
     "generate": "prisma generate --schema prisma/schema.prisma && prisma generate --schema prisma/schema_project_template.prisma",
     "migrate": "prisma migrate dev --schema prisma/schema.prisma",
     "project-sql": "tsx scripts/generate-project-sql.ts",
+    "seed:dev-user": "tsx scripts/seed-dev-user.ts",
     "typecheck": "yarn generate && tsc --noEmit"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0"
   },
   "devDependencies": {
+    "@types/bcryptjs": "2.4.6",
+    "bcryptjs": "2.4.3",
     "prisma": "^5.22.0",
     "typescript": "^5.6.0"
   }

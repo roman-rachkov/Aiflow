@@ -35,6 +35,9 @@ packages/
 │                             template to CREATE SCHEMA + DDL + the pgvector
 │                             column and HNSW index. `yarn workspace @aiflow/db
 │                             project-sql project_x` (C2)
+│                             scripts/seed-dev-user.ts — a Credentials login for
+│                             local dev; refuses a non-local DATABASE_URL.
+│                             `yarn workspace @aiflow/db seed:dev-user`
 ├── queue/                BullMQ definitions: the four queues + typed payloads,
 │                         concurrency 1, default job options
 ├── crypto/               AES-256-GCM helpers: encryptSecret/decryptSecret,
