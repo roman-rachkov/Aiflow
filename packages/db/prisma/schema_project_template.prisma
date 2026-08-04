@@ -29,6 +29,8 @@ model ModelConfig {
   config    Json
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  // Soft delete — see the convention on User in schema.prisma.
+  deletedAt DateTime?
 }
 
 // Immutable specification version. Never updated — a new version is inserted.
@@ -43,6 +45,8 @@ model Specification {
   // v2 must not silently approve v3. UI gates code generation on this.
   approvedAt DateTime?
   approvedBy String?
+  // Soft delete — see the convention on User in schema.prisma.
+  deletedAt DateTime?
 
   tasks Task[]
 
@@ -75,6 +79,8 @@ model Task {
   updatedAt   DateTime  @updatedAt
   startedAt   DateTime?
   completedAt DateTime?
+  // Soft delete — see the convention on User in schema.prisma.
+  deletedAt   DateTime?
 
   logs       TaskLog[]
   dependsOn  TaskDependency[] @relation("dependent")
@@ -83,6 +89,7 @@ model Task {
 
   @@index([status])
   @@index([sortOrder])
+  @@index([deletedAt])
 }
 
 // Explicit dependency edges. The docs and UI both describe dependency lines on
@@ -150,6 +157,8 @@ model ChatMessage {
   role      ChatRole
   content   String      @db.Text
   createdAt DateTime    @default(now())
+  // Soft delete — see the convention on User in schema.prisma.
+  deletedAt DateTime?
 
   @@index([createdAt])
 }
@@ -168,6 +177,8 @@ model UserFile {
   mimeType   String
   storageKey String   @unique
   createdAt  DateTime @default(now())
+  // Soft delete — see the convention on User in schema.prisma.
+  deletedAt  DateTime?
 
   document Document?
 }
@@ -185,6 +196,8 @@ model Document {
   status     IndexStatus    @default(PENDING)
   createdAt  DateTime       @default(now())
   indexedAt  DateTime?
+  // Soft delete — see the convention on User in schema.prisma.
+  deletedAt  DateTime?
 
   chunks DocumentChunk[]
 
@@ -229,6 +242,8 @@ model FileLock {
   taskId    String?
   task      Task?    @relation(fields: [taskId], references: [id], onDelete: SetNull)
   createdAt DateTime @default(now())
+  // Soft delete — see the convention on User in schema.prisma.
+  deletedAt DateTime?
 }
 
 enum LockReason {
@@ -245,6 +260,8 @@ model EmbeddedAgent {
   status    AgentStatus @default(INACTIVE)
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
+  // Soft delete — see the convention on User in schema.prisma.
+  deletedAt DateTime?
 }
 
 enum AgentType {
@@ -269,6 +286,8 @@ model Deployment {
   imageTag    String?
   createdAt   DateTime         @default(now())
   completedAt DateTime?
+  // Soft delete — see the convention on User in schema.prisma.
+  deletedAt   DateTime?
 
   @@index([createdAt])
 }

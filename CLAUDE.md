@@ -125,6 +125,8 @@ Four component groups, all under Docker Compose. Details in `docs/02-architectur
 
 **Secrets** are AES-256-GCM encrypted under `ENCRYPTION_KEY`.
 
+**Domain models are soft-deleted, never physically removed.** Every domain model (both schemas) carries a `deletedAt DateTime?`. A non-null timestamp marks the row as deleted; queries must filter `deletedAt: null` **manually** (there is no Prisma extension — explicit filtering is safer than magical auto-filtering, but it means every new query has to remember the clause). Deletion is `update { deletedAt: now() }`, not `delete`. NextAuth adapter models (`Account`, `Session`, `VerificationToken`) and pure cascade children (`TaskDependency`, `TaskLog`, `DocumentChunk`) are exempt — they follow the adapter / their parent. `ProjectStatus.DELETED` was removed: `deletedAt` is the single deletion signal, so two indicators cannot disagree.
+
 The specifics of all three — the URL-rewriting trick, the container hardening flags, the encrypted value shape, and the codegen lifecycle — are in [`ai-studio-internals`](.claude/skills/ai-studio-internals/SKILL.md). Read it before touching compose, sandbox config, per-project DB access, or secret handling.
 
 **`model-router`** (Express, port 3001) unifies routerai.ru / OpenAI / Anthropic / Ollama behind an OpenAI-compatible API, with a fallback chain and a 1-hour Redis response cache. It stores no keys — they arrive encrypted, are decrypted for the call, then wiped from memory.

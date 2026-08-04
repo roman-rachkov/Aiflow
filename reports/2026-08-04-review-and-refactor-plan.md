@@ -13,25 +13,27 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · `(skip)` deferred with 
 
 ## Progress
 
-**Streams A, B, and A8/A6 are complete.** All commits on `refactoring`, `yarn verify` green:
+**Streams A, B, A8, A6, and C-soft are complete.** All commits on `refactoring`, `yarn verify` green:
 
-| Commit  | Item     | Summary                                                                  |
-| ------- | -------- | ------------------------------------------------------------------------ |
-| d35fc46 | A1       | Re-enable FSD slice-boundary rule (remove `'*/**'`)                      |
-| a0af71a | A2       | Restore full `@aiflow/*` path map in web tsconfig                        |
-| 3fae72d | A3+A5+A7 | `danger-hover` token, `--since 7d` default, fix Docker note              |
-| 212157b | A4       | session-analyzer ENOENT guard + error boundary                           |
-| a52be6a | A6\*     | Document why config-ignore narrowing is deferred                         |
-| 4a23bdb | B1       | Stop logging the seeded password                                         |
-| fb22c1f | B3       | `JWT.uiMode` optional + BASIC default                                    |
-| 50c5a26 | B4       | Spinner English default + fixed `aria-hidden` logic                      |
-| fecc8a9 | B2       | `forwardRef` on all UI primitives                                        |
-| 4835053 | B5       | `Field` `htmlFor`/`aria-describedby` wiring via `cloneElement`           |
-| 883d517 | hygiene  | Stop tracking `.zcode/plans/` (auto-generated drafts)                    |
-| d4a11b9 | A8       | Full FSD enforcement via `eslint-plugin-boundaries` (replaces A1's rule) |
-| (this)  | A6       | Narrow config-file ignore: `allowDefaultProject` + CommonJS sourceType   |
+| Commit  | Item     | Summary                                                                       |
+| ------- | -------- | ----------------------------------------------------------------------------- |
+| d35fc46 | A1       | Re-enable FSD slice-boundary rule (remove `'*/**'`)                           |
+| a0af71a | A2       | Restore full `@aiflow/*` path map in web tsconfig                             |
+| 3fae72d | A3+A5+A7 | `danger-hover` token, `--since 7d` default, fix Docker note                   |
+| 212157b | A4       | session-analyzer ENOENT guard + error boundary                                |
+| a52be6a | A6\*     | Document why config-ignore narrowing is deferred                              |
+| 4a23bdb | B1       | Stop logging the seeded password                                              |
+| fb22c1f | B3       | `JWT.uiMode` optional + BASIC default                                         |
+| 50c5a26 | B4       | Spinner English default + fixed `aria-hidden` logic                           |
+| fecc8a9 | B2       | `forwardRef` on all UI primitives                                             |
+| 4835053 | B5       | `Field` `htmlFor`/`aria-describedby` wiring via `cloneElement`                |
+| 883d517 | hygiene  | Stop tracking `.zcode/plans/` (auto-generated drafts)                         |
+| d4a11b9 | A8       | Full FSD enforcement via `eslint-plugin-boundaries` (replaces A1's rule)      |
+| 8862d99 | A6       | Lint config files via `allowDefaultProject` + CommonJS sourceType             |
+| (this)  | C-soft   | Soft delete (`deletedAt`) on 12 domain models; remove `ProjectStatus.DELETED` |
 
-**Remaining:** Stream C only (schema — needs product decisions in C1).
+**Remaining (standalone follow-ups, not blocking):** C2 (NextAuth FK indexes), C3 (typed Json
+config). C1 was superseded by soft delete.
 
 ---
 
@@ -205,38 +207,62 @@ Goal: correct defects. Separate PRs or one `fix/*` PR with conventional-commit-p
 
 ## Stream C — `feat(db)/*` (schema migration)
 
-Goal: data-model correctness. Needs product decisions and a new migration — do last, with care.
+Goal: data-model correctness. Done last, after the product decisions were made.
 
-### C1 — Decide `onDelete` semantics _(Medium)_
+> **Scope changed during work.** The original C1/C2/C3 (onDelete semantics, FK indexes, Json
+> typing) were **superseded** by a decision to adopt **soft delete** across all domain models.
+> The original three are noted below as superseded/not-done; the soft-delete work that actually
+> landed is C-soft.
 
-- **Where:** `schema.prisma:69` (`ProjectMeta.owner`), `:89` (`DeploymentMeta.project`)
-- **Decision needed:** RESTRICT (block user delete if they own projects) vs Cascade vs SetNull
-  (reassign). RESTRICT is the safe default; the _current_ implicit behaviour is already RESTRICT
-  via the migration, but it is undocumented.
-- **Plan:**
-  - [ ] Make the intent explicit (`onDelete: Restrict`) or pick the product behaviour.
-  - [ ] If behaviour changes, document in `docs/12-open-questions.md` status table.
+### C-soft — Soft delete (`deletedAt`) for all domain models ✅ done
 
-### C2 — Add FK indexes for NextAuth hot paths _(Low)_
+- **Decision (from user):** domain models are never physically removed. Add `deletedAt DateTime?`
+  to every domain model in both schemas; filter `deletedAt: null` **manually** in queries (no
+  Prisma extension — explicit > magical); remove `ProjectStatus.DELETED` so `deletedAt` is the
+  single deletion signal.
+- **Scope:** all domain models — public (`User`, `ProjectMeta`, `DeploymentMeta`) and
+  project-template (`Task`, `Specification`, `ModelConfig`, `ChatMessage`, `UserFile`, `Document`,
+  `FileLock`, `EmbeddedAgent`, `Deployment`). **Exempt:** NextAuth adapter models
+  (`Account`/`Session`/`VerificationToken` — adapter-managed) and pure cascade children
+  (`TaskDependency`, `TaskLog`, `DocumentChunk` — they follow their parent).
+- **Plan (as executed):**
+  - [x] `deletedAt DateTime?` added to 12 models across both schemas; `@@index([deletedAt])` on
+        `ProjectMeta` and `Task` (the "list active" hot paths).
+  - [x] `ProjectStatus.DELETED` removed from the enum (`ACTIVE`/`ARCHIVED` only now).
+  - [x] Migration `20260805000000_soft_delete_deleted_at` applied to the public schema;
+        `schema_project_template` needs no migration (its SQL is generated from the schema file
+        via `generate-project-sql.ts`, which picks up the new columns automatically).
+  - [x] Both Prisma clients regenerated.
+  - [x] `guards.ts` `canAccessProject` query gains `deletedAt: null`; the `status === 'DELETED'`
+        check is removed (soft-deleted projects are now invisible to the query). `config.ts`
+        `user.findUnique` gains `deletedAt: null` (deactivated users cannot authenticate).
+  - [x] `guards.test.ts` "deleted project" case rewritten to reflect the new semantics (the query
+        returns null for soft-deleted projects).
+  - [x] Convention documented in `CLAUDE.md`, `AGENTS.md`, and `docs/03-data-model.md`.
+- **Verify:** `yarn verify` green (57 tests); `prisma validate` green on both schemas.
+- **Known limitation:** existing `project_{uuid}` schemas already created in a running database do
+  **not** receive the `deletedAt` column automatically (they are not migrated). For dev that
+  is fine — recreate the project schema. Flagged for when a real migration story for project
+  schemas is needed.
 
-- **Where:** `schema.prisma:108` (`Session.userId`), `:127` (`Account.userId`)
-- **Plan:**
-  - [ ] `@@index([userId])` on both; optionally `@@index([identifier])` on `VerificationToken`.
+### C1 — `onDelete` semantics _(superseded by C-soft)_ ⏸
 
-### C3 — Type the encrypted-config `Json` fields _(Medium)_
+- Originally: decide RESTRICT vs Cascade vs SetNull for `owner`/`project` relations.
+- **Superseded:** with soft delete, rows are not physically removed, so `onDelete` rarely fires.
+  The implicit `RESTRICT` (the migration default) is now acceptable as a safety net — a physical
+  delete would only happen via direct SQL, not through the app. No action taken; revisit only if a
+  real hard-delete path is introduced.
 
-- **Where:** `schema_project_template.prisma:29` (`ModelConfig.config`), `:244`
-  (`EmbeddedAgent.config`)
-- **Plan:**
-  - [ ] Introduce a branded/validated shape (zod in `@aiflow/crypto`, once that package is real)
-        and validate on write. Until then, at least a JSDoc invariant + a runtime guard at the
-        write site.
+### C2 — FK indexes for NextAuth hot paths _(Low, not done)_ [ ] todo
 
-### Migration
+- `Session.userId` and `Account.userId` still lack `@@index([userId])`. NextAuth queries by
+  `userId` on every authenticated request. Low volume in dev, but worth adding before any load.
+  Not part of the soft-delete work; left as a standalone follow-up.
 
-- [ ] Whatever subset of C1–C3 lands: `npx prisma migrate dev --name <slug>` against the **public**
-      schema only; regenerate (`yarn workspace @aiflow/db generate`); update the project-SQL script
-      if project-template fields change.
+### C3 — Type the encrypted-config `Json` fields _(Medium, not done)_ [ ] todo
+
+- `ModelConfig.config` and `EmbeddedAgent.config` remain untyped `Json`. Needs a branded/validated
+  shape in `@aiflow/crypto` (not yet a real package). Left as a standalone follow-up.
 
 ---
 

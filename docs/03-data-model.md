@@ -44,6 +44,9 @@ model ProjectMeta {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   status      ProjectStatus @default(ACTIVE)
+  // Soft delete — see the convention on User. `deletedAt` is the single
+  // deletion mechanism; the former ProjectStatus.DELETED value was removed.
+  deletedAt   DateTime?
 
   deployments DeploymentMeta[]
 }
@@ -51,7 +54,6 @@ model ProjectMeta {
 enum ProjectStatus {
   ACTIVE
   ARCHIVED
-  DELETED
 }
 
 // Deploy summary (details live in the project schema)

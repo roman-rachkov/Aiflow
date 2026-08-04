@@ -51,7 +51,12 @@ export const authConfig = {
         const password = credentials.password;
         if (typeof email !== 'string' || typeof password !== 'string') return null;
 
-        const user = await getPublicClient().user.findUnique({ where: { email } });
+        // `deletedAt: null` excludes soft-deleted users — a deactivated account
+        // must not authenticate. See the soft-delete convention on User in
+        // packages/db/prisma/schema.prisma.
+        const user = await getPublicClient().user.findUnique({
+          where: { email, deletedAt: null },
+        });
         if (!user?.passwordHash) return null;
 
         const valid = await compare(password, user.passwordHash);

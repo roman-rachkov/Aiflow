@@ -99,8 +99,10 @@ describe('canAccessProject', () => {
     await expect(canAccessProject('u1', 'gone')).resolves.toBe(false);
   });
 
-  it('refuses a deleted project even to its owner', async () => {
-    findUnique.mockResolvedValue({ ownerId: 'u1', status: 'DELETED' });
+  it('refuses a soft-deleted project even to its owner', async () => {
+    // Soft-deleted projects are filtered out by the query's `deletedAt: null`
+    // clause, so findUnique returns null — the project behaves as if gone.
+    findUnique.mockResolvedValue(null);
     await expect(canAccessProject('u1', 'p1')).resolves.toBe(false);
   });
 

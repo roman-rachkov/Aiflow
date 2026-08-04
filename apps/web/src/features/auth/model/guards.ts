@@ -57,12 +57,14 @@ export async function requireProMode(): Promise<SessionUser> {
  */
 export async function canAccessProject(userId: string, projectId: string): Promise<boolean> {
   const project = await getPublicClient().projectMeta.findUnique({
-    where: { id: projectId },
+    // `deletedAt: null` excludes soft-deleted projects — they should behave as
+    // if they do not exist. See the soft-delete convention on User in
+    // packages/db/prisma/schema.prisma.
+    where: { id: projectId, deletedAt: null },
     select: { ownerId: true, status: true },
   });
 
   if (!project) return false;
-  if (project.status === 'DELETED') return false;
 
   return project.ownerId === userId;
 }

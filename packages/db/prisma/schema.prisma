@@ -42,6 +42,10 @@ model User {
   uiMode        UiMode    @default(BASIC)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+  // Soft delete: domain models are never physically removed. A timestamp here
+  // marks the row as deleted; queries must filter `deletedAt: null` manually
+  // (no Prisma extension — explicit is safer than magical auto-filtering).
+  deletedAt     DateTime?
 
   projects ProjectMeta[]
   accounts Account[]
@@ -70,16 +74,20 @@ model ProjectMeta {
   status      ProjectStatus @default(ACTIVE)
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
+  // Soft delete — see the convention on User. `deletedAt` is the single
+  // deletion mechanism; the former ProjectStatus.DELETED value was removed to
+  // avoid two indicators that can disagree.
+  deletedAt   DateTime?
 
   deployments DeploymentMeta[]
 
   @@index([ownerId])
+  @@index([deletedAt])
 }
 
 enum ProjectStatus {
   ACTIVE
   ARCHIVED
-  DELETED
 }
 
 // Deploy summary. Full build logs live in the project schema (Deployment).
@@ -90,6 +98,8 @@ model DeploymentMeta {
   status    DeploymentStatus @default(BUILDING)
   url       String?
   createdAt DateTime         @default(now())
+  // Soft delete — see the convention on User.
+  deletedAt DateTime?
 
   @@index([projectId, createdAt])
 }

@@ -70,6 +70,9 @@ workspace with zero tests fails loudly instead of looking green. Pre-commit (`hu
   `internal: true` — sandboxes reach only `registry-proxy`.
 - **Secrets** are AES-256-GCM encrypted under `ENCRYPTION_KEY`. Per-project schemas are created
   from generated SQL (derived from `schema_project_template.prisma`), **not** via `prisma migrate`.
+- **Soft delete only.** Every domain model has `deletedAt DateTime?`. Queries must filter
+  `deletedAt: null` **manually** (no Prisma extension). Delete = `update { deletedAt: now() }`,
+  never `.delete()`. NextAuth/cascade models are exempt. Full rule in `CLAUDE.md`.
 - Details (port allocation, URL-rewriting, container hardening, encrypted value shape) live in the
   `ai-studio-internals` skill — read it before touching compose, sandbox, per-project DB, or secrets.
 
