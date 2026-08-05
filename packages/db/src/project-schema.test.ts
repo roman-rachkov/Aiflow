@@ -27,7 +27,8 @@ describe('generateProjectSql', () => {
     const sql = projectSchema.generateProjectSql('project_abc');
 
     expect(sql).toContain('CREATE SCHEMA IF NOT EXISTS "project_abc";');
-    expect(sql).toContain('SET search_path TO "project_abc";');
+    // search_path keeps `public` so extension types (pgvector's vector) resolve.
+    expect(sql).toContain('SET search_path TO "project_abc", public;');
     expect(sql).toContain('-- tables');
     expect(sql).toContain('RESET search_path;');
   });

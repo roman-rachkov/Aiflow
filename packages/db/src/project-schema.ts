@@ -109,8 +109,12 @@ export function generateProjectSql(schemaName: string): string {
     ``,
     `CREATE SCHEMA IF NOT EXISTS "${schemaName}";`,
     ``,
+    // `public` stays on the search_path so extension types (pgvector's
+    // `vector`, pgcrypto helpers) resolve inside the new schema. Without it
+    // the pgvector column DDL below fails with `type "vector" does not exist`
+    // because the extension lives in `public`, not the freshly-created schema.
     `-- Everything below runs inside the new schema.`,
-    `SET search_path TO "${schemaName}";`,
+    `SET search_path TO "${schemaName}", public;`,
     ``,
     renderTableDdl().trim(),
     VECTOR_DDL.trim(),
