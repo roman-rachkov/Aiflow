@@ -75,6 +75,10 @@ export async function* streamLiveChat(
       model: config.model,
       messages: buildApiMessages(messages, config.systemPrompt),
       stream: true,
+      // Explicitly request a usage frame on the terminal chunk so
+      // chatWithUsage can resolve real token counts; without it the API may
+      // omit usage and usage resolves to nulls.
+      stream_options: { include_usage: true },
     }),
   });
   if (!response.ok || !response.body) {
