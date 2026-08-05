@@ -1,14 +1,10 @@
-import { requireUser } from '@/features/auth';
+import { redirect } from 'next/navigation';
 
-export default async function DashboardPage() {
-  const user = await requireUser();
-
-  return (
-    <>
-      <h1 className="text-2xl font-semibold tracking-tight">Проекты</h1>
-      <p className="mt-2 text-fg-muted">
-        Вы вошли как {user.name ?? user.email}. Список проектов появится в задаче 1.2b.
-      </p>
-    </>
-  );
+/**
+ * The dashboard root now redirects to the projects list. Projects used to live
+ * on `/` as a placeholder; Task 1.2b moved them under `/projects/*` for a
+ * cleaner RESTful grouping, so `/` is no longer a destination.
+ */
+export default function RootPage(): never {
+  redirect('/projects');
 }

@@ -9,7 +9,7 @@ import Link from 'next/link';
  * listed now so the shell is not visibly empty.
  */
 const NAV_ITEMS = [
-  { href: '/', label: 'Проекты' },
+  { href: '/projects', label: 'Проекты' },
   { href: '/deployments', label: 'Развёртывания' },
 ] as const;
 

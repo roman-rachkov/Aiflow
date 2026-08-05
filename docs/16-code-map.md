@@ -12,6 +12,21 @@ apps/
 │                             deps: @aiflow/{db,queue,crypto,ai-roles,ui}
 │                             layout: app/ (routing only) → features/ →
 │                                     shared/ → packages/ (§ 2.2)
+│   features:
+│     ├── auth/           NextAuth v5, guards, session (Task 1.2a)
+│     └── projects/       Projects CRUD + schema provisioning (Task 1.2b)
+│                           └── public entry: src/index.ts
+│                               model/service.ts — create/list/get/remove over
+│                                 ProjectMeta; create is a compensation saga
+│                                 (createProjectSchema → projectMeta.create →
+│                                 dropProjectSchema on failure)
+│                               ui/ — ProjectList, ProjectCard, ProjectDetails,
+│                                 CreateProjectForm + DeleteProjectButton (the
+│                                 delete confirm overlay lives here, not in
+│                                 @aiflow/ui — one consumer, per D0 / § 2.3)
+│   routes (app/):
+│     /  → redirect('/projects');  /projects, /projects/new, /projects/[id]
+│     /api/projects (GET list, POST create), /api/projects/[id] (GET, DELETE)
 └── worker/               BullMQ workers, one dir per queue (spec, plan, code, deploy)
     └── public entry: src/index.ts
         deps: @aiflow/{db,queue,crypto,ai-roles}
@@ -68,6 +83,7 @@ tools/                    Dev-only workspaces. Ship nowhere; still gated by
 | Concern                                                            | Where                                                |
 | ------------------------------------------------------------------ | ---------------------------------------------------- |
 | Auth helpers (`requireUser`, `requireProMode`, `canAccessProject`) | `apps/web/src/features/auth` (Task 1.2a)             |
+| Projects CRUD + schema provisioning                                | `apps/web/src/features/projects` (Task 1.2b)         |
 | App shell (header, side menu)                                      | `apps/web/src/shared/ui` (Task 1.2a)                 |
 | UI primitives + design tokens                                      | `packages/ui/src` (Task 1.2d)                        |
 | Prisma client factory                                              | `packages/db/src/index.ts`                           |
