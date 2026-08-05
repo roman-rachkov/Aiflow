@@ -5,11 +5,14 @@ import type { AntiPattern, ThrashFinding, ToolCall } from './types.ts';
  * Detect wasted motion: the same failure hit repeatedly, and tool choices that
  * had a better alternative available.
  *
- * The Bash checks encode a measured finding — 775 Bash calls against 125 Grep
- * calls, with 239 of the Bash calls embedding grep/rg. The dedicated tools
- * return structured, permission-integrated results; the shell equivalents return
- * raw text and cost a separate permission decision each time
- * (docs/17-session-review.md § 3.3).
+ * The Bash checks encode a measured finding: a large share of Bash calls embed
+ * cat/head/tail, grep/rg, or find — standing in for the dedicated Read/Grep/Glob
+ * tools, which return structured, permission-integrated results where the shell
+ * equivalents return raw text and cost a separate permission decision each time
+ * (docs/17-session-review.md § 3.3). For those displacement patterns the KPI is
+ * the ratio of embeds to dedicated-tool calls, not the raw embed count — a
+ * warn-level hook advises but cannot suppress, so the count cannot fall; see
+ * AntiPattern.displacementRatio and docs/17 § 3.10.
  */
 
 const MIN_REPEATS = 3;
@@ -43,15 +46,51 @@ function commandOf(call: ToolCall): string {
   return typeof raw === 'string' ? raw : '';
 }
 
+/** Embeds ÷ dedicated-tool calls, or undefined when no baseline exists. */
+function displacementRatio(embeds: number, dedicated: number): number | undefined {
+  if (dedicated === 0) return undefined;
+  return Number((embeds / dedicated).toFixed(3));
+}
+
+interface DisplacementPattern {
+  kind: string;
+  /** Regex matching the shell builtin this pattern displaces a dedicated tool for. */
+  embedRegex: RegExp;
+  /** The dedicated tool whose calls form the denominator of the ratio. */
+  dedicatedName: 'Read' | 'Grep' | 'Glob';
+  /** Human-readable detail, given the embed and dedicated-tool counts. */
+  detail: (embeds: number, dedicated: number) => string;
+}
+
+const DISPLACEMENT_PATTERNS: DisplacementPattern[] = [
+  {
+    kind: 'bash-instead-of-read',
+    embedRegex: /\b(?:cat|head|tail)\b/,
+    dedicatedName: 'Read',
+    detail: (e, d) =>
+      `${String(e)} Bash calls embed cat/head/tail, against ${String(d)} Read tool calls.`,
+  },
+  {
+    kind: 'bash-instead-of-grep',
+    embedRegex: /\b(?:grep|rg)\b/,
+    dedicatedName: 'Grep',
+    detail: (e, d) =>
+      `${String(e)} Bash calls embed grep/rg, against ${String(d)} Grep tool calls.`,
+  },
+  {
+    kind: 'bash-instead-of-glob',
+    embedRegex: /\bfind\b/,
+    dedicatedName: 'Glob',
+    detail: (e) =>
+      `${String(e)} Bash calls embed find; Glob returns the same paths already sorted.`,
+  },
+];
+
 export function findAntiPatterns(calls: ToolCall[]): AntiPattern[] {
   const bash = calls.filter((c) => c.name === 'Bash');
-  const grepCalls = calls.filter((c) => c.name === 'Grep').length;
-  const readCalls = calls.filter((c) => c.name === 'Read').length;
+  const dedicated = (name: 'Read' | 'Grep' | 'Glob') => calls.filter((c) => c.name === name).length;
 
   const cdPrefixed = bash.filter((c) => /^\s*cd\s/.test(commandOf(c))).length;
-  const embeddedGrep = bash.filter((c) => /\b(?:grep|rg)\b/.test(commandOf(c))).length;
-  const embeddedRead = bash.filter((c) => /\b(?:cat|head|tail)\b/.test(commandOf(c))).length;
-  const embeddedFind = bash.filter((c) => /\bfind\b/.test(commandOf(c))).length;
 
   const out: AntiPattern[] = [];
   if (cdPrefixed > 0) {
@@ -61,25 +100,15 @@ export function findAntiPatterns(calls: ToolCall[]): AntiPattern[] {
       detail: `${String(cdPrefixed)} of ${String(bash.length)} Bash calls start with cd. The shell working directory resets between calls, so absolute paths belong in the command.`,
     });
   }
-  if (embeddedGrep > 0) {
+  for (const pattern of DISPLACEMENT_PATTERNS) {
+    const embeds = bash.filter((c) => pattern.embedRegex.test(commandOf(c))).length;
+    if (embeds === 0) continue;
+    const dedicatedCalls = dedicated(pattern.dedicatedName);
     out.push({
-      kind: 'bash-instead-of-grep',
-      count: embeddedGrep,
-      detail: `${String(embeddedGrep)} Bash calls embed grep/rg, against ${String(grepCalls)} Grep tool calls.`,
-    });
-  }
-  if (embeddedRead > 0) {
-    out.push({
-      kind: 'bash-instead-of-read',
-      count: embeddedRead,
-      detail: `${String(embeddedRead)} Bash calls embed cat/head/tail, against ${String(readCalls)} Read tool calls.`,
-    });
-  }
-  if (embeddedFind > 0) {
-    out.push({
-      kind: 'bash-instead-of-glob',
-      count: embeddedFind,
-      detail: `${String(embeddedFind)} Bash calls embed find; Glob returns the same paths already sorted.`,
+      kind: pattern.kind,
+      count: embeds,
+      detail: pattern.detail(embeds, dedicatedCalls),
+      displacementRatio: displacementRatio(embeds, dedicatedCalls),
     });
   }
   return out.sort((a, b) => b.count - a.count);

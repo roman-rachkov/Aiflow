@@ -84,6 +84,14 @@ export interface AntiPattern {
   kind: string;
   count: number;
   detail: string;
+  /**
+   * Bash-embeds ÷ dedicated-tool calls. The KPI for warn-level enforcement — a
+   * warn advises but does not suppress, so `count` cannot fall and grows with
+   * session volume; the ratio is what tracks whether displacement is shrinking.
+   * Omitted where there is no dedicated tool to displace (cd-prefix) or when the
+   * dedicated-tool count is zero (no baseline). docs/17-session-review.md § 3.10.
+   */
+  displacementRatio?: number;
 }
 
 export interface CapabilityGap {

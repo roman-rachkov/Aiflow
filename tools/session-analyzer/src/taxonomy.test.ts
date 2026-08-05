@@ -138,6 +138,31 @@ describe('findAntiPatterns', () => {
     expect(kinds).toContain('bash-instead-of-glob');
   });
 
+  it('reports the displacement ratio as embeds / dedicated-tool calls', () => {
+    // 3 cat-embeds against 1 Read call => ratio 3. 2 grep-embeds against 1 Grep
+    // => ratio 2. cd-prefix has no dedicated tool, so no ratio at all.
+    const calls = [
+      call({ input: { command: 'cat a' } }),
+      call({ input: { command: 'cat b' } }),
+      call({ input: { command: 'cat c' } }),
+      call({ name: 'Read' }),
+      call({ input: { command: 'grep x .' } }),
+      call({ input: { command: 'grep y .' } }),
+      call({ name: 'Grep' }),
+      call({ input: { command: 'cd /tmp && ls' } }),
+    ];
+    const byKind = new Map(findAntiPatterns(calls).map((p) => [p.kind, p]));
+    expect(byKind.get('bash-instead-of-read')?.displacementRatio).toBe(3);
+    expect(byKind.get('bash-instead-of-grep')?.displacementRatio).toBe(2);
+    expect(byKind.get('bash-cd-prefix')?.displacementRatio).toBeUndefined();
+  });
+
+  it('omits the ratio when the dedicated-tool count is zero', () => {
+    // find-embeds but no Glob call: no baseline to ratio against.
+    const calls = [call({ input: { command: 'find . -name "*.ts"' } })];
+    expect(findAntiPatterns(calls)[0]?.displacementRatio).toBeUndefined();
+  });
+
   it('stays silent when Bash is used for real commands', () => {
     const calls = [
       call({ input: { command: 'git status' } }),
