@@ -1,8 +1,9 @@
 /**
  * Public surface of the projects feature slice. Everything outside this slice
- * (pages, API routes, other slices) imports from here — deep paths are
- * rejected by `import/no-internal-modules`, and cross-slice feature→feature
- * imports are blocked by `boundaries/dependencies` (eslint.config.mjs).
+ * (pages, API routes, other slices) imports from here. Cross-slice
+ * feature→feature imports are blocked by `boundaries/dependencies` in
+ * eslint.config.mjs (the policy uses `capture: slice` to require a matching
+ * slice name for feature→feature, so this barrel is the only seam).
  */
 export type { ProjectView } from './model/types';
 export { createProject, getProject, listProjects, removeProject } from './model/service';
