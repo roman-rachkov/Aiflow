@@ -225,6 +225,16 @@ not a **block** — a block is only safe where the replacement is unambiguous
 one. Record the hook's start time in the retrospective; the next full window is
 the first real measurement.
 
+**Rule, added 2026-08-06:** the effectiveness of a **warn**-level hook is
+measured by the _displacement ratio_ (`bash-embeds / dedicated-tool calls`), not
+by the absolute anti-pattern count. A warn advises but does not suppress, so the
+raw `bash-instead-of-*` count is structurally incapable of falling — it grows
+with session volume, which is exactly what the 2026-08-06 window showed: counts
+rose (732→759, 335→340, 92→98) while the read-displacement ratio _fell_ (0.83 →
+0.71, i.e. Read calls grew faster than bare `cat`/`head`/`tail`). Reporting the
+absolute count makes a working warn read as inert; report the ratio. A block
+remains measurable by its denial count, which is the difference.
+
 ---
 
 ## 4. What this means for the product
