@@ -155,13 +155,19 @@ enum LogLevel {
 
 // Analyst interview history. The roadmap listed this model as "to be added"
 // with no fields specified.
+//
+// `tokensIn` / `tokensOut` are best-effort token counts from the provider.
+// They are nullable because both a streaming mock and a dropped connection
+// leave them absent — a NULL is an honest "we don't know", not a zero.
 model ChatMessage {
-  id        String      @id @default(uuid())
-  role      ChatRole
-  content   String      @db.Text
-  createdAt DateTime    @default(now())
+  id         String      @id @default(uuid())
+  role       ChatRole
+  content    String      @db.Text
+  tokensIn   Int?
+  tokensOut  Int?
+  createdAt  DateTime    @default(now())
   // Soft delete — see the convention on User in schema.prisma.
-  deletedAt DateTime?
+  deletedAt  DateTime?
 
   @@index([createdAt])
 }
