@@ -7,6 +7,18 @@ import { PrismaClient as ProjectClient } from '../generated/project';
 export type { AgentConfigValue, EncryptedValue, ModelConfigValue } from './config-types';
 export { asEncryptedValue } from './config-types';
 
+// Project-schema provisioning (Task 1.2b). `generateProjectSql` / the name
+// generator are pure; `createProjectSchema` / `dropProjectSchema` apply the DDL
+// at runtime over `pg`. `PROJECT_SCHEMA_PATTERN` now lives in ./project-schema
+// (it guards both the name generator and the executor), imported below.
+import { PROJECT_SCHEMA_PATTERN } from './project-schema';
+export { createProjectSchema, dropProjectSchema } from './schema-executor';
+export {
+  generateProjectSchemaName,
+  generateProjectSql,
+  PROJECT_SCHEMA_PATTERN,
+} from './project-schema';
+
 /**
  * Data access for the two-schema split described in docs/03-data-model.md.
  *
@@ -15,8 +27,6 @@ export { asEncryptedValue } from './config-types';
  * through a separate client whose connection string names that schema — the
  * hard isolation boundary the platform is built on.
  */
-
-const PROJECT_SCHEMA_PATTERN = /^project_[a-z0-9_]+$/;
 
 /**
  * Cached per schema. This is a `Map`, not a `WeakMap`: an earlier revision of
@@ -93,5 +103,3 @@ export async function disconnectAll(): Promise<void> {
 export function cachedProjectClientCount(): number {
   return projectClients.size;
 }
-
-export { PROJECT_SCHEMA_PATTERN };
