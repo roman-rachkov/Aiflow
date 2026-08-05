@@ -14,8 +14,9 @@ sandboxes → deploy. Yarn 4 + Lerna monorepo, private, no LICENSE (deferred). C
 Real packages today: `apps/web` (Next.js 15 App Router), `packages/db` (Prisma, two schemas),
 `packages/ui` (design system), `tools/session-analyzer` (dev-only analytics).
 Declared-but-empty stubs (do not assume they work yet): `apps/worker` (BullMQ),
-`services/model-router`, `services/registry-proxy`, `packages/queue`, `packages/crypto`,
-`packages/ai-roles`. The code map at `docs/16-code-map.md` tracks which is which — read it first.
+`services/model-router`, `services/registry-proxy`, `packages/queue`, `packages/crypto`.
+`packages/ai-roles` is now real (Task 1.3: the ZaiProvider model adapter). The code map
+at `docs/16-code-map.md` tracks which is which — read it first.
 
 > Note: `docs/16-code-map.md` and `docs/17-session-review.md` exist on disk but are **not yet
 > listed in `docs/README.md`**. The README also still links two deleted drafts (`ide.md`,

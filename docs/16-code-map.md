@@ -14,19 +14,31 @@ apps/
 │                                     shared/ → packages/ (§ 2.2)
 │   features:
 │     ├── auth/           NextAuth v5, guards, session (Task 1.2a)
-│     └── projects/       Projects CRUD + schema provisioning (Task 1.2b)
+│     ├── projects/       Projects CRUD + schema provisioning (Task 1.2b)
+│     │                     └── public entry: src/index.ts
+│     │                         model/service.ts — create/list/get/remove over
+│     │                           ProjectMeta; create is a compensation saga
+│     │                           (createProjectSchema → projectMeta.create →
+│     │                           dropProjectSchema on failure)
+│     │                         ui/ — ProjectList, ProjectCard, ProjectDetails,
+│     │                           CreateProjectForm + DeleteProjectButton (the
+│     │                           delete confirm overlay lives here, not in
+│     │                           @aiflow/ui — one consumer, per D0 / § 2.3)
+│     └── chat/           Analyst chat — SSE streaming + history (Task 1.3)
 │                           └── public entry: src/index.ts
-│                               model/service.ts — create/list/get/remove over
-│                                 ProjectMeta; create is a compensation saga
-│                                 (createProjectSchema → projectMeta.create →
-│                                 dropProjectSchema on failure)
-│                               ui/ — ProjectList, ProjectCard, ProjectDetails,
-│                                 CreateProjectForm + DeleteProjectButton (the
-│                                 delete confirm overlay lives here, not in
-│                                 @aiflow/ui — one consumer, per D0 / § 2.3)
+│                               model/service.ts — listMessages/saveMessage over
+│                                 ChatMessage (project-scoped); model/schema.ts —
+│                                 readSystemPrompt() reads .claude/agents/analyst.md
+│                                 per turn (module-relative path, not cwd)
+│                               ui/ChatPanel.tsx — @assistant-ui/react runtime +
+│                                 primitives; ui/researcher-runtime.ts —
+│                                 ChatModelAdapter (POST → SSE → cumulative yield);
+│                                 ui/parse-sse-response.ts — client SSE framing
 │   routes (app/):
 │     /  → redirect('/projects');  /projects, /projects/new, /projects/[id]
+│     /projects/[id]/research — two-panel Researcher page (Task 1.3)
 │     /api/projects (GET list, POST create), /api/projects/[id] (GET, DELETE)
+│     /api/projects/[id]/chat (POST — SSE-streamed Analyst reply, Task 1.3)
 └── worker/               BullMQ workers, one dir per queue (spec, plan, code, deploy)
     └── public entry: src/index.ts
         deps: @aiflow/{db,queue,crypto,ai-roles}
@@ -57,7 +69,18 @@ packages/
 │                         concurrency 1, default job options
 ├── crypto/               AES-256-GCM helpers: encryptSecret/decryptSecret,
 │                         {"__encrypted__": ...} envelope (Task 1.3)
-├── ai-roles/             Role prompts + model-router invocation (Task 1.3)
+├── ai-roles/             Model provider adapter (Task 1.3). Leaf package.
+│                         └── public entry: src/index.ts
+│                             types.ts — ChatRole, ChatMessage, ChatConfig,
+│                               ChatResult (nullable token counts), ModelProvider
+│                               (chat()), StreamingProvider (+ chatWithUsage())
+│                             zai-provider.ts — ZaiProvider: mock path (canned
+│                               replies, no key) + live dispatch; createZaiProvider()
+│                             zai-live.ts — streamLiveChat(): POST to
+│                               api.z.ai/api/paas/v4/chat/completions (OpenAI-
+│                               compatible), role mapping, usage capture
+│                             sse-parser.ts — generic SSE frame reassembly
+│                               (reusable; reader released in finally)
 └── ui/                   Design system (Task 1.2d). Primitives: Button, Input +
                           Field, Card + CardTitle/CardDescription, Spinner.
                           └── public entry: src/index.ts (components) and
@@ -84,6 +107,8 @@ tools/                    Dev-only workspaces. Ship nowhere; still gated by
 | ------------------------------------------------------------------ | ---------------------------------------------------- |
 | Auth helpers (`requireUser`, `requireProMode`, `canAccessProject`) | `apps/web/src/features/auth` (Task 1.2a)             |
 | Projects CRUD + schema provisioning                                | `apps/web/src/features/projects` (Task 1.2b)         |
+| Analyst chat (SSE streaming + history)                             | `apps/web/src/features/chat` (Task 1.3)              |
+| Model provider adapter (z.ai GLM, mock/live)                       | `packages/ai-roles/src` (Task 1.3)                   |
 | App shell (header, side menu)                                      | `apps/web/src/shared/ui` (Task 1.2a)                 |
 | UI primitives + design tokens                                      | `packages/ui/src` (Task 1.2d)                        |
 | Prisma client factory                                              | `packages/db/src/index.ts`                           |
@@ -101,8 +126,9 @@ tools/                    Dev-only workspaces. Ship nowhere; still gated by
   entry rather than an importable surface.
 - Generated clients (`packages/db/generated/*`) and `next-env.d.ts` are build
   artifacts, gitignored, and exempt from the size rules.
-- `packages/crypto` and `packages/ai-roles` are declared but empty until their
-  consumers arrive (Task 1.3); `packages/db` and `packages/ui` are real.
+- `packages/crypto` is declared but empty until its consumers arrive;
+  `packages/ai-roles`, `packages/db`, and `packages/ui` are real (ai-roles
+  shipped in Task 1.3).
 - **`packages/ui` is a deliberate exception to the § 2.3 promotion test.** That
   rule says a slice used by one app stays a slice, and `apps/web` is still the
   only consumer. It was overridden by decision in Task 1.2d: the design system is
