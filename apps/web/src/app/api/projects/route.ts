@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 
 import { requireUser } from '@/features/auth';
 import { createProject, listProjects } from '@/features/projects';
+import { isGiteaUpstreamError } from '@/shared/gitea';
 
 /**
  * Length caps mirrored from the client (`maxLength` on CreateProjectForm). The
@@ -53,11 +54,20 @@ export async function POST(request: Request) {
     );
   }
 
-  const project = await createProject({
-    name: trimmedName,
-    description: trimmedDescription || undefined,
-    ownerId: user.id,
-  });
-
-  return NextResponse.json({ id: project.id }, { status: 201 });
+  try {
+    const project = await createProject({
+      name: trimmedName,
+      description: trimmedDescription || undefined,
+      ownerId: user.id,
+    });
+    return NextResponse.json({ id: project.id }, { status: 201 });
+  } catch (err) {
+    if (isGiteaUpstreamError(err)) {
+      return NextResponse.json(
+        { error: 'Не удалось создать репозиторий Git. Проверьте GITEA_ADMIN_TOKEN.' },
+        { status: 502 },
+      );
+    }
+    throw err;
+  }
 }

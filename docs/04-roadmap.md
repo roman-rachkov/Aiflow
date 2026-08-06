@@ -93,18 +93,26 @@ was adopted: primitives are hand-written, and there is no dark theme because
 - SPEC.md generation on the "Create specification" command.
 - Display SPEC.md with versions and version comparison.
 
-**Task 2.2. Code editor and Git integration**
+**Task 2.2. Code editor and Git integration** — done
 
 - Integrate Monaco Editor with a file tree (data from the Gitea API).
 - Implement a WebSocket connection for streaming files/state.
 - Diff and commit history viewer component (via the Gitea API).
 - API for creating a commit on the user's behalf.
 
-**Task 2.3. Manual deploy and ModelConfig**
+Shipped on `task/2.2-editor-gitea`: `shared/gitea`, `features/editor`, Pro
+`/projects/[id]/editor`, custom `apps/web/server.ts` WS hub, createProject
+Gitea saga + lazy backfill. Specs in `specs/task-2.2-editor-gitea/`.
+
+**Task 2.3. Manual deploy and ModelConfig** — done
 
 - API for generating Dockerfile and docker-compose.yml from a template.
 - "Build" button — image build via dockerode.
 - ModelConfig settings page (provider/model choice for the Analyst).
+
+Shipped on `task/2.3-deploy-modelconfig`: `@aiflow/crypto`, ModelConfig UI/API,
+chat provider resolve, `@aiflow/queue` + worker `deploy:run` (dockerode,
+dev-only sock), deployments UI. Specs in `specs/task-2.3-deploy-modelconfig/`.
 
 **MVP-0 exit criterion:**
 
