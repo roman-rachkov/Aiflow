@@ -20,6 +20,8 @@ export default tseslint.config(
       '**/coverage/**',
       '**/generated/**',
       '**/next-env.d.ts',
+      // Excluded from apps/web/tsconfig (run under tsx); keep out of projectService.
+      'apps/web/scripts/**',
       // Yarn PnP artifacts. PnP is off (see .yarnrc.yml), but a stale
       // .pnp.cjs in a working tree must not fail the gate.
       '.pnp.*',
@@ -41,6 +43,7 @@ export default tseslint.config(
         projectService: {
           allowDefaultProject: [
             'apps/web/postcss.config.js',
+            'apps/web/next.config.ts',
             'eslint.config.mjs',
             'vitest.config.ts',
           ],

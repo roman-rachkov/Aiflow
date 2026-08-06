@@ -213,7 +213,8 @@ compose topology          `docker compose up` (no `--build`): postgres, redis,
 | Prisma client factory                                              | `packages/db/src/index.ts`                                             |
 | Queue definitions                                                  | `packages/queue/src`                                                   |
 | Encryption helpers (envelope typing)                               | `packages/db/src/config-types.ts` (`packages/crypto` is an empty stub) |
-| Gitea identity on `ProjectMeta` (owner/repo/branch)                | `packages/db` public schema (Task 2.2); client `shared/gitea` planned  |
+| Gitea identity on `ProjectMeta` (owner/repo/branch)                | `packages/db` public schema (Task 2.2)                                 |
+| Gitea HTTP client (REST v1, fetch-only)                            | `apps/web/src/shared/gitea` (Task 2.2)                                 |
 | Env validation                                                     | `.env.example` + `apps/web/src/shared/env` (planned)                   |
 
 ## Rules that keep it readable
