@@ -52,6 +52,9 @@ describe('retrieveChunks — SQL shape', () => {
     // source SQL (`WHERE "deletedAt" IS NULL ...`); match the actual shape.
     expect(sql).toContain('"deletedAt" IS NULL');
     expect(sql).toContain("status = 'INDEXED'");
+    // Path citation via Document.title join.
+    expect(sql).toContain('INNER JOIN "Document" d');
+    expect(sql).toContain('d.title AS path');
     // pgvector cosine distance + vector cast, both in SELECT and ORDER BY.
     // Qualified as public.* because Prisma's schema search_path hides them.
     expect(sql).toContain('OPERATOR(public.<=>)');
@@ -87,16 +90,16 @@ describe('retrieveContext — formatted block', () => {
   it('renders each chunk as a numbered fragment under the Russian header', async () => {
     embed.mockResolvedValue([VEC]);
     queryRawUnsafe.mockResolvedValue([
-      { id: 'c1', content: 'Alpha text', distance: 0.1 },
-      { id: 'c2', content: 'Beta text', distance: 0.2 },
+      { id: 'c1', content: 'Alpha text', distance: 0.1, path: 'docs/a.md' },
+      { id: 'c2', content: 'Beta text', distance: 0.2, path: 'apps/web/x.ts' },
     ]);
 
     const result = await retrieveContext('project_x', 'q');
 
     expect(result).toContain('Контекст из загруженных документов');
-    expect(result).toContain('[Фрагмент 1]');
+    expect(result).toContain('[Фрагмент 1 — docs/a.md]');
     expect(result).toContain('Alpha text');
-    expect(result).toContain('[Фрагмент 2]');
+    expect(result).toContain('[Фрагмент 2 — apps/web/x.ts]');
     expect(result).toContain('Beta text');
   });
 });

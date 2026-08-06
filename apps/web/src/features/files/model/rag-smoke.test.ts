@@ -141,10 +141,13 @@ describe('RAG smoke: upload -> index -> retrieve', () => {
     // 3. retrieveContext — seed $queryRawUnsafe with one chunk; embed re-stubbed
     // because the per-test `clearAllMocks` in earlier runs is not shared here.
     embed.mockResolvedValue([Array.from({ length: 768 }, (_, i) => i / 768)]);
-    queryRawUnsafe.mockResolvedValue([{ id: 'c1', content: 'Some notes text', distance: 0.1 }]);
+    queryRawUnsafe.mockResolvedValue([
+      { id: 'c1', content: 'Some notes text', distance: 0.1, path: 'notes.txt' },
+    ]);
 
     const context = await retrieveContext('project_x', 'notes');
     expect(context).toContain('Контекст из загруженных документов');
     expect(context).toContain('Some notes text');
+    expect(context).toContain('notes.txt');
   });
 });

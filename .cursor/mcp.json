@@ -1,21 +1,17 @@
 {
   "mcpServers": {
-    "context7": {
-      "command": "npx",
-      "args": ["-y", "@upstash/context7-mcp"]
-    },
-    "omniroute": {
-      "command": "omniroute",
-      "args": ["--mcp"],
-      "env": {}
-    },
     "aiflow-rag": {
       "command": "node",
       "args": [
         "node_modules/tsx/dist/cli.mjs",
         "--env-file=apps/web/.env.local",
         "apps/web/scripts/rag-mcp.ts"
-      ]
+      ],
+      "cwd": "${workspaceFolder}"
+    },
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp"]
     }
   }
 }

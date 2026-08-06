@@ -14,10 +14,11 @@ apps/
 │                             runtime consumer yet)
 │                             layout: app/ (routing only) → features/ →
 │                                     shared/ → packages/ (§ 2.2)
-│                             scripts/ingest-docs.ts — `yarn workspace
-│                               @aiflow/web docs:ingest`: fresh project schema
-│                               + index docs/*.md (+ CLAUDE.md) for local RAG
-│                               (nomic-embed / LM Studio); no MinIO
+│                             scripts/ingest-repo.ts — `yarn workspace
+│                               @aiflow/web docs:ingest`: stable project schema
+│                               (`.local/dev-rag.json`) + index docs/state +
+│                               filtered source + `.claude` prompts for agent RAG;
+│                               scripts/rag-mcp.ts + rag-query.ts (MCP `aiflow-rag`)
 │   features:
 │     ├── auth/           NextAuth v5, guards, session (Task 1.2a)
 │     ├── projects/       Projects CRUD + schema provisioning (Task 1.2b)
@@ -61,6 +62,7 @@ apps/
 │     │                           $executeRaw '[...]'::vector; never leaves INDEXING);
 │     │                         model/retrieve.ts — retrieveContext/retrieveChunks:
 │     │                           pgvector cosine top-k ($queryRawUnsafe, k=$1),
+│     │                           JOIN Document.title as `path` for citation,
 │     │                           never throws (degrades to '' on embed failure);
 │     │                         model/extract.ts (pdf-parse text layer) + chunk.ts
 │     │                           (LlamaIndex SentenceSplitter 512/50, toVectorLiteral)
@@ -199,6 +201,7 @@ compose topology          `docker compose up` (no `--build`): postgres, redis,
 | Projects CRUD + schema provisioning                                | `apps/web/src/features/projects` (Task 1.2b)                           |
 | Analyst chat (SSE streaming + history, RAG-augmented)              | `apps/web/src/features/chat` (Task 1.3; RAG in Task 2.1)               |
 | File upload + RAG indexing + retrieval                             | `apps/web/src/features/files` (Task 2.1)                               |
+| Dev-time repo RAG MCP (`aiflow-rag` search/status)                 | `apps/web/scripts/{ingest-repo,rag-mcp,rag-query,dev-rag-shared}.ts`   |
 | SPEC.md version list, view, generation                             | `apps/web/src/features/specifications` (Task 2.1)                      |
 | Model provider adapter (universal OpenAI-compatible, chat+embed)   | `packages/ai-roles/src` (Task 1.3; universal + embeddings in Task 2.1) |
 | App shell (header, side menu)                                      | `apps/web/src/shared/ui` (Task 1.2a)                                   |

@@ -89,11 +89,13 @@ The quality gate is real: `--max-warnings 0` blocks lint failures, and Prettier 
 
 **Real now** (`package.json`), run with `yarn`:
 
-| Command                                      | Purpose                                                                                  |
-| -------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `yarn verify`                                | The CI gate: typecheck → lint → format:check → test. Run before marking anything done    |
-| `yarn typecheck` / `yarn lint` / `yarn test` | Individual gates. `typecheck` fans out via Lerna; `lint` and `test` run once at the root |
-| `yarn format`                                | Fix formatting; `format:check` only reports                                              |
+| Command                                       | Purpose                                                                                           |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `yarn verify`                                 | The CI gate: typecheck → lint → format:check → test. Run before marking anything done             |
+| `yarn typecheck` / `yarn lint` / `yarn test`  | Individual gates. `typecheck` fans out via Lerna; `lint` and `test` run once at the root          |
+| `yarn format`                                 | Fix formatting; `format:check` only reports                                                       |
+| `yarn workspace @aiflow/web docs:ingest`      | Rebuild stable dogfood RAG index (docs + filtered source → pgvector); needs Postgres + embeddings |
+| `yarn workspace @aiflow/web rag:query -- "…"` | Smoke-query that index without MCP                                                                |
 
 Or as slash commands: **`/verify`** runs the gate and reports the first failure, **`/task-start <id> <slug>`** opens a correctly-named branch with the roadmap checklist, **`/state-sync`** checks whether the state files below have fallen behind, **`/note <идея>`** captures an idea into `notes/` without interrupting the current task, **`/session-review [window]`** analyses the tool flow of recent sessions and writes a retrospective to `reports/`, **`/tool-scout <need>`** finds tooling for a need and returns a licence verdict per `docs/15` § 8.
 
@@ -166,6 +168,8 @@ Two have the most immediate impact:
 ## Agent tooling
 
 `docs/13-agent-tooling.md` is the registry of MCP servers, skills, and subagents — both those used to _build_ AI Studio and those that may ship _inside_ it. Every entry carries a dual-use verdict (dev-time / product-time / both) and a test status.
+
+**Prefer `aiflow-rag.search` for concepts** ("where does soft-delete live", architecture questions) before sweeping `docs/` or opening many files. Still use **Grep/Read for exact symbols** and edits. State files (`docs/16-code-map.md`, this file) remain the short authoritative map — RAG finds chunks; it does not replace keeping those files current. Reindex after large doc/code moves: `yarn workspace @aiflow/web docs:ingest` (Postgres + embeddings required).
 
 Update it whenever you try a capability. The four role agents in `.claude/agents/` mirror the production prompts in `docs/05`–`08`, so using them here doubles as prompt testing — record results in the prompt test log at the bottom of that file. The other three (`classifier`, `doc-checker`, `lang-lint`) are ours and mirror nothing.
 

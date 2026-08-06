@@ -167,6 +167,8 @@ $RECYCLE.BIN/
 .tmp/
 
 # --- Local dev artifacts -----------------------------------------------------
+# Dogfood RAG pointer (schemaName / projectId) written by docs:ingest
+.local/
 # session-report HTML output — a dev artifact, never a doc (see docs/13)
 reports/*.html
 # Raw analyzer JSON: an intermediate /session-review consumes, not a document.

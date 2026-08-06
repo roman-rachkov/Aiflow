@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "docs:ingest": "node ../../node_modules/tsx/dist/cli.mjs --env-file=.env.local scripts/ingest-docs.ts"
+    "docs:ingest": "node ../../node_modules/tsx/dist/cli.mjs --env-file=.env.local scripts/ingest-repo.ts",
+    "rag:query": "node ../../node_modules/tsx/dist/cli.mjs --env-file=.env.local scripts/rag-query.ts",
+    "rag:mcp": "node ../../node_modules/tsx/dist/cli.mjs --env-file=.env.local scripts/rag-mcp.ts"
   },
   "dependencies": {
     "@aiflow/db": "workspace:^",
@@ -29,6 +31,7 @@
     "zustand": "^4.5.5"
   },
   "devDependencies": {
+    "@modelcontextprotocol/sdk": "1.30.0",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/bcryptjs": "2.4.6",
     "@types/node": "^22.0.0",

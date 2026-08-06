@@ -40,7 +40,9 @@ Everything designed in `.claude/` works here — use it.
   read-only mechanical ones `classifier`, `doc-checker`, `lang-lint`.
 - **Skills** (`.claude/skills/`): **`ai-studio-internals`** — read before touching Docker Compose,
   sandbox config, per-project DB access, or secret handling. Plus `notes`.
-- **MCP servers** (`.mcp.json`): `context7`, `omniroute`.
+- **MCP servers** (`.mcp.json`): `context7`, `aiflow-rag` (semantic search over docs +
+  filtered source — prefer for concepts; Grep for exact symbols), `omniroute`.
+  Reindex: `yarn workspace @aiflow/web docs:ingest` (needs Postgres + embeddings).
 - **Hooks** (`hookify.*.local.md` in `.claude/`): prefer the dedicated Read/Grep/Glob tools over
   bash equivalents; `cd` is rewritten; destructive Prisma commands and false-success-after-`rm`
   are guarded; `WebFetch` may be unavailable.
@@ -58,6 +60,7 @@ Run with `yarn`. `yarn verify` reproduces CI: typecheck → lint → format:chec
 | `yarn typecheck` / `yarn lint` / `yarn test`                                                                    | Individual gates (`typecheck` fans out via Lerna; `lint`/`test` run at root)                                                                                                                          |
 | `yarn format` / `yarn format:check`                                                                             | Prettier write / check only                                                                                                                                                                           |
 | `apps/web`: `yarn dev`, `yarn build`                                                                            | Next.js (binds `0.0.0.0:3000` for compose); production build                                                                                                                                          |
+| `apps/web`: `yarn docs:ingest`, `yarn rag:query`, `yarn rag:mcp`                                                | Stable dogfood RAG index + query CLI + MCP stdio server (`aiflow-rag` in `.mcp.json`)                                                                                                                 |
 | `docker compose up`                                                                                             | Full dev stack — no `--build`. Copy `.env.example` → `.env` first                                                                                                                                     |
 | `packages/db`: `yarn generate`, `yarn migrate`, `yarn migrate:deploy`, `yarn seed:dev-user`, `yarn project-sql` | Generate both Prisma clients; `migrate` = interactive `migrate dev`; `migrate:deploy` = non-interactive (compose entrypoint); **`public` schema only**; seed a local dev user; render per-project SQL |
 

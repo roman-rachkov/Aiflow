@@ -17,22 +17,35 @@
  * degrade to chat-without-RAG (task 1.3), never break chat. Both exports
  * catch the embed call and return `''` / `[]` instead of throwing, so the
  * caller sees an empty context, indistinguishable from "no documents".
+ *
+ * `path` is `Document.title` (repo-relative path for dev ingest; upload name
+ * for product files) so callers can cite the source without a second query.
  */
 import { createProviderFromEnv } from '@aiflow/ai-roles';
 import { getProjectClient } from '@aiflow/db';
 
 import { toVectorLiteral } from './chunk';
 
-/** One retrieved chunk with its cosine distance (lower = more similar). */
+/** One retrieved chunk with cosine distance (lower = more similar) and path. */
 export interface RetrievedChunk {
   id: string;
   content: string;
   distance: number;
+  /** Document.title — citeable source path or upload name. */
+  path: string;
 }
 
 /** Minimal provider surface this module touches — `.embed` only. */
 interface EmbeddingProvider {
   embed(texts: string[]): Promise<number[][]>;
+}
+
+/** Row shape returned by the JOIN query (title aliased as path). */
+interface ChunkRow {
+  id: string;
+  content: string;
+  distance: number;
+  path: string;
 }
 
 /**
@@ -59,27 +72,23 @@ export async function retrieveChunks(
   // Qualify vector ops with `public.` — Prisma's per-schema connection sets
   // search_path to the project schema only, so unqualified `<=>` / `vector`
   // (extension objects that live in `public`) fail at runtime.
+  // Join Document for title (path citation) without a second round-trip.
   const sql =
-    `SELECT id, content, embedding OPERATOR(public.<=>) '${literal}'::public.vector AS distance ` +
-    `FROM "DocumentChunk" ` +
-    `WHERE "documentId" IN (` +
-    `SELECT id FROM "Document" ` +
-    `WHERE "deletedAt" IS NULL AND status = 'INDEXED') ` +
-    `ORDER BY embedding OPERATOR(public.<=>) '${literal}'::public.vector LIMIT $1`;
+    `SELECT c.id, c.content, d.title AS path, ` +
+    `c.embedding OPERATOR(public.<=>) '${literal}'::public.vector AS distance ` +
+    `FROM "DocumentChunk" c ` +
+    `INNER JOIN "Document" d ON d.id = c."documentId" ` +
+    `WHERE d."deletedAt" IS NULL AND d.status = 'INDEXED' ` +
+    `ORDER BY c.embedding OPERATOR(public.<=>) '${literal}'::public.vector LIMIT $1`;
 
   const client = getProjectClient(schemaName);
-  // `$queryRawUnsafe` returns `unknown` per Prisma's types — cast the row
-  // array to the typed shape. The column list is fixed here, so the row is
-  // always `{ id: string, content: string, distance: number }`.
-  const rows = (await client.$queryRawUnsafe<{ id: string; content: string; distance: number }[]>(
-    sql,
-    k,
-  )) as { id: string; content: string; distance: number }[];
+  const rows = await client.$queryRawUnsafe<ChunkRow[]>(sql, k);
 
   return rows.map((r) => ({
     id: r.id,
     content: r.content,
     distance: r.distance,
+    path: r.path,
   }));
 }
 
@@ -92,6 +101,8 @@ export async function retrieveContext(schemaName: string, query: string, k = 5):
   const chunks = await retrieveChunks(schemaName, query, k);
   if (chunks.length === 0) return '';
 
-  const body = chunks.map((c, i) => `[Фрагмент ${(i + 1).toString()}]\n${c.content}`).join('\n\n');
+  const body = chunks
+    .map((c, i) => `[Фрагмент ${(i + 1).toString()} — ${c.path}]\n${c.content}`)
+    .join('\n\n');
   return `Контекст из загруженных документов:\n\n${body}`;
 }
