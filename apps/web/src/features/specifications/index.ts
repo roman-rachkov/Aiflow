@@ -13,3 +13,4 @@ export {
 } from './model/service';
 export type { GenerationDeps } from './model/generate';
 export { generateSpecification } from './model/generate';
+export { SpecificationPanel } from './ui/SpecificationPanel';

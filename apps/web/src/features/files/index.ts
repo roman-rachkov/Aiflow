@@ -11,3 +11,4 @@ export { chunkText, estimateTokens, toVectorLiteral } from './model/chunk';
 export { extractText } from './model/extract';
 export { retrieveChunks, retrieveContext } from './model/retrieve';
 export type { RetrievedChunk } from './model/retrieve';
+export { FilePanel } from './ui/FilePanel';
