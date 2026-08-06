@@ -1,0 +1,190 @@
+[
+  {
+    "title": "Shared project-schema access helper",
+    "description": "Extract the per-route `resolveProjectSchema(id, ownerId)` helper that today is duplicated as a local function inside `apps/web/src/app/api/projects/[id]/chat/route.ts` (lines ~67-77) into the projects feature slice so every new Task 2.1 route reuses one implementation instead of copy-pasting it. Create `apps/web/src/features/projects/model/access.ts` exporting `resolveProjectSchema(id: string, ownerId: string): Promise<string | null>` with the exact current body: `canAccessProject(ownerId, id)` gate, then `getPublicClient().projectMeta.findUnique({ where: { id, deletedAt: null }, select: { schemaName: true, ownerId: true } })`, return `null` when missing or `meta.ownerId !== ownerId`, else `meta.schemaName`. Export it from `apps/web/src/features/projects/index.ts` (the slice's only public barrel — `import/no-internal-modules`/`boundaries/dependencies` enforce this). Refactor `apps/web/src/app/api/projects/[id]/chat/route.ts` to import the helper from `@/features/projects` and delete the local copy; keep the existing `app/`-internal deep imports as-is. This is prep work: no new models, no migration (UserFile/Document/DocumentChunk/Specification already exist in `packages/db/prisma/schema_project_template.prisma`, pgvector column + HNSW index already emitted by VECTOR_DDL at `packages/db/src/project-schema.ts:39`).",
+    "status": "DONE",
+    "priority": "high",
+    "dependencies": [],
+    "acceptance": "`yarn verify` is green; `apps/web/src/features/chat/model/service.test.ts` and any existing chat-route test still pass unchanged; `resolveProjectSchema` is importable from `@/features/projects`; the chat route no longer defines its own copy.",
+    "needsConfirmation": false
+  },
+  {
+    "title": "Universal OpenAI-compatible provider with embeddings",
+    "description": "Generalize `packages/ai-roles/src/zai-live.ts` into a configurable OpenAI-compatible provider that serves BOTH chat (streaming) and embeddings, per SPEC § 'Универсальный OpenAI-совместимый провайдер' and codebase fact #3. (1) In `packages/ai-roles/src/types.ts` add `interface EmbeddingsProvider { embed(texts: string[]): Promise<number[][]>; }` and `interface OpenAICompatibleProvider extends StreamingProvider, EmbeddingsProvider {}`, plus `interface ProviderConfig { baseURL: string; apiKey?: string; chatModel: string; embeddingModel: string; }`. (2) Create `packages/ai-roles/src/openai-compatible.ts` exposing `createOpenAICompatibleProvider(config): OpenAICompatibleProvider`. Move the streaming logic currently in `zai-live.ts` (`streamLiveChat`) here but parameterize the endpoint as `${config.baseURL}/chat/completions` instead of the hardcoded `ZAI_ENDPOINT`; keep reusing `parseSseStream` from `./sse-parser` and the `LiveChunk`/`mapChunk`/`buildApiMessages` helpers (carry them over). Add `embed(texts)`: `POST ${baseURL}/embeddings` with `{ model: embeddingModel, input: texts }`, `Authorization: Bearer ${apiKey}`, parse `data` array, return `number[][]` (each item's `.embedding`). Preserve the MOCK path when `apiKey` is absent: chat streams a canned reply (reuse `CANNED_REPLIES` logic), and `embed` returns a deterministic zero-ish vector of length 1536 per input so local dev/tests run with no network and no key — mirror ZaiProvider's mock pattern. (3) Refactor `packages/ai-roles/src/zai-provider.ts`: `createZaiProvider()` becomes a thin wrapper returning a z.ai-configured `OpenAICompatibleProvider` instance (baseURL from `OPENAI_BASE_URL` with z.ai default `https://api.z.ai/api/paas/v4`, key from `OPENAI_API_KEY` ?? `ZAI_API_KEY`, chatModel from `OPENAI_CHAT_MODEL` ?? `ZAI_MODEL` ?? `glm-4.6`, embeddingModel `OPENAI_EMBEDDING_MODEL` ?? `text-embedding-3-small`). Keep the exported symbol `createZaiProvider` (and `ZaiProvider` if retained as an alias/type) so existing call sites and `zai-provider.test.ts` keep working — update that test only if the mock contract moved. (4) Delete `packages/ai-roles/src/zai-live.ts` (its logic now lives in `openai-compatible.ts`) and fix the import in `zai-provider.ts`. (5) Re-export `createOpenAICompatibleProvider`, `OpenAICompatibleProvider`, `EmbeddingsProvider`, `ProviderConfig` from `packages/ai-roles/src/index.ts` alongside the existing exports. (6) Add the new env vars to the `.env.example` 'LLM providers' section: `OPENAI_BASE_URL` (default `https://api.openai.com/v1`), `OPENAI_API_KEY` (alias of `ZAI_API_KEY`), `OPENAI_CHAT_MODEL` (alias of `ZAI_MODEL`, default `glm-4.6`), `OPENAI_EMBEDDING_MODEL` (default `text-embedding-3-small`, dim 1536). Read env once at construction inside the factory (not at module top-level) so it stays testable. Keep every file ≤200 lines and every function ≤50 lines.",
+    "status": "DONE",
+    "priority": "critical",
+    "dependencies": [],
+    "acceptance": "`createZaiProvider()` still returns a working `StreamingProvider` whose mock path streams a canned reply when no key is set (existing `packages/ai-roles/src/zai-provider.test.ts` stays green, updated only if needed for the moved mock). `createOpenAICompatibleProvider(cfg)` exposes `.chat`, `.chatWithUsage`, and `.embed`; `.embed(['hi'])` resolves to `number[][]` with inner length 1536 in live mode and a same-shape mock vector without a key. `.env.example` documents the four new vars. `yarn verify` green.",
+    "needsConfirmation": false
+  },
+  {
+    "title": "Test universal provider",
+    "description": "Add `packages/ai-roles/src/openai-compatible.test.ts` (Vitest — the repo's runner, see `vitest.config.ts`) covering the generalized provider. Mirror the existing `packages/ai-roles/src/zai-provider.test.ts` harness: build a `ReadableStream<Uint8Array>` of `data:` SSE frames via a `makeSseBody` helper and a minimal `{ ok: true, status: 200, body }` Response, then stub `globalThis.fetch` with `vi.fn` returning that Response for the chat path; assert the streamed text concatenates the delta contents and that `chatWithUsage`'s `usage` promise resolves with the prompt/completion tokens from the terminal frame. For embeddings, stub `fetch` to resolve a Response whose JSON `data` is `[{ embedding: [0.1, 0.2, ...1536...] }, { embedding: [...] }]` and assert `embed(['a','b'])` returns a `number[][]` of length 2 with inner length 1536. Add one mock-mode case (no apiKey in config) asserting `embed` returns a 1536-dim vector without calling fetch. Restore `fetch` and env in `afterEach`. Keep the file ≤200 lines; split helpers if needed.",
+    "status": "DONE",
+    "priority": "high",
+    "dependencies": ["Universal OpenAI-compatible provider with embeddings"],
+    "acceptance": "`yarn test` runs the new file; chat streaming, usage side-channel, and embeddings parsing are asserted against stubbed fetch (no network); mock-mode embeddings shape is asserted. `yarn verify` green.",
+    "needsConfirmation": false
+  },
+  {
+    "title": "MinIO shared client",
+    "description": "Create the shared MinIO client promised at `docs/16-code-map.md:123` as `apps/web/src/shared/minio`. Add the `minio` npm package (Apache-2.0 — license verified per codebase fact #8; state 'License: Apache-2.0' in a JSDoc on the barrel) to `apps/web/package.json` dependencies. Implement `apps/web/src/shared/minio/client.ts` exporting: `getMinioClient()` (lazy singleton `Client` from `minio`), `ensureBucket()` (idempotent `bucketExists`/`makeBucket`), `putObject(storageKey: string, bytes: Buffer, metaData?: Record<string,string>)`, and `getObject(storageKey: string): Promise<Buffer>` (accumulate the stream into a Buffer). Read config from env at first construction: `S3_ENDPOINT` (existing `.env.example` value is `minio:9000` with no scheme — parse host/port from it, deriving `useSSL` from whether `S3_ENDPOINT` starts with `https://`; if a scheme is present in a future env, strip it), `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_BUCKET` (default `ai-studio`). Add `apps/web/src/shared/minio/index.ts` as the only public barrel re-exporting the four functions (the `shared/` layer is the public seam; deep imports are blocked by the linter). `ensureBucket()` is called on first use (or lazily inside `putObject`) — do NOT block app boot. Keep functions ≤50 lines.",
+    "status": "DONE",
+    "priority": "high",
+    "dependencies": [],
+    "acceptance": "`minio` is in `apps/web/package.json` deps; `@/shared/minio` barrel exports `getMinioClient`, `ensureBucket`, `putObject`, `getObject`; client reads the four env vars and tolerates the existing scheme-less `S3_ENDPOINT=minio:9000` value; `yarn verify` green. License Apache-2.0 noted in JSDoc for the Reviewer.",
+    "needsConfirmation": false
+  },
+  {
+    "title": "Files feature slice model",
+    "description": "Create the `files` feature slice data layer (FSD pattern, mirroring `apps/web/src/features/projects/model/service.ts` and `apps/web/src/features/chat/model/service.ts`: `toView()` helper, `getProjectClient(schemaName)` access, `deletedAt: null` on every read, JSDoc on every export). Files: `apps/web/src/features/files/model/types.ts` defining `UserFileView` `{ id, fileName, fileSize, mimeType, storageKey, createdAt }`, `FileListItemView` `{ id, fileName, fileSize, mimeType, indexStatus: 'PENDING'|'INDEXING'|'INDEXED'|'FAILED', createdAt }`, and `CreateUserFileInput` `{ fileName, fileSize, mimeType, storageKey }`; `apps/web/src/features/files/model/service.ts` exporting `createUserFile(schemaName, input)` and `listFiles(schemaName)`. `createUserFile` runs in a Prisma `$transaction` against the project client: insert the `UserFile` row AND a linked `Document` (`sourceType: 'UPLOAD'`, `title: input.fileName`, `status: 'PENDING'`, `userFile: { create: ... }` or two-step — your call, but atomic) and return the `UserFileView`. `listFiles` does `userFile.findMany({ where: { deletedAt: null }, orderBy: { createdAt: 'desc' }, include: { document: { select: { status: true } } } })` and maps to `FileListItemView` using the document's status (default `'PENDING'` if no document). `apps/web/src/features/files/index.ts` barrel re-exports the types and the two service functions only (public surface). No new Prisma models — `UserFile`/`Document` already exist.",
+    "status": "DONE",
+    "priority": "high",
+    "dependencies": [],
+    "acceptance": "Barrel `@/features/files` exports the two views and `createUserFile`/`listFiles`; `listFiles` filters `deletedAt: null` and orders newest first; `createUserFile` creates `UserFile` + linked `Document(status=PENDING)` atomically; `yarn verify` green.",
+    "needsConfirmation": false
+  },
+  {
+    "title": "File upload and list routes",
+    "description": "Add the two REST endpoints from SPEC § 'API: загрузка файлов' and 'API: список файлов'. Create `apps/web/src/app/api/projects/[id]/files/route.ts` handling both GET and POST. Auth/resolve pattern mirrors `apps/web/src/app/api/projects/[id]/chat/route.ts`: `const { id } = await params; const user = await requireUser(); const schemaName = await resolveProjectSchema(id, user.id); if (!schemaName) return 404`. POST: parse `const form = await request.formData(); const file = form.get('file')` (must be a `File`); 400 if missing. Validate `file.type` ∈ `{ 'text/plain', 'text/markdown', 'application/pdf', 'application/json' }`; 400 otherwise. Generate `storageKey = `${schemaName}/${randomUUID()}`` (key prefixed with the project schema name so files never mix in the bucket — SPEC step 2). `await putObject(storageKey, Buffer.from(await file.arrayBuffer()), { 'content-type': file.type })` from `@/shared/minio`; on throw → 500. `const view = await createUserFile(schemaName, { fileName: file.name, fileSize: file.size, mimeType: file.type, storageKey })`. Return 201 with `{ id, fileName, fileSize, mimeType, storageKey }`. GET: `const files = await listFiles(schemaName); return 200 with files` (already the right view shape including `indexStatus`). Deep import of the access helper is via the projects barrel `@/features/projects`. Keep the route thin — all logic lives in the slice/shared layers. Keep the file ≤200 lines.",
+    "status": "DONE",
+    "priority": "high",
+    "dependencies": [
+      "Shared project-schema access helper",
+      "MinIO shared client",
+      "Files feature slice model"
+    ],
+    "acceptance": "`POST /api/projects/[id]/files` with multipart `file` returns 201 `{ id, fileName, fileSize, mimeType, storageKey }` and writes bytes to MinIO plus a `UserFile`+`Document(PENDING)` row; missing file or unsupported MIME → 400; foreign/missing project → 404; MinIO failure → 500. `GET /api/projects/[id]/files` returns 200 with the array view including `indexStatus`. `yarn verify` green.",
+    "needsConfirmation": false
+  },
+  {
+    "title": "Test files slice and routes",
+    "description": "Add `apps/web/src/features/files/model/service.test.ts` mirroring `apps/web/src/features/chat/model/service.test.ts`: `vi.mock('@aiflow/db', ...)` returning a fake project client whose `userFile.findMany`/`userFile.create`/`$transaction` are `vi.fn`. Assert `listFiles` calls `findMany` with `{ where: { deletedAt: null }, orderBy: { createdAt: 'desc' }, include: { document: { select: { status: true } } } }` and maps rows to `FileListItemView` (defaulting `indexStatus` to `'PENDING'` when `document` is null). Assert `createUserFile` runs through `$transaction` and creates both `UserFile` and the linked `Document` (`sourceType:'UPLOAD'`, `status:'PENDING'`). Use `afterEach(() => vi.clearAllMocks())`. Optionally add a thin route test `apps/web/src/app/api/projects/[id]/files/route.test.ts` with mocked `requireUser`/`resolveProjectSchema`/`createUserFile`/`putObject` asserting the 201/400/404 branches — keep it ≤200 lines, split if necessary. This is the test task for the upload subsystem.",
+    "status": "IN_PROGRESS",
+    "priority": "high",
+    "dependencies": ["File upload and list routes"],
+    "acceptance": "`yarn test` passes; soft-delete filter, document-include shape, and the atomic UserFile+Document creation are asserted; route branch tests (if added) cover 201/400/404. `yarn verify` green.",
+    "needsConfirmation": false
+  },
+  {
+    "title": "Text extraction and chunking",
+    "description": "Add the text-extraction and chunking helpers used by the indexing pipeline (SPEC § 'API: индексация файла' steps 4-5, codebase fact #7). Add two deps to `apps/web/package.json`: `pdf-parse` (MIT — license verified per fact #8; note 'License: MIT' in JSDoc) for PDF text-layer extraction, and `llamaindex` (MIT — note 'License: MIT' in JSDoc) for its `SentenceSplitter`. Create `apps/web/src/features/files/model/extract.ts` exporting `extractText(bytes: Buffer, mimeType: string): string | null`: for `text/plain`/`text/markdown` return `bytes.toString('utf8')`; for `application/json` return the raw utf8 text (the indexer will embed it as-is — do not collapse structure); for `application/pdf` call `pdf-parse(bytes)` and return `.text` (guard with try/catch → return `null` on failure so the caller marks the document FAILED); for any other MIME return `null`. Create `apps/web/src/features/files/model/chunk.ts` exporting `chunkText(text: string, opts?: { chunkSize?: number; overlap?: number }): string[]` using `SentenceSplitter` from `llamaindex` with defaults `chunkSize=512`, `overlap=50` (SPEC assumption #11 — these are decided defaults), and `estimateTokens(text: string): number` returning a cheap `Math.ceil(text.length / 4)` estimate. Export both modules' functions through the `files` barrel `apps/web/src/features/files/index.ts`. Pure modules, no DB.",
+    "status": "DONE",
+    "priority": "high",
+    "dependencies": [],
+    "acceptance": "`pdf-parse` and `llamaindex` are in `apps/web/package.json` with MIT licenses noted in JSDoc; `extractText` handles the four supported MIMEs and returns `null` for unsupported/failed PDFs; `chunkText` returns a `string[]` from a multi-paragraph input respecting ~512/50 targets; `yarn verify` green.",
+    "needsConfirmation": false
+  },
+  {
+    "title": "Document indexing service and route",
+    "description": "Implement the synchronous indexing pipeline (SPEC § 'API: индексация файла', codebase facts #6 and #7). Create `apps/web/src/features/files/model/index-service.ts` exporting `indexDocument(schemaName: string, fileId: string): Promise<{ documentId: string; status: 'INDEXED'|'FAILED'; chunkCount: number; reason?: string }>`. Steps: (1) load the `UserFile` (where `id: fileId, deletedAt: null`) including its `Document`; if none, return FAILED `reason:'file not found'`. (2) `document.update({ where: { userFileId: fileId }, data: { status: 'INDEXING' } })`. (3) `const bytes = await getObject(userFile.storageKey)` from `@/shared/minio`. (4) `const text = extractText(bytes, userFile.mimeType)`; if `null` → set status FAILED, return `{ status:'FAILED', reason:'unsupported/failed extraction' }`. (5) `const chunks = chunkText(text)`. (6) `const provider = createOpenAICompatibleProvider(...z.ai/env defaults via createZaiProvider() casting to OpenAICompatibleProvider, or construct directly)`; `const vectors = await provider.embed(chunks)` (mock path returns 1536-dim vectors with no key). (7) In a Prisma `$transaction`: `documentChunk.deleteMany({ where: { documentId } })` (idempotent re-index per SPEC), then for each chunk insert via `documentChunk.create({ data: { documentId, chunkIndex, content, tokenCount } })` and immediately set the vector with `await prisma.$executeRaw\`UPDATE \"DocumentChunk\" SET embedding = ${literal}::vector WHERE id = ${created.id}\`` where `literal = \`[${numbers.join(',')}]\`` built from the embedding (Prisma has no vector type — pass it as a string literal cast to `::vector`; this is injection-safe because the literal is built solely from floats we received from the provider, never user text). On any throw, the transaction rolls back chunks and the caller sets status FAILED. (8) After commit, `document.update({ data: { status: 'INDEXED', indexedAt: new Date() } })`; return `{ documentId, status:'INDEXED', chunkCount: chunks.length }`. Wrap the whole thing so ANY error path sets the document to FAILED and returns `{ status:'FAILED', reason }` (never leaves status='INDEXING'). Add a small `toVectorLiteral(vec: number[]): string` helper in `chunk.ts` or a new `vector.ts` to keep files ≤200 lines. Create the route `apps/web/src/app/api/projects/[id]/files/[fid]/index/route.ts` (POST only): resolve via `resolveProjectSchema`, then `await indexDocument(schemaName, fid)`, return 200 with `{ documentId, status, chunkCount }` (and `reason` when FAILED).",
+    "status": "IN_PROGRESS",
+    "priority": "high",
+    "dependencies": [
+      "Shared project-schema access helper",
+      "Universal OpenAI-compatible provider with embeddings",
+      "Files feature slice model",
+      "Text extraction and chunking"
+    ],
+    "acceptance": "`POST /api/projects/[id]/files/[fid]/index` on a previously-uploaded text file returns 200 `{ documentId, status:'INDEXED', chunkCount:>0 }`; a non-text/failed-PDF file returns 200 `{ status:'FAILED', reason }`; re-indexing the same file replaces old chunks (idempotent); the embedding is written via `$executeRaw` with a `'[...]'::vector` literal; no error path leaves the document in `INDEXING`. `yarn verify` green.",
+    "needsConfirmation": false
+  },
+  {
+    "title": "Test indexing service",
+    "description": "Add `apps/web/src/features/files/model/index-service.test.ts` (Vitest) — this is the test task for the indexing subsystem. Mock `@aiflow/db`'s `getProjectClient` to return a fake client with `userFile.findUnique`, `document.update`, `documentChunk.create`, `documentChunk.deleteMany`, and a `$transaction` impl that runs the callback (and a `$executeRaw` `vi.fn`). Mock `@/shared/minio`'s `getObject` to resolve a Buffer. Mock `@aiflow/ai-roles`' `createOpenAICompatibleProvider` (or `createZaiProvider`) to return an object whose `embed` resolves an array of 1536-dim number arrays. Cases: (a) happy path — assert status transitions INDEXING→INDEXED, `deleteMany` called before creates, `create` called once per chunk, `$executeRaw` called with a string matching `^\\[[-0-9.,eE]+\\]$` (the vector literal) and the `::vector` cast, and the resolved `{ status:'INDEXED', chunkCount }`. (b) unsupported MIME (`extractText` → null) → `{ status:'FAILED', reason }`, no chunks written. (c) `embed` rejects → document set FAILED, no partial chunks committed (transaction rolled back). Keep ≤200 lines; use `afterEach` to clear mocks.",
+    "status": "DONE",
+    "priority": "high",
+    "dependencies": ["Document indexing service and route"],
+    "acceptance": "`yarn test` passes; the vector-literal `$executeRaw` shape, status transitions, idempotent delete-before-create, and FAILED rollback are all asserted. `yarn verify` green.",
+    "needsConfirmation": false
+  },
+  {
+    "title": "RAG retrieval service",
+    "description": "Implement pgvector top-k retrieval (SPEC § 'RAG-retrieval (pgvector)', codebase fact #6). Create `apps/web/src/features/files/model/retrieve.ts` exporting `retrieveContext(schemaName: string, query: string, k = 5): Promise<string>` and a lower-level `retrieveChunks(schemaName, query, k): Promise<Array<{ id: string; content: string; distance: number }>>`. Steps: `const provider = createOpenAICompatibleProvider(...)` (or `createZaiProvider()` cast to `OpenAICompatibleProvider`); `const [queryVec] = await provider.embed([query])`; build the literal `const literal = toVectorLiteral(queryVec)` (reuse the helper from the indexing task — export it from the files barrel). Query via the project client's `$queryRawUnsafe` or a tagged template: `SELECT id, content, embedding <=> ${literal}::vector AS distance FROM \"DocumentChunk\" WHERE \"documentId\" IN (SELECT id FROM \"Document\" WHERE \"deletedAt\" IS NULL AND status = 'INDEXED') ORDER BY embedding <=> ${literal}::vector LIMIT ${k}` — filter to INDEXED, non-deleted documents; cosine distance via pgvector's `<=>` operator; LIMIT k. (Use `$queryRawUnsafe` with parameterized `k` and the numeric-only literal inlined; never interpolate user text — only the query embedding floats.) Format the result: if empty return `''`; else return a Russian-headed context block, e.g. `Контекст из загруженных документов:\\n\\n` + chunks mapped to `[Фрагмент ${i+1}]\\n${c.content}`. Export `retrieveContext` (and `retrieveChunks` for the spec-generation route) via the files barrel. Pure data layer; returns empty string when nothing is indexed so callers behave like Task 1.3.",
+    "status": "IN_PROGRESS",
+    "priority": "high",
+    "dependencies": [
+      "Universal OpenAI-compatible provider with embeddings",
+      "Files feature slice model"
+    ],
+    "acceptance": "`retrieveContext` issues a parameterized `$queryRaw` selecting cosine distance, filters `Document.deletedAt IS NULL AND status='INDEXED'`, `LIMIT k` (default 5); returns `''` when no chunks match (or embed fails — wrap so a provider failure returns `''`, never throws, so chat is unaffected); returns the formatted Russian context block otherwise. `yarn verify` green.",
+    "needsConfirmation": false
+  },
+  {
+    "title": "Chat RAG context integration",
+    "description": "Wire retrieval into the Analyst chat turn (SPEC § 'AI agents and automation' — Analyst, assumption #8: RAG is mixed into the system prompt implicitly). Modify `apps/web/src/app/api/projects/[id]/chat/route.ts` only — keep the chat slice itself free of cross-slice deps (do the composition in `app/`, which may import any slice). After the existing `saveMessage(... USER ...)` and before building the provider config: `const ragContext = await retrieveContext(schemaName, message)` (imported from `@/features/files`); build the effective system prompt with a new helper `withRagContext(basePrompt: string, context: string): string` placed in `apps/web/src/features/chat/model/schema.ts` (next to `readSystemPrompt`) — if `context` is empty return `basePrompt` unchanged, else return `basePrompt + '\\n\\n' + context`. Pass the augmented prompt into `buildChatConfig`. Wrap the `retrieveContext` call in try/catch that logs and falls back to `''` so a retrieval/embedding failure never breaks chat (degrades to Task 1.3 behavior). Export `withRagContext` from the chat barrel. Do not change the SSE streaming contract or the assistant-row persistence. Keep the route ≤200 lines.",
+    "status": "DONE",
+    "priority": "high",
+    "dependencies": ["RAG retrieval service", "Shared project-schema access helper"],
+    "acceptance": "Chat still streams an assistant reply; with at least one INDEXED document the system prompt sent to the provider includes the Russian context block derived from top-k chunks; with no indexed documents or on retrieval failure, behavior is identical to Task 1.3 (no crash, no empty reply). `yarn verify` green.",
+    "needsConfirmation": false
+  },
+  {
+    "title": "Test retrieval and chat RAG",
+    "description": "Add `apps/web/src/features/files/model/retrieve.test.ts` (mock `$queryRaw`/`$queryRawUnsafe` on the fake project client and `embed` on the fake provider): assert the SQL filters `Document.deletedAt IS NULL AND status='INDEXED'`, uses `<=> ... ::vector`, `LIMIT k`; assert empty result → `retrieveContext` returns `''`; assert non-empty → returns a string containing 'Контекст из загруженных документов' and each chunk content; assert an `embed` rejection is swallowed and returns `''`. Add `apps/web/src/features/chat/model/schema.test.ts` (or extend the existing chat test) covering `withRagContext`: empty context returns the base prompt verbatim; non-empty returns base + `'\\n\\n'` + context. This is the test task for the retrieval+chat-RAG subsystem.",
+    "status": "IN_PROGRESS",
+    "priority": "high",
+    "dependencies": ["Chat RAG context integration"],
+    "acceptance": "`yarn test` passes; the retrieval SQL shape, INDEXED filter, empty/ non-empty formatting, graceful embed-failure fallback, and `withRagContext` branching are all asserted. `yarn verify` green.",
+    "needsConfirmation": false
+  },
+  {
+    "title": "Specifications feature slice model",
+    "description": "Create the `specifications` feature slice data layer (FSD pattern mirroring `features/chat/model/service.ts`). Files: `apps/web/src/features/specifications/model/types.ts` with `SpecificationListItemView` `{ id, version, createdAt, createdBy: 'USER'|'AI', approvedAt: Date|null }` and `SpecificationView` `{ id, version, content, createdAt, createdBy }`. `apps/web/src/features/specifications/model/service.ts` exporting `listSpecifications(schemaName)` (`specification.findMany({ where: { deletedAt: null }, orderBy: { version: 'desc' } })` → map to list view), `getSpecificationByVersion(schemaName, version: number)` (`specification.findUnique({ where: { version, deletedAt: null } })` — note `version` is `@unique`, but `deletedAt` isn't part of the unique, so use `findUnique({ where: { version }}).then(r => r && r.deletedAt ? null : r)` or `findFirst` with the compound where — return `null` if missing/deleted), and `createSpecificationVersion(schemaName, content)` — compute next version via `specification.aggregate({ _max: { version: true } })` (default to 0 when null), then `specification.create({ data: { version: max+1, content, createdBy: 'AI' } })` and return the full view. `toView()`/`toListItemView()` helpers, soft-delete filter on every read. Barrel `apps/web/src/features/specifications/index.ts` exports the types and three functions. The `Specification` model already exists (schema lines 40-58), no migration.",
+    "status": "DONE",
+    "priority": "high",
+    "dependencies": [],
+    "acceptance": "`listSpecifications` orders by `version desc` and filters `deletedAt:null`; `getSpecificationByVersion` returns `null` for a missing version; `createSpecificationVersion` sets `version = max(existing)+1` (or 1) and `createdBy: 'AI'`; `yarn verify` green.",
+    "needsConfirmation": false
+  },
+  {
+    "title": "Specifications list, view, and generation routes",
+    "description": "Implement the three SPEC routes (§ 'API: список и просмотр спецификаций' and 'API: генерация спецификации', assumption #7 non-streaming generation). Create `apps/web/src/app/api/projects/[id]/specifications/route.ts` handling GET and POST, and `apps/web/src/app/api/projects/[id]/specifications/[version]/route.ts` handling GET. All routes start with `requireUser()` → `resolveProjectSchema(id, user.id)` → 404 if null (mirror chat route). GET (list): `listSpecifications(schemaName)` → 200 array. GET `[version]`: parse `Number(params.version)`; `const spec = await getSpecificationByVersion(schemaName, version)`; return 404 if null else 200 `{ id, version, content, createdAt, createdBy }`. POST (generate, body `{}`): (1) `const messages = await listMessages(schemaName)` from `@/features/chat`. (2) `const lastUser = [...messages].reverse().find(m => m.role === 'USER')`; `const ragContext = lastUser ? await retrieveContext(schemaName, lastUser.content) : ''`. (3) Build the generation system prompt from the 'SPEC.md format' template in `.claude/agents/analyst.md` (lines 78-155) — read it via `readSystemPrompt()` and isolate/extract the SPEC-template section, or add a `readSpecTemplate()` helper in `features/chat/model/schema.ts` that returns just the template block; append the dialog and RAG context as the user turn. (4) Non-streaming call: add `collectChat(provider, messages, config): Promise<string>` helper (drains `provider.chat(...)` to a string) — put it in `packages/ai-roles/src/openai-compatible.ts` OR a small `apps/web/src/features/specifications/model/generate.ts`; collect the full reply. (5) `const view = await createSpecificationVersion(schemaName, fullText)`; return 200 `{ id, version, content, createdAt }`. Map provider errors to 500. Keep each route file ≤200 lines; move prompt-building into the specifications slice (`generate.ts`) to keep routes thin.",
+    "status": "IN_PROGRESS",
+    "priority": "high",
+    "dependencies": [
+      "Shared project-schema access helper",
+      "Universal OpenAI-compatible provider with embeddings",
+      "RAG retrieval service",
+      "Specifications feature slice model"
+    ],
+    "acceptance": "`GET /api/projects/[id]/specifications` returns 200 with the version-desc array; `GET /api/projects/[id]/specifications/[version]` returns 200 with the content view or 404 for a missing version; `POST /api/projects/[id]/specifications` returns 200 with a new version (`max+1`, `createdBy:'AI'`) whose `content` is the full non-streamed model reply built from dialog + RAG context + the analyst SPEC template; provider failure → 500; `yarn verify` green.",
+    "needsConfirmation": false
+  },
+  {
+    "title": "Test specifications slice and generation",
+    "description": "Add `apps/web/src/features/specifications/model/service.test.ts` (mock `@aiflow/db`): assert `listSpecifications` orders `version desc` with `deletedAt:null` filter; `getSpecificationVersion` returns `null` for missing and the view for present; `createSpecificationVersion` reads `_max.version`, adds 1 (and starts at 1 when the table is empty), and persists `createdBy:'AI'`. Add `apps/web/src/features/specifications/model/generate.test.ts` (or fold into the service test): mock `@/features/chat` `listMessages`, `@/features/files` `retrieveContext`, and the provider's `chat` (an async generator yielding a few chunks) to verify `collectChat` concatenates the full text and that the generation prompt includes the SPEC template marker + RAG context when present and omits it when empty. Keep ≤200 lines per file. This is the test task for the specifications+generation subsystem.",
+    "status": "DONE",
+    "priority": "high",
+    "dependencies": ["Specifications list, view, and generation routes"],
+    "acceptance": "`yarn test` passes; version `max+1` computation, `createdBy:'AI'`, missing-version null handling, and the non-streaming `collectChat` accumulation are asserted; `yarn verify` green.",
+    "needsConfirmation": false
+  },
+  {
+    "title": "Researcher page artifacts UI",
+    "description": "Replace the placeholder artifacts panel in `apps/web/src/app/(app)/projects/[id]/research/page.tsx` (the `ResearcherArtifacts` function with three stub Cards and the disabled 'Создать спецификацию' button) with two live client components per SPEC § 'Экран Researcher' and § 'Файловый загрузчик'. The page stays a server component; it already loads `messages` and resolves the project — also fetch initial `files` (via `listFiles` from `@/features/files`) and `specs` (via `listSpecifications` from `@/features/specifications`) server-side and pass them plus `projectId` to the new client panels (so first paint is populated, mirrors the existing `initialMessages` pattern). Create `apps/web/src/features/files/ui/FilePanel.tsx` (`'use client'`): a 'Загрузить файл' button wired to a hidden `<input type='file'>` (assumption #12 — simple input, no drag-and-drop), POST `multipart/form-data` to `/api/projects/${projectId}/files`, on success prepend the new file to the list with status `PENDING`; render the file list with a status badge (`PENDING`/`INDEXING`/`INDEXED`/`FAILED`) and an 'Индексировать' button per non-INDEXED file that POSTs `/api/projects/${projectId}/files/${file.id}/index` and updates that row's status from the response; states: upload-in-progress spinner, error toast on failure. Create `apps/web/src/features/specifications/ui/SpecificationPanel.tsx` (`'use client'`): list versions (number + createdAt); clicking a version fetches `/api/projects/${projectId}/specifications/${version}` and shows the content in a modal or expanded block; a 'Создать спецификацию' button that POSTs `/api/projects/${projectId}/specifications`, shows a loading indicator, and prepends the returned version on success; keep the 'Спецификация не создана' stub when the list is empty. Use `@aiflow/ui` primitives (`Button`, `Card`, `CardTitle`, `CardDescription`, `Spinner`) and existing semantic tokens; Russian copy per CLAUDE.md. Export both components through their slice barrels (`@/features/files`, `@/features/specifications`). Keep the existing Roadmap card and the central `ChatPanel` untouched. Keep each panel ≤200 lines; split subcomponents if needed. No new `@source` line in `globals.css` is required — the existing `@source '../../src/**/*.{ts,tsx}'` already covers new files.",
+    "status": "IN_PROGRESS",
+    "priority": "high",
+    "dependencies": [
+      "File upload and list routes",
+      "Document indexing service and route",
+      "Specifications list, view, and generation routes"
+    ],
+    "acceptance": "Loading `/projects/[id]/research` shows the files panel (with uploaded files and their index status) and the specifications panel (with versions or the empty stub); uploading a file adds it with status `PENDING`; 'Индексировать' flips the badge to `INDEXED` (or `FAILED`); 'Создать спецификацию' generates a new version and the list refreshes; clicking a version shows its content; the chat panel is unchanged; `yarn verify` green.",
+    "needsConfirmation": false
+  },
+  {
+    "title": "Smoke test primary RAG path",
+    "description": "End-to-end smoke test exercising the primary user path from SPEC (upload → index → chat-with-RAG → generate SPEC → view versions). Add `apps/web/src/app/api/projects/[id]/__rag-smoke.test.ts` (Vitest) that runs the pipeline with the provider in MOCK mode (env: `ZAI_API_KEY` unset, so `embed` returns 1536-dim mock vectors and `chat`/generation return canned text — no network, no live key) and with MinIO + DB mocked. Use the existing `getProjectClient` mock pattern: create a fake project schema harness (or mock `@aiflow/db`, `@/shared/minio`, and `@aiflow/ai-roles` at the module boundary) and drive the route handlers (or the underlying services) in order: (1) `createUserFile` + `putObject` for a `text/plain` file; (2) `indexDocument` → assert `{ status:'INDEXED', chunkCount:>0 }` and that `$executeRaw` wrote the vector literal; (3) chat turn with a USER message → assert the assistant reply streams and persists and that `retrieveContext` was consulted (i.e. the system prompt included the context block since a chunk is now INDEXED); (4) `POST` generate → assert `createSpecificationVersion` produced `version:1, createdBy:'AI'`; (5) `listSpecifications` returns the new version and `getSpecificationByVersion(schemaName, 1)` returns its content. This catches integration regressions across all four subsystems. Keep ≤200 lines; split into focused sub-tests if a single file would exceed the limit. If a fully wired route-level test proves impractical in this repo's harness, fall back to driving the service-layer chain (upload service → index service → retrieve + chat service → generate service → spec service) with the same mocks and the same assertions — note which level was used in a comment.",
+    "status": "DONE",
+    "priority": "critical",
+    "dependencies": [
+      "Researcher page artifacts UI",
+      "Specifications list, view, and generation routes",
+      "Chat RAG context integration",
+      "Document indexing service and route"
+    ],
+    "acceptance": "`yarn test` passes a single end-to-end test (route- or service-level) that produces an INDEXED document, a RAG-augmented chat reply, a generated `Specification` at `version:1, createdBy:'AI'`, and a retrievable content view for that version. `yarn verify` green.",
+    "needsConfirmation": false
+  }
+]
