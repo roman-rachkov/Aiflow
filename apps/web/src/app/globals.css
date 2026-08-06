@@ -1,4 +1,11 @@
 /*
+ * Layer order for Tailwind v4 + OpenUI (D0a). `openui` sits above Tailwind's
+ * Preflight (`base`) so element resets do not flatten OpenUI components;
+ * utilities still win over OpenUI class styles.
+ */
+@layer theme, base, openui, components, utilities;
+
+/*
  * `source(none)` disables v4's automatic source detection, which on Windows
  * walked out of the repo and into the user profile (EPERM on
  * `C:\Users\…\Application Data`). Sources are listed explicitly below instead;
@@ -12,6 +19,29 @@
  * See packages/ui/src/styles/theme.css.
  */
 @import '@aiflow/ui/styles/theme.css';
+
+/*
+ * OpenUI component styles (layered). Import from exactly one place — chunk
+ * splitters can otherwise register `@layer openui` before the order statement.
+ */
+@import '@openuidev/react-ui/layered/styles/index.css';
+
+/*
+ * Brand accent overrides (09-ui-spec § 9). Unlayered so they beat `@layer openui`
+ * token defaults from the import above. ThemeProvider is intentionally not used:
+ * OpenUI's JS barrel is `"use client"` + `export *`, which Next.js rejects.
+ */
+:root {
+  --openui-interactive-accent-default: #2563eb;
+  --openui-interactive-accent-hover: #1d4ed8;
+  --openui-interactive-accent-pressed: #1d4ed8;
+  --openui-interactive-destructive-accent-default: #dc2626;
+  --openui-interactive-destructive-accent-hover: #b91c1c;
+  --openui-font-body: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --openui-font-heading: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --openui-font-label: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  color-scheme: light;
+}
 
 @source '../../src/**/*.{ts,tsx}';
 

@@ -31,6 +31,7 @@ vi.mock('@/features/files/rag', () => ({ retrieveContext }));
 vi.mock('@/features/projects', () => ({ resolveProjectSchema }));
 vi.mock('@aiflow/ai-roles', () => ({
   createProviderFromEnv: () => ({ chatWithUsage }),
+  readProviderConfigFromEnv: () => ({ chatModel: 'test-model', apiKey: 'test-key' }),
 }));
 
 const { POST } = await import('./route');

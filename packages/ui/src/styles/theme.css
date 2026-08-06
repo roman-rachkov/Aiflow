@@ -9,6 +9,10 @@
  * Inter. There is deliberately no dark variant: the spec does not ask for one,
  * and a second colour scheme is a design decision, not a default.
  *
+ * OpenUI components (D0a) get the same brand via OpenUiThemeProvider
+ * (`--openui-*` runtime vars). These `@theme` tokens remain for Tailwind
+ * utility classes on app-shell and composition markup.
+ *
  * Kept intentionally small. Radius, spacing, shadow and z-index are omitted
  * because v4's defaults cover them; a parallel scale invented before a
  * component needs it is the premature abstraction this package exists to avoid.

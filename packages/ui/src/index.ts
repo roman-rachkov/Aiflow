@@ -1,12 +1,10 @@
 /**
  * Public surface of @aiflow/ui.
  *
- * Primitives and tokens only. App composition (header, side menu) stays in
- * apps/web/src/shared/ui — it encodes this app's routes, which a shared
- * package must not know about.
- *
- * Tokens are not exported here: they are CSS, imported via
- * `@aiflow/ui/styles/theme.css`.
+ * Primitives are OpenUI-backed wrappers (D0a) that keep a stable API for
+ * apps/web. Tokens stay CSS-only (`@aiflow/ui/styles/theme.css`). App
+ * composition (header, side menu, ThemeProvider) lives in
+ * apps/web/src/shared/ui — it encodes this app's routes and brand theme.
  */
 
 export { Button, type ButtonProps } from './Button';

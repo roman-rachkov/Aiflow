@@ -27,6 +27,11 @@ x-node-service: &node-service
     CI: 'true'
     WATCHPACK_POLLING: 'true'
     CHOKIDAR_USEPOLLING: 'true'
+    # Next webpack bundles @aiflow/db's generated Prisma clients into `.next`
+    # without copying query engines; Prisma then searches the wrong dirs and
+    # fails with "Could not locate the Query Engine for debian-openssl-3.0.x".
+    # Point at the Linux engine on the bind mount (binaryTargets includes it).
+    PRISMA_QUERY_ENGINE_LIBRARY: /workspace/packages/db/generated/public/libquery_engine-debian-openssl-3.0.x.so.node
   extra_hosts:
     - 'host.docker.internal:host-gateway'
   # bash (not exec bit): bind mounts from Windows often lack +x.

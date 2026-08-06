@@ -1,3 +1,12 @@
+/**
+ * Card — OpenUI Card plus local title/description helpers.
+ *
+ * Per-component OpenUI entry (not the package barrel — see Button.tsx). CardTitle
+ * / CardDescription stay local: OpenUI's CardHeader is a different composition.
+ */
+'use client';
+
+import { Card as OpenUiCard } from '@openuidev/react-ui/Card';
 import { forwardRef, type HTMLAttributes, type ReactNode } from 'react';
 
 import { cn } from './lib/cn';
@@ -8,16 +17,15 @@ export type CardProps = HTMLAttributes<HTMLDivElement> & {
   children?: ReactNode;
 };
 
-// forwardRef so consumers can measure/layout the card (ResizeObserver, etc.).
 export const Card = forwardRef<HTMLDivElement, CardProps>(function Card(
   { className, interactive = false, ...props },
   ref,
 ) {
   return (
-    <div
+    <OpenUiCard
       ref={ref}
+      variant="card"
       className={cn(
-        'rounded-lg border border-border bg-surface p-4',
         interactive && 'cursor-pointer transition-colors hover:border-primary',
         className,
       )}

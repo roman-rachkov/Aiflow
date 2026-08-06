@@ -1,44 +1,53 @@
-import { type VariantProps, cva } from 'class-variance-authority';
+/**
+ * Button — thin wrapper over OpenUI's Button.
+ *
+ * Imports the per-component entry (`/Button`), not the package barrel: OpenUI's
+ * main index is `"use client"` + `export *`, which Next.js rejects as a client
+ * boundary. Keeps the @aiflow/ui public API (variant/size names).
+ */
+'use client';
+
+import {
+  Button as OpenUiButton,
+  type ButtonProps as OpenUiButtonProps,
+} from '@openuidev/react-ui/Button';
 import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from 'react';
 
 import { cn } from './lib/cn';
 
-const button = cva(
-  // Shared: focus-visible rather than focus, so keyboard users get the ring and
-  // mouse users do not. disabled styling lives here because it never varies.
-  'inline-flex items-center justify-center rounded-md font-medium transition-colors ' +
-    'focus-visible:ring-primary focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-hidden ' +
-    'disabled:pointer-events-none disabled:opacity-50',
-  {
-    variants: {
-      variant: {
-        primary: 'bg-primary hover:bg-primary-hover text-white',
-        secondary: 'border-border bg-surface text-fg hover:bg-surface-muted border',
-        ghost: 'text-fg-muted hover:bg-surface-muted hover:text-fg',
-        danger: 'bg-danger text-white hover:bg-danger-hover',
-      },
-      size: {
-        sm: 'h-8 gap-1.5 px-3 text-sm',
-        md: 'h-10 gap-2 px-4 text-sm',
-        lg: 'h-11 gap-2 px-6 text-base',
-      },
-    },
-    defaultVariants: { variant: 'primary', size: 'md' },
-  },
-);
+type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
+type Size = 'sm' | 'md' | 'lg';
 
-export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> &
-  VariantProps<typeof button> & { children?: ReactNode };
+export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
+  variant?: Variant;
+  size?: Size;
+  children?: ReactNode;
+};
 
-// forwardRef so consumers can focus the button (command menus, form submit on
-// Enter, etc.) and libraries like react-hook-form can drive it.
+const SIZE: Record<Size, NonNullable<OpenUiButtonProps['size']>> = {
+  sm: 'small',
+  md: 'medium',
+  lg: 'large',
+};
+
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
-  { className, variant, size, type = 'button', ...props },
+  { className, variant = 'primary', size = 'md', type = 'button', ...props },
   ref,
 ) {
-  // Default type="button": an untyped <button> submits its form, which is a
-  // real bug every time it is not what was meant.
+  const openVariant: OpenUiButtonProps['variant'] =
+    variant === 'ghost' ? 'tertiary' : variant === 'danger' ? 'primary' : variant;
+  const buttonType: OpenUiButtonProps['buttonType'] =
+    variant === 'danger' ? 'destructive' : 'normal';
+
   return (
-    <button ref={ref} type={type} className={cn(button({ variant, size }), className)} {...props} />
+    <OpenUiButton
+      ref={ref}
+      type={type}
+      variant={openVariant}
+      size={SIZE[size]}
+      buttonType={buttonType}
+      className={cn(className)}
+      {...props}
+    />
   );
 });

@@ -151,6 +151,18 @@ Decided during Task 1.2d, and recorded here because it overrides a written rule.
 - **A full primitive set.** Four were built — Button, Input/Field, Card, Spinner — because those have consumers today. Modal, toast, tabs, timeline and file tree belong to screens that do not exist, and designing their APIs against an imagined caller is the same mistake in a different place.
 - **Dark theme.** 09-ui-spec § 9 mandates light only. A second colour scheme is a design decision, not a default.
 
+### D0a. OpenUI as the product component foundation — RESOLVED 2026-08-07
+
+**Adopt [`@openuidev/react-ui`](https://github.com/thesysdev/openui) (MIT) as the ready-made component base for AI Studio itself** — Button, Card, forms, tables, charts, layout blocks, plus `ThemeProvider`. Scope is **our app only** (`apps/web`); generated user projects do not receive OpenUI. Chat stays on `@assistant-ui/react` for now; Generative UI (`openuiChatLibrary` / OpenUI Lang) is a later, separate step.
+
+Licence verified via `npm view` + upstream `LICENSE` (MIT) — allowlisted under conventions § 8 for `product`.
+
+**Relation to D0 / `packages/ui`.** Hand-written primitives were a bootstrap while screens were few. OpenUI supplies the breadth 09-ui-spec still needs (tables, tabs, charts, richer forms). `@aiflow/ui` becomes an OpenUI-backed facade: same public API (`Button`, `Input`/`Field`, `Card`, `Spinner`) so feature screens keep a stable import, while OpenUI owns the visuals. Tailwind `@theme` tokens stay in `packages/ui/styles/theme.css` for app-shell utility classes. App composition (`AppHeader`, `SideMenu`, `OpenUiThemeProvider`) remains in `apps/web/src/shared/ui`.
+
+**Theming.** OpenUI layered CSS + unlayered `:root` brand overrides in `globals.css` (light only, `#2563EB` primary). `ThemeProvider` is not used — OpenUI's JS barrel is `"use client"` + `export *`, which Next.js rejects; wrappers import per-component entries (`@openuidev/react-ui/Button`, etc.).
+
+**What this is not:** replacing the Researcher chat shell, shipping OpenUI into Coder output, or adopting Open WebUI (different project, branding restrictions).
+
 ---
 
 ## D. Already decided — recorded to prevent re-litigation
@@ -189,7 +201,7 @@ Decided during Task 1.2d, and recorded here because it overrides a written rule.
 | Tailwind version        | v4 — CSS-first `@theme`, no `tailwind.config.js`, `@tailwindcss/postcss`                                                                                                                               | Task 1.2c                                                          |
 | Tailwind source scan    | `source(none)` + explicit `@source` — auto-detection escapes the repo on Windows                                                                                                                       | Task 1.2c                                                          |
 | `packages/ui` promotion | Created with one consumer, overriding conventions § 2.3 — see #10 below                                                                                                                                | Task 1.2d                                                          |
-| Component library       | None. Primitives hand-written; no shadcn CLI, no Radix yet                                                                                                                                             | Task 1.2d                                                          |
+| Component library       | **OpenUI** (`@openuidev/react-ui`, MIT) for AI Studio screens; hand-written `@aiflow/ui` primitives retained only as token/`Spinner` bridge during migration — see D0a                                 | D0a 2026-08-07                                                     |
 | Dark theme              | Not built — 09-ui-spec § 9 mandates light only                                                                                                                                                         | Task 1.2d                                                          |
 | Model provider          | Universal OpenAI-compatible (`createOpenAICompatibleProvider`): configurable `baseURL`/`apiKey`/`model` for BOTH chat and embeddings; z.ai is one instance. Mock paths preserved for keyless local dev | Task 2.1                                                           |
 | RAG engine              | LlamaIndex.Ts (MIT) `SentenceSplitter` for chunking; pgvector for storage + retrieval (`$queryRawUnsafe` cosine top-k). `@llamaindex/text-splitter` not on npm — umbrella `llamaindex` used            | Task 2.1                                                           |

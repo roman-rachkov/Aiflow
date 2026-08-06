@@ -148,13 +148,18 @@ packages/
 │                             mock-chat.ts / mock-embeddings.ts — extracted mock paths
 │                             sse-parser.ts — generic SSE frame reassembly
 │                               (reusable; reader released in finally)
-└── ui/                   Design system (Task 1.2d). Primitives: Button, Input +
-                          Field, Card + CardTitle/CardDescription, Spinner.
+└── ui/                   Design system (Task 1.2d → D0a OpenUI). OpenUI-backed
+                          wrappers: Button, Input + Field, Card + CardTitle/
+                          CardDescription; Spinner remains local.
                           └── public entry: src/index.ts (components) and
                               @aiflow/ui/styles/theme.css (the @theme tokens).
-                              deps: clsx, tailwind-merge, cva. React is a peer.
-                              No build step — apps/web transpiles the source.
+                              deps: @openuidev/react-ui, clsx, tailwind-merge,
+                              cva. Peers: react, react-dom, openui headless/lang,
+                              zustand, zod. No build step — apps/web transpiles.
                               cn() in src/lib/cn.ts is the only shared helper.
+                              Brand OpenUI tokens: unlayered `:root` overrides in
+                              apps/web globals.css (no ThemeProvider — Next.js
+                              rejects OpenUI's barrel `export *` + `use client`).
 
 tools/                    Dev-only workspaces. Ship nowhere; still gated by
 │                         `yarn verify` — an unverified self-analysis tool
@@ -198,7 +203,8 @@ compose topology          `docker compose up` (no `--build`): postgres, redis,
 | Model provider adapter (universal OpenAI-compatible, chat+embed)   | `packages/ai-roles/src` (Task 1.3; universal + embeddings in Task 2.1) |
 | App shell (header, side menu)                                      | `apps/web/src/shared/ui` (Task 1.2a)                                   |
 | MinIO object storage client                                        | `apps/web/src/shared/minio` (Task 2.1)                                 |
-| UI primitives + design tokens                                      | `packages/ui/src` (Task 1.2d)                                          |
+| UI primitives + design tokens (OpenUI-backed)                      | `packages/ui/src` (Task 1.2d; OpenUI D0a)                              |
+| OpenUI brand tokens (CSS `:root` overrides)                        | `apps/web/src/app/globals.css` (D0a; no ThemeProvider)                 |
 | Prisma client factory                                              | `packages/db/src/index.ts`                                             |
 | Queue definitions                                                  | `packages/queue/src`                                                   |
 | Encryption helpers (envelope typing)                               | `packages/db/src/config-types.ts` (`packages/crypto` is an empty stub) |

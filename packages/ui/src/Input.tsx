@@ -1,3 +1,12 @@
+/**
+ * Input + Field — OpenUI Input with the existing Field accessibility wrapper.
+ *
+ * Per-component OpenUI entry (not the package barrel — see Button.tsx).
+ * `invalid` maps to OpenUI's `hasError`.
+ */
+'use client';
+
+import { Input as OpenUiInput } from '@openuidev/react-ui/Input';
 import {
   Children,
   cloneElement,
@@ -11,27 +20,21 @@ import {
 
 import { cn } from './lib/cn';
 
-export type InputProps = InputHTMLAttributes<HTMLInputElement> & {
+export type InputProps = Omit<InputHTMLAttributes<HTMLInputElement>, 'size'> & {
   /** Renders the invalid state and sets aria-invalid for assistive tech. */
   invalid?: boolean;
 };
 
-// forwardRef: form libraries (react-hook-form, formik) register the field by ref.
 export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
   { className, invalid = false, ...props },
   ref,
 ) {
   return (
-    <input
+    <OpenUiInput
       ref={ref}
       aria-invalid={invalid || undefined}
-      className={cn(
-        'h-10 w-full rounded-md border bg-surface px-3 py-2 text-fg placeholder:text-fg-muted',
-        'focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-hidden',
-        'disabled:cursor-not-allowed disabled:bg-surface-muted',
-        invalid ? 'border-danger' : 'border-border',
-        className,
-      )}
+      hasError={invalid}
+      className={cn('w-full', className)}
       {...props}
     />
   );
@@ -45,23 +48,14 @@ export type FieldProps = {
 };
 
 /**
- * Label + control + error message. Kept next to Input because every form in
- * the spec (§ 3–5) needs the same three parts, and hand-wiring the
- * label/error association is exactly where accessibility quietly breaks.
- *
- * Associates the label and error with the control via htmlFor/id and
- * aria-describedby: the control is cloned with a generated id, and the error
- * span (when present) is wired as the control's description so screen readers
- * announce it. The control should be a single form element like <Input/>.
+ * Label + control + error message. Associates the label and error with the
+ * control via htmlFor/id and aria-describedby.
  */
 export function Field({ label, error, children }: FieldProps) {
   const reactId = useId();
   const controlId = `field-${reactId}`;
   const errorId = `${controlId}-error`;
 
-  // Clone the single control element so we can inject id/aria-describedby
-  // without forcing the consumer to pass them manually. If the child already
-  // sets an id, it wins (consumers rarely do; the generated one is a default).
   const child = Children.only(children);
   const control = isValidElement(child)
     ? cloneElement(child as ReactElement<{ id?: string; 'aria-describedby'?: string }>, {
