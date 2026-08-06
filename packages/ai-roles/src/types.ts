@@ -71,3 +71,31 @@ export interface StreamingProvider extends ModelProvider {
    */
   chatWithUsage(messages: ChatMessage[], config: ChatConfig): Promise<ChatWithUsageResult>;
 }
+
+/**
+ * A provider that maps input texts to dense vectors. The vectors are ordered
+ * to match the input array; downstream code (e.g. pgvector for RAG) writes them
+ * as-is. Dimension is provider/model-specific (text-embedding-3-small is 1536).
+ */
+export interface EmbeddingsProvider {
+  /** Embed each input text; returns one vector per input, in order. */
+  embed(texts: string[]): Promise<number[][]>;
+}
+
+/**
+ * Config handed to {@link createOpenAICompatibleProvider}. `baseURL` is the API
+ * root (no `/chat/completions` suffix); `apiKey` absent/empty selects MOCK mode.
+ */
+export interface ProviderConfig {
+  baseURL: string;
+  apiKey?: string;
+  chatModel: string;
+  embeddingModel: string;
+}
+
+/**
+ * A provider that speaks the OpenAI-compatible chat-completions + embeddings
+ * surface (z.ai GLM, OpenAI, local servers, ...). Combines streaming chat with
+ * a usage side-channel and text embeddings under one adapter.
+ */
+export interface OpenAICompatibleProvider extends StreamingProvider, EmbeddingsProvider {}
