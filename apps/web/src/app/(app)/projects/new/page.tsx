@@ -1,5 +1,5 @@
 import { requireUser } from '@/features/auth';
-import { CreateProjectForm } from '@/features/projects';
+import { CreateProjectForm } from '@/features/projects/client';
 
 /**
  * New-project page. The page is a thin server wrapper around the (client)

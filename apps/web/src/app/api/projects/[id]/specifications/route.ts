@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
 
-import { createProviderFromEnv } from '@aiflow/ai-roles';
+import { createProviderFromEnv, readProviderConfigFromEnv } from '@aiflow/ai-roles';
 import type { ChatConfig } from '@aiflow/ai-roles';
 
 import { requireUser } from '@/features/auth';
 import { listMessages, readSpecTemplate } from '@/features/chat';
-import { retrieveContext } from '@/features/files';
+import { retrieveContext } from '@/features/files/rag';
 import { resolveProjectSchema } from '@/features/projects';
 import { generateSpecification, listSpecifications } from '@/features/specifications';
 
@@ -22,14 +22,10 @@ import { generateSpecification, listSpecifications } from '@/features/specificat
  * orchestrator throws; this handler maps any throw to 500.
  */
 
-const DEFAULT_MODEL = 'glm-4.6';
-
-/** Resolve the model + key from env. The system prompt is set per-call. */
+/** Model + key from OPENAI_* env (via {@link readProviderConfigFromEnv}). */
 function buildConfig(): Pick<ChatConfig, 'model' | 'apiKey'> {
-  return {
-    model: process.env.ZAI_MODEL ?? DEFAULT_MODEL,
-    apiKey: process.env.ZAI_API_KEY,
-  };
+  const { chatModel, apiKey } = readProviderConfigFromEnv();
+  return { model: chatModel, apiKey };
 }
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {

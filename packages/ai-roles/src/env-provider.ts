@@ -26,8 +26,8 @@ const DEFAULT_EMBEDDING_MODEL = 'text-embedding-3-small';
  * Resolve {@link ProviderConfig} from process env. Called lazily inside the
  * factory — never at module load — so tests can set env before construction.
  *
- * Aliases kept for back-compat: `ZAI_API_KEY` ≡ `OPENAI_API_KEY`,
- * `ZAI_MODEL` ≡ `OPENAI_CHAT_MODEL`.
+ * Back-compat aliases (still read, not documented in `.env.example`):
+ * `ZAI_API_KEY` ≡ `OPENAI_API_KEY`, `ZAI_MODEL` ≡ `OPENAI_CHAT_MODEL`.
  */
 export function readProviderConfigFromEnv(): ProviderConfig {
   const apiKey = process.env.OPENAI_API_KEY ?? process.env.ZAI_API_KEY;

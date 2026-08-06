@@ -51,18 +51,27 @@ function useConfirmDelete(projectId: string) {
     setPending(true);
     setError(null);
 
-    const response = await fetch(`/api/projects/${projectId}`, { method: 'DELETE' });
+    try {
+      const response = await fetch(`/api/projects/${projectId}`, { method: 'DELETE' });
 
-    if (response.ok) {
-      router.push('/projects');
-      return;
+      if (response.ok) {
+        // Soft-delete is instant in the DB; a long wait is almost always
+        // Next.js compiling the route on first hit (cold start in compose).
+        // refresh() forces the list RSC to re-fetch so the row disappears.
+        router.push('/projects');
+        router.refresh();
+        return;
+      }
+
+      const { error: message } = (await response.json().catch(() => ({}))) as {
+        error?: string;
+      };
+      setError(message ?? 'Не удалось удалить проект. Попробуйте ещё раз.');
+    } catch {
+      setError('Не удалось удалить проект. Попробуйте ещё раз.');
+    } finally {
+      setPending(false);
     }
-
-    const { error: message } = (await response.json().catch(() => ({}))) as {
-      error?: string;
-    };
-    setError(message ?? 'Не удалось удалить проект. Попробуйте ещё раз.');
-    setPending(false);
   }
 
   return { pending, error, confirm };

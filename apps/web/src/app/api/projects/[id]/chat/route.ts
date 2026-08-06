@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
 
-import { createProviderFromEnv } from '@aiflow/ai-roles';
+import { createProviderFromEnv, readProviderConfigFromEnv } from '@aiflow/ai-roles';
 import type { ChatConfig, ChatMessage } from '@aiflow/ai-roles';
 
 import { requireUser } from '@/features/auth';
-import { retrieveContext } from '@/features/files';
+import { retrieveContext } from '@/features/files/rag';
 import { listMessages, saveMessage } from '@/features/chat/model/service';
 import { readSystemPrompt, withRagContext } from '@/features/chat/model/schema';
 import { resolveProjectSchema } from '@/features/projects';
@@ -31,8 +31,6 @@ const SSE_HEADERS = {
   Connection: 'keep-alive',
 } as const;
 
-const DEFAULT_MODEL = 'glm-4.6';
-
 /** Encode one SSE frame as bytes. `event` is omitted for default data frames. */
 function encodeSse(payload: unknown, event?: string): Uint8Array {
   const encoder = new TextEncoder();
@@ -50,13 +48,10 @@ function toProviderMessages(
   return views.map((m) => ({ role: m.role, content: m.content }));
 }
 
-/** Resolve the model + key + system prompt for this turn from env and disk. */
+/** Model + key from OPENAI_* env (via {@link readProviderConfigFromEnv}). */
 function buildChatConfig(systemPrompt: string): ChatConfig {
-  return {
-    model: process.env.ZAI_MODEL ?? DEFAULT_MODEL,
-    apiKey: process.env.ZAI_API_KEY,
-    systemPrompt,
-  };
+  const { chatModel, apiKey } = readProviderConfigFromEnv();
+  return { model: chatModel, apiKey, systemPrompt };
 }
 
 /** Run the provider stream, emitting SSE frames and persisting the assistant row. */

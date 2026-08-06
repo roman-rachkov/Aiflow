@@ -37,7 +37,7 @@ apps/
 │     │                           delete confirm overlay lives here, not in
 │     │                           @aiflow/ui — one consumer, per D0 / § 2.3)
 │     ├── chat/           Analyst chat — SSE streaming + history (Task 1.3)
-│     │                     └── public entry: src/index.ts
+│     │                     └── public: `index.ts` (server) + `client.ts` (ChatPanel)
 │     │                         model/service.ts — listMessages/saveMessage over
 │     │                           ChatMessage (project-scoped); model/schema.ts —
 │     │                           readSystemPrompt() reads .claude/agents/analyst.md
@@ -50,7 +50,9 @@ apps/
 │     │                           ChatModelAdapter (POST → SSE → cumulative yield);
 │     │                           ui/parse-sse-response.ts — client SSE framing
 │     ├── files/          Upload, RAG indexing + retrieval (Task 2.1)
-│     │                     └── public entry: src/index.ts
+│     │                     └── public: `index.ts` (CRUD), `client.ts` (FilePanel),
+│     │                         `rag.ts` (retrieve/extract/chunk — kept off index so
+│     │                         Researcher never webpacks pdf-parse/pdfjs-dist)
 │     │                         model/service.ts — createUserFile/listFiles over
 │     │                           UserFile + linked Document (atomic nested create);
 │     │                         model/index-service.ts — indexDocument: MinIO bytes
@@ -65,7 +67,7 @@ apps/
 │     │                         ui/FilePanel.tsx — upload (hidden input) + per-row
 │     │                           index trigger + status badge
 │     └── specifications/ SPEC.md version list, view, generation (Task 2.1)
-│                           └── public entry: src/index.ts
+│                           └── public: `index.ts` (server) + `client.ts` (panel)
 │                               model/service.ts — listSpecifications /
 │                                 getSpecificationByVersion (findFirst: version
 │                                 @@unique but deletedAt not in it) /

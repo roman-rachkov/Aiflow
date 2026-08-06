@@ -15,18 +15,42 @@
  */
 import { execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { createRequire } from 'node:module';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-
-const require = createRequire(import.meta.url);
 
 export const PROJECT_SCHEMA_PATTERN = /^project_[a-z0-9_]+$/;
 
 const packageRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const templatePath = join(packageRoot, 'prisma', 'schema_project_template.prisma');
+
+/** Memoized table DDL — the template is fixed at process start; no need to
+ * re-spawn `prisma migrate diff` on every project create. */
+let cachedTableDdl: string | undefined;
+
+/**
+ * Locate Prisma's JS CLI entry without `require.resolve`.
+ *
+ * Next.js webpack rewrites `require.resolve(...)` inside transpilePackages to
+ * `webpackEmptyContext`, which throws MODULE_NOT_FOUND for `prisma/build/index.js`
+ * even when the file is on disk (POST /api/projects → 500). Walk the known
+ * workspace layouts instead: package-local node_modules, then the monorepo root.
+ */
+function resolvePrismaCli(): string {
+  const candidates = [
+    join(packageRoot, 'node_modules', 'prisma', 'build', 'index.js'),
+    join(packageRoot, '..', '..', 'node_modules', 'prisma', 'build', 'index.js'),
+  ];
+  const found = candidates.find((path) => existsSync(path));
+  if (!found) {
+    throw new Error(
+      `Cannot find prisma/build/index.js (looked in ${candidates.join(', ')}). ` +
+        'Is the prisma package installed?',
+    );
+  }
+  return found;
+}
 
 /**
  * Columns Prisma cannot express. `DocumentChunk.embedding` is a pgvector
@@ -73,6 +97,8 @@ export function generateProjectSchemaName(): string {
  * re-exported from `./index`.
  */
 export function renderTableDdl(): string {
+  if (cachedTableDdl !== undefined) return cachedTableDdl;
+
   const scratch = mkdtempSync(join(tmpdir(), 'aiflow-schema-'));
   try {
     // The template's own `env("DATABASE_URL")` is irrelevant for --from-empty,
@@ -84,9 +110,9 @@ export function renderTableDdl(): string {
     // going through `npx`. On Windows npx resolves to npx.cmd, which Node 22
     // refuses to spawn without a shell (EINVAL), and enabling the shell would
     // then require quoting temp paths by hand.
-    const prismaBin = require.resolve('prisma/build/index.js', { paths: [packageRoot] });
+    const prismaBin = resolvePrismaCli();
 
-    return execFileSync(
+    cachedTableDdl = execFileSync(
       process.execPath,
       [prismaBin, 'migrate', 'diff', '--from-empty', '--to-schema-datamodel', copy, '--script'],
       {
@@ -95,6 +121,7 @@ export function renderTableDdl(): string {
         env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL ?? 'postgresql://x/x' },
       },
     );
+    return cachedTableDdl;
   } finally {
     rmSync(scratch, { recursive: true, force: true });
   }

@@ -13,4 +13,5 @@ export {
 } from './model/service';
 export type { GenerationDeps } from './model/generate';
 export { generateSpecification } from './model/generate';
-export { SpecificationPanel } from './ui/SpecificationPanel';
+// SpecificationPanel lives in `./client` — do not re-export it here (Next.js
+// barrel contamination with server generation / Prisma).

@@ -34,7 +34,9 @@ export function CreateProjectForm() {
 
     if (response.ok) {
       const { id } = (await response.json()) as { id: string };
-      router.push(`/projects/${id}`);
+      // Spec (docs/09-ui-spec.md § 3): after create, land on Researcher.
+      router.push(`/projects/${id}/research`);
+      router.refresh();
       return;
     }
 

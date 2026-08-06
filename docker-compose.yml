@@ -5,7 +5,8 @@
 # with the repo bind-mounted and named volumes for node_modules (Windows-safe).
 # App Dockerfiles are deferred to prod.
 #
-# Prerequisites: copy .env.example → .env and set AUTH_SECRET / ENCRYPTION_KEY.
+# Prerequisites: copy .env.example → .env and set AUTH_SECRET / ENCRYPTION_KEY /
+# OPENAI_* (empty OPENAI_API_KEY = MOCK provider).
 # Start:  docker compose up
 # Ports:  3000 app, 3001 model-router, 3002 Gitea, 5432 pg, 6379 redis,
 #         9000/9001 MinIO.

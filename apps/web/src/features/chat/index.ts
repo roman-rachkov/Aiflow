@@ -8,4 +8,5 @@
 export type { ChatMessageView, SaveMessageInput } from './model/types';
 export { listMessages, saveMessage } from './model/service';
 export { readSystemPrompt, readSpecTemplate, withRagContext } from './model/schema';
-export { ChatPanel } from './ui/ChatPanel';
+// ChatPanel lives in `./client` — do not re-export it here (Next.js barrel
+// contamination with server-only modules).
