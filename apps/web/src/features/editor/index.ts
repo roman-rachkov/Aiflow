@@ -35,6 +35,8 @@ export {
   isConflictError,
   isNotFoundError,
 } from './model/errors';
+export { gateEditorRequest, gitAuthorFromSession, mapEditorError } from './model/http';
+export type { EditorGateResult, EditorRouteUser } from './model/http';
 export { commitFiles, getDiff, getFileContent, listCommits, listTree } from './model/service';
 export { createPath, deletePath, renamePath } from './model/service';
 export type {
