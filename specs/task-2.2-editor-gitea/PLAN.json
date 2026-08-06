@@ -1,0 +1,146 @@
+[
+  {
+    "title": "Add ProjectMeta Gitea identity fields",
+    "description": "Extend `public.ProjectMeta` in `packages/db/prisma/schema.prisma` with nullable-then-filled identity for the project Git repo (SPEC Data entities). Add: `giteaOwner String?`, `giteaRepo String?`, `giteaDefaultBranch String @default(\"main\")`, and `@@unique([giteaOwner, giteaRepo])`. Keep existing soft-delete (`deletedAt`) unchanged; do NOT add User.role or any other schema. Fields must be nullable so Task 1.x/2.1 demo rows keep loading before lazy provision. Generate a Prisma migration for the **public** schema only (`yarn workspace @aiflow/db migrate` / `migrate:deploy` path — never project-schema SQL). After migrate, `yarn workspace @aiflow/db generate` so both clients rebuild. Do not put gitea fields on the public `ProjectView` DTO unless already needed by create saga internals (SPEC: not required in client response). Update `docs/16-code-map.md` one-liner for ProjectMeta / Gitea if the map still says client is only 'planned'.",
+    "status": "PENDING",
+    "priority": "critical",
+    "dependencies": [],
+    "acceptance": "Migration applied on public schema; ProjectMeta has giteaOwner, giteaRepo, giteaDefaultBranch with unique (giteaOwner, giteaRepo); existing rows remain valid with null owner/repo; `yarn workspace @aiflow/db generate` succeeds; soft-delete unchanged.",
+    "needsConfirmation": false
+  },
+  {
+    "title": "Shared Gitea HTTP client",
+    "description": "Create `apps/web/src/shared/gitea` (mirror `shared/minio` pattern: `client.ts` + barrel `index.ts`). Env (read at first use, not module top-level): `GITEA_URL` (compose `http://gitea:3000`), `GITEA_ADMIN_TOKEN` (required for live calls), optional `GITEA_REPO_OWNER` (default `aistudio`). Auth header: `Authorization: token ${GITEA_ADMIN_TOKEN}`. Timeout ~15s; map network/non-2xx that mean upstream failure to a typed error the routes turn into 502. Public surface (exact names): `createRepo({ name, private?, defaultBranch?, description? })`, `deleteRepo(owner, repo)`, `getTree(owner, repo, { ref?, recursive? })`, `getFile(owner, repo, path, { ref? })`, `createOrUpdateFile(owner, repo, path, { content, message, branch, sha?, author, committer })`, `deleteFile(owner, repo, path, { sha, message, branch, author, committer })`, `listCommits(owner, repo, { ref?, page?, limit? })`, `getCommitDiff(owner, repo, sha)`, plus `getAuthenticatedUser()` (GET `/api/v1/user`) for owner bootstrap. Prefer Contents/Git Trees APIs under `/api/v1/repos/...`. For empty dirs callers will write `.gitkeep`. Document MIT/no-new-dep if using only `fetch`; if adding `ws` later, that is a separate task. Add `GITEA_REPO_OWNER=` (commented default `aistudio`) to `.env.example` next to existing `GITEA_URL` / `GITEA_ADMIN_TOKEN`. Keep files ≤200 lines / fn ≤50; split helpers if needed. JSDoc on barrel noting Gitea REST v1.",
+    "status": "PENDING",
+    "priority": "critical",
+    "dependencies": [],
+    "acceptance": "`@/shared/gitea` barrel exports createRepo, deleteRepo, getTree, getFile, createOrUpdateFile, deleteFile, listCommits, getCommitDiff, getAuthenticatedUser; client uses GITEA_URL + token auth + ~15s timeout; `.env.example` documents GITEA_REPO_OWNER; `yarn verify` green.",
+    "needsConfirmation": false
+  },
+  {
+    "title": "Test Gitea HTTP client",
+    "description": "Add `apps/web/src/shared/gitea/client.test.ts` (Vitest). Stub `globalThis.fetch` with `vi.fn`. Cover: (1) `getFile` decodes base64 content and returns sha/size; (2) `createRepo` POSTs expected body (private, default_branch main) and Authorization token header; (3) `deleteRepo` issues DELETE; (4) non-OK / network failure surfaces a typed error (not an uncaught throw of raw Response); (5) `listCommits` maps Gitea JSON into a stable internal shape. Restore fetch in `afterEach`. No live network. Keep ≤200 lines.",
+    "status": "PENDING",
+    "priority": "high",
+    "dependencies": ["Shared Gitea HTTP client"],
+    "acceptance": "`yarn test` runs the new file; mocked fetch asserts headers/paths and error mapping; no network calls; `yarn verify` green.",
+    "needsConfirmation": false
+  },
+  {
+    "title": "Extend createProject saga with Gitea repo",
+    "description": "Update `apps/web/src/features/projects/model/service.ts` create compensation saga (SPEC API: создание проекта). New order: (1) `createProjectSchema(schemaName)`; (2) resolve Gitea owner — `process.env.GITEA_REPO_OWNER` or, if unset/empty, `getAuthenticatedUser().login` from `@/shared/gitea` (assumption #16: prefer admin login over a missing org); (3) `createRepo` with name `project-{uuidWithoutHyphens}` derived from the new project id (generate uuid first, use same id in `projectMeta.create`) OR generate uuid via `crypto.randomUUID()`, strip hyphens for repo name, pass that uuid as ProjectMeta.id; private=true, defaultBranch `main`, initial README.md commit (project name + one stub line) so Tree/Contents work immediately — either via Gitea `auto_init`+README or createRepo then `createOrUpdateFile` for README.md; (4) `projectMeta.create` with `giteaOwner`, `giteaRepo`, `giteaDefaultBranch: 'main'`, existing name/description/schemaName/ownerId/status. Compensation: failure after step 3 (meta insert) → `deleteRepo` + `dropProjectSchema`; failure after step 1 during/after Gitea → `dropProjectSchema` (+ `deleteRepo` if repo was created); failure of step 1 → nothing. Soft-delete still does NOT delete the Gitea repo. Do not change POST `/api/projects` response contract; gitea fields need not appear on `ProjectView`. Keep createProject ≤50 lines by extracting `provisionGiteaRepo(...)` helper in the same feature (e.g. `model/gitea-provision.ts`) exported only for tests if needed — public barrel may re-export nothing extra. Update existing `service.test.ts` mocks accordingly in the following test task.",
+    "status": "PENDING",
+    "priority": "critical",
+    "dependencies": ["Add ProjectMeta Gitea identity fields", "Shared Gitea HTTP client"],
+    "acceptance": "Creating a project provisions schema + private Gitea repo with README on main + ProjectMeta gitea* fields; meta failure deletes repo and drops schema; Gitea failure after schema drops schema; soft-delete still leaves repo; POST /api/projects response shape unchanged for clients; `yarn verify` green.",
+    "needsConfirmation": false
+  },
+  {
+    "title": "Test createProject Gitea compensation",
+    "description": "Extend `apps/web/src/features/projects/model/service.test.ts` (or add `gitea-provision.test.ts` if the file would exceed 200/400 test budget). Mock `@aiflow/db` (`createProjectSchema`, `dropProjectSchema`, `getPublicClient`) and `@/shared/gitea` (`createRepo`, `deleteRepo`, `getAuthenticatedUser`, `createOrUpdateFile` as used). Assert: happy path calls schema → createRepo → projectMeta.create with giteaOwner/giteaRepo; meta.create throw triggers deleteRepo + dropProjectSchema and rethrows original error; createRepo throw triggers dropProjectSchema and does not leave a meta row. Keep soft-delete tests unchanged (no deleteRepo on removeProject).",
+    "status": "PENDING",
+    "priority": "high",
+    "dependencies": ["Extend createProject saga with Gitea repo"],
+    "acceptance": "`yarn test` covers happy path and both compensation branches; removeProject still does not call deleteRepo; `yarn verify` green.",
+    "needsConfirmation": false
+  },
+  {
+    "title": "Editor access gate and lazy Gitea provision",
+    "description": "Create feature slice scaffolding `apps/web/src/features/editor` with `model/types.ts`, `model/access.ts`, `model/provision.ts`, and `index.ts` barrel (FSD; no feature→feature imports — call `@aiflow/db` and `@/shared/gitea` only). `resolveEditorContext(projectId, userId)`: load ProjectMeta with `deletedAt: null`, ownership check (null → caller 404), select `{ id, name, schemaName, ownerId, giteaOwner, giteaRepo, giteaDefaultBranch }`. If giteaOwner/giteaRepo are null, run **lazy provision once** (SPEC): under an in-process mutex keyed by projectId (and/or conditional update), createRepo `project-{idWithoutHyphens}`, README stub, then `projectMeta.update` setting gitea fields; return the filled context. Export a small API helper for routes: `assertProApiUser(user)` pattern documented in descriptions of route tasks — pages use `requireProMode` (redirect); API/WS must return **403 JSON** / close 4403 when `user.uiMode !== 'PRO'` after `requireUser()` (do not use redirecting `requireProMode` in API handlers). Also export `isBinaryContent(bytesOrText)` heuristic for 415 later. Keep files ≤200 lines.",
+    "status": "PENDING",
+    "priority": "critical",
+    "dependencies": [
+      "Add ProjectMeta Gitea identity fields",
+      "Shared Gitea HTTP client",
+      "Extend createProject saga with Gitea repo"
+    ],
+    "acceptance": "`@/features/editor` exports resolveEditorContext / provision helpers; old projects without gitea fields get one-time repo+backfill on first resolve; foreign/deleted projects yield null; Pro vs BASIC distinction documented for API (403) vs page (redirect); `yarn verify` green.",
+    "needsConfirmation": false
+  },
+  {
+    "title": "Editor domain services for files and git",
+    "description": "Implement `apps/web/src/features/editor/model/service.ts` (split into `tree.ts` / `commit.ts` / `history.ts` if needed to stay ≤200 lines) using `@/shared/gitea` + editor context. Functions: `listTree(ctx, { ref?, path? })` → nodes `{ path, name, type: 'file'|'dir', size? }` sorted dirs then files by name (prefer Gitea Get Tree recursive, else Contents walk); `getFileContent(ctx, path, ref?)` → `{ path, content, encoding: 'utf-8', sha, size }` or throw typed BinaryFileError / NotFound; `commitFiles(ctx, { message?, branch?, files: [{ path, content, sha? }], author: { name, email } })` → prefer **one** commit via Git Trees API when practical, else sequential Contents create/update with shared message prefix `Update {paths} via AI Studio` when message empty → `{ commitSha, branch, files }`, map SHA conflicts to ConflictError (409); `createPath(ctx, { path, content?, isDir? })` (dirs → `.gitkeep`); `deletePath(ctx, { path, sha })`; `renamePath(ctx, { fromPath, toPath, sha })` (prefer single Trees commit); `listCommits(ctx, { ref?, page?, limit? })` with limit capped at 50; `getDiff(ctx, { sha, path? })` → `{ sha, files: [{ path, status, patch, oldPath? }] }`. Author/committer = session user, never admin identity in commit metadata. Export types + functions from `features/editor/index.ts`. Russian error messages only at the route boundary, not inside pure service throws (English codes/names OK).",
+    "status": "PENDING",
+    "priority": "critical",
+    "dependencies": ["Editor access gate and lazy Gitea provision"],
+    "acceptance": "Barrel exports tree/file/commit/path/history/diff services; empty message template matches SPEC; binary detection available for 415; conflict typed for 409; `yarn verify` green.",
+    "needsConfirmation": false
+  },
+  {
+    "title": "Editor read REST routes",
+    "description": "Add thin App Router handlers under `apps/web/src/app/api/projects/[id]/editor/` (logic in `@/features/editor`, wiring only in `app/`): (1) `tree/route.ts` GET — query `ref` (default main), `path`; (2) `file/route.ts` GET — required `path`, optional `ref`; (3) `commits/route.ts` GET — `ref`, `page`, `limit` (default 20, max 50); (4) `diff/route.ts` GET — required `sha`, optional `path`. Common gate: `requireUser()` → if `uiMode !== 'PRO'` return 403 `{ error: '…' }` (Russian); `resolveEditorContext(id, user.id)` → 404 if null (includes soft-deleted / not owner); map Gitea upstream errors to 502; file binary → 415 with «Бинарный файл нельзя открыть в редакторе»; missing file → 404. Response shapes exactly as SPEC. Lazy provision runs inside resolveEditorContext so first tree call backfills old projects. Keep each route file ≤200 lines.",
+    "status": "PENDING",
+    "priority": "high",
+    "dependencies": ["Editor domain services for files and git"],
+    "acceptance": "GET tree/file/commits/diff match SPEC JSON; BASIC → 403; non-owner → 404; Gitea down → 502; binary → 415; `yarn verify` green.",
+    "needsConfirmation": false
+  },
+  {
+    "title": "Editor write REST routes",
+    "description": "Add write handlers: (1) `commit/route.ts` POST body `{ message?, branch?, files: [{ path, content, sha? }] }` — 400 if files empty; 409 on SHA conflict; 200 `{ commitSha, branch, files }`; author from session `name`/`email` (fallback email from session, name fallback to email local-part); (2) `files/route.ts` POST create `{ path, content?, isDir? }` and DELETE with `path`+`sha`; (3) `files/rename/route.ts` POST `{ fromPath, toPath, sha }`. Same Pro/owner/502 gates as read routes. Prefer single Trees commit for multi-file save and rename when implemented in services. No BullMQ.",
+    "status": "PENDING",
+    "priority": "high",
+    "dependencies": ["Editor domain services for files and git"],
+    "acceptance": "POST commit/files/rename and DELETE files match SPEC; empty files → 400; SHA conflict → 409; commits use session user as author/committer; `yarn verify` green.",
+    "needsConfirmation": false
+  },
+  {
+    "title": "Editor WebSocket channel",
+    "description": "Implement mandatory WS job (SPEC Background processes). Endpoint conceptually `WS /api/projects/[id]/editor/ws`. Choose a mechanism that works with current `apps/web` + `docker compose` bind-mount (`next dev --hostname 0.0.0.0 --port 3000`): prefer a thin custom HTTP server (`apps/web/server.mjs` or `server.ts`) that (a) prepares Next, (b) upgrades matching editor WS paths with the `ws` package (MIT — note license in JSDoc; add dep to `apps/web/package.json`), (c) keeps REST on the same port 3000. Auth via same-origin session cookie (preferred over ticket query): on connect run session lookup equivalent to `requireUser`; reject non-PRO / no project access by closing with code **4403**. Bind connection to `{ projectId, userId }`; in-memory Hub only (no Redis persistence). Message types JSON: client→server `editor.subscribe`, `editor.dirty` `{ path }`, `editor.cursor` (ignore OK), `terminal.attach` (ack); server→client `editor.fileOpened`, `editor.saved` `{ path, commitSha }`, `editor.treeChanged`, `editor.error` `{ message }`, `terminal.output` `{ chunk }` (never generated by platform in 2.2), `terminal.ready` once on attach. Fan-out to other tabs of same user+project is desirable; multi-user collaboration out of scope. Export `publishEditorEvent(projectId, userId, event)` from `features/editor/model/ws-hub.ts` so REST commit/create/delete can emit `editor.saved` / `editor.treeChanged` when a socket is present. Update `package.json` scripts `dev`/`start` to boot the custom server without breaking compose. Client reconnect with backoff lives in the UI task.",
+    "status": "PENDING",
+    "priority": "high",
+    "dependencies": ["Editor access gate and lazy Gitea provision"],
+    "acceptance": "WS connects with session cookie for Pro owner; BASIC/unauthorized closed with 4403; subscribe/dirty/saved/treeChanged/terminal.ready work in-memory; REST can publish events; compose `app` still serves :3000; `yarn verify` green.",
+    "needsConfirmation": false
+  },
+  {
+    "title": "Editor UI shell with Monaco",
+    "description": "Add dependency `@monaco-editor/react` (MIT — verify LICENSE / note in JSDoc; §8 allowlisted per SPEC assumption #13). Build `features/editor/ui/`: `EditorPage` (or `EditorShell`) composing FileTree (left), Tabs + Monaco (center), Save button, Build stub button, Git drawer/panel (commits + DiffEditor), collapsible Terminal stub (bottom). Client-only Monaco (`dynamic(..., { ssr: false })`). Syntax language from extension. States: loading Spinner/skeleton, empty tree hint «Создайте файл», error + «Повторить», dirty «•», saving disabled Save. Wire REST: load tree on mount; open file → GET file; edit → dirty; Ctrl+S / Save → POST commit (at least current dirty file); Git panel → GET commits / GET diff into Monaco DiffEditor; context menu Create file/folder, Rename, Delete (Modal confirm) → files APIs. Connect WS: on open subscribe; emit dirty; handle saved/treeChanged/error; show toast on save success/fail, Gitea errors, WS drop; reconnect with backoff; terminal panel shows «Терминал будет доступен позже» and ignores sending commands but accepts `terminal.output` / shows `terminal.ready`. UI copy Russian; primitives from `@aiflow/ui`; light theme, accent #2563EB, Inter. Narrow screens: collapse side panels (docs/09 §10). Add `@source` in `apps/web/src/app/globals.css` for `../features/editor` if classes would otherwise be missing. Keep components split so no file >200 lines.",
+    "status": "PENDING",
+    "priority": "high",
+    "dependencies": [
+      "Editor read REST routes",
+      "Editor write REST routes",
+      "Editor WebSocket channel"
+    ],
+    "acceptance": "Editor UI loads tree, edits in Monaco, commits via Save, shows history/diff, tree CRUD with confirm, terminal stub + WS toasts; `@monaco-editor/react` in package.json with MIT noted; Tailwind classes apply (explicit @source); `yarn verify` green.",
+    "needsConfirmation": false
+  },
+  {
+    "title": "Editor page route and Pro navigation",
+    "description": "Add `apps/web/src/app/(app)/projects/[id]/editor/page.tsx` — wiring only: `await requireUser()` + `await requireProMode()` + ownership via `getProject`/`canAccessProject`/`resolveEditorContext` (404/redirect if no access); render editor UI from `@/features/editor`. Build button: navigate to `/projects/[id]/deployments` if that route exists, else toast «Сборка будет доступна в следующем этапе» — no dockerode. Expose entry to editor for Pro users from project details (`features/projects/ui/ProjectDetails` or list actions) with Russian label «Редактор кода»; hide link when BASIC (read `uiMode` from session on server). Do not invent ADMIN/OWNER roles. Optional: project-scoped nav item only — global SideMenu may stay unchanged. Ensure BASIC users hitting the URL are redirected by `requireProMode`.",
+    "status": "PENDING",
+    "priority": "high",
+    "dependencies": ["Editor UI shell with Monaco"],
+    "acceptance": "`/projects/[id]/editor` works for Pro owners; BASIC redirected away; editor link visible only in Pro; Build is stub/navigation only; `yarn verify` green.",
+    "needsConfirmation": false
+  },
+  {
+    "title": "Test editor services and API gates",
+    "description": "Add Vitest coverage: (1) `apps/web/src/features/editor/model/service.test.ts` — mock `@/shared/gitea`; assert tree sort, commit empty-message template, conflict mapping, `.gitkeep` for dirs, binary → error; (2) `apps/web/src/features/editor/model/provision.test.ts` — lazy backfill updates null gitea fields once; (3) thin route tests for at least `tree` and `commit` with mocked `requireUser` / resolveEditorContext / services asserting 403 (BASIC), 404 (no access), 400 (empty files), 409 (conflict), 200 happy path. No browser e2e required.",
+    "status": "PENDING",
+    "priority": "high",
+    "dependencies": [
+      "Editor read REST routes",
+      "Editor write REST routes",
+      "Editor access gate and lazy Gitea provision"
+    ],
+    "acceptance": "`yarn test` covers service invariants and Pro/owner HTTP gates; soft-delete null path asserted via resolveEditorContext mock; `yarn verify` green.",
+    "needsConfirmation": false
+  },
+  {
+    "title": "Smoke verify Pro editor primary path",
+    "description": "Final gate for Task 2.2 exit criteria (no Playwright required). Add `apps/web/src/features/editor/model/smoke.test.ts` (or script documented in task acceptance run via Vitest) that, with fully mocked Gitea + Prisma public client, walks the primary path: resolveEditorContext (lazy provision) → listTree → getFileContent → commitFiles → listCommits → getDiff, and asserts WS hub `publishEditorEvent` is invoked for saved/treeChanged when wired. Manually checklist in acceptance (for human/compose): with `docker compose up`, Pro user creates project → Gitea repo exists → open `/projects/[id]/editor` → edit README → Save → commit appears in Git panel. Run `yarn verify` as the automated smoke bar. Update `docs/16-code-map.md`: add `features/editor`, `shared/gitea`, editor routes + WS, ProjectMeta gitea fields.",
+    "status": "PENDING",
+    "priority": "medium",
+    "dependencies": [
+      "Editor page route and Pro navigation",
+      "Test editor services and API gates",
+      "Test Gitea HTTP client",
+      "Test createProject Gitea compensation",
+      "Editor WebSocket channel"
+    ],
+    "acceptance": "Automated mocked primary-path test passes; `yarn verify` green; code map lists editor + gitea; compose checklist documented in acceptance comments or SPEC exit notes satisfied for MVP-0 editor.",
+    "needsConfirmation": false
+  }
+]
