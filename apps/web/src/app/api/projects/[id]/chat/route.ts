@@ -2,11 +2,11 @@ import { NextResponse } from 'next/server';
 
 import { createZaiProvider } from '@aiflow/ai-roles';
 import type { ChatConfig, ChatMessage } from '@aiflow/ai-roles';
-import { getPublicClient } from '@aiflow/db';
 
-import { canAccessProject, requireUser } from '@/features/auth';
+import { requireUser } from '@/features/auth';
 import { listMessages, saveMessage } from '@/features/chat/model/service';
 import { readSystemPrompt } from '@/features/chat/model/schema';
+import { resolveProjectSchema } from '@/features/projects';
 
 /**
  * Streaming chat turn against the Analyst agent.
@@ -56,24 +56,6 @@ function buildChatConfig(systemPrompt: string): ChatConfig {
     apiKey: process.env.ZAI_API_KEY,
     systemPrompt,
   };
-}
-
-/**
- * Resolve the project's schema for `id` after auth. `canAccessProject` is the
- * ownership gate; the follow-up `projectMeta` read is defense in depth — it
- * re-checks `deletedAt` and ownership and yields the `schemaName` the chat
- * service needs. Any miss returns `null`, which the caller maps to a 404.
- */
-async function resolveProjectSchema(id: string, ownerId: string): Promise<string | null> {
-  if (!(await canAccessProject(ownerId, id))) return null;
-
-  const meta = await getPublicClient().projectMeta.findUnique({
-    where: { id, deletedAt: null },
-    select: { schemaName: true, ownerId: true },
-  });
-  if (!meta || meta.ownerId !== ownerId) return null;
-
-  return meta.schemaName;
 }
 
 /** Run the provider stream, emitting SSE frames and persisting the assistant row. */

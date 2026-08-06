@@ -8,6 +8,7 @@
 export type { ProjectView } from './model/types';
 export { createProject, getProject, listProjects, removeProject } from './model/service';
 export type { CreateProjectInput } from './model/service';
+export { resolveProjectSchema } from './model/access';
 export { CreateProjectForm } from './ui/CreateProjectForm';
 export { DeleteProjectButton } from './ui/DeleteProjectButton';
 export { ProjectDetails } from './ui/ProjectDetails';
