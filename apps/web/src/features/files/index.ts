@@ -7,3 +7,5 @@
  */
 export type { CreateUserFileInput, FileListItemView, UserFileView } from './model/types';
 export { createUserFile, listFiles } from './model/service';
+export { chunkText, estimateTokens, toVectorLiteral } from './model/chunk';
+export { extractText } from './model/extract';
