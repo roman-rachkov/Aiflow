@@ -9,7 +9,9 @@ structure by search. Layout per A4 in
 apps/
 ├── web/                  Next.js (App Router, TS strict, Tailwind v4)
 │                         └── public entry: src/app, src/features/*
-│                             deps: @aiflow/{db,queue,crypto,ai-roles,ui}
+│                             deps: @aiflow/{db,queue,ai-roles,ui} (@aiflow/crypto
+│                             wired in next.config/tsconfig but empty — no
+│                             runtime consumer yet)
 │                             layout: app/ (routing only) → features/ →
 │                                     shared/ → packages/ (§ 2.2)
 │   features:
@@ -41,12 +43,13 @@ apps/
 │     /api/projects/[id]/chat (POST — SSE-streamed Analyst reply, Task 1.3)
 └── worker/               BullMQ workers, one dir per queue (spec, plan, code, deploy)
     └── public entry: src/index.ts
-        deps: @aiflow/{db,queue,crypto,ai-roles}
+        deps: @aiflow/{db,queue,ai-roles} (declared; worker itself is a stub)
 
 services/
 ├── model-router/         Express, port 3001. OpenAI-compatible facade over
 │                         routerai/OpenAI/Anthropic, fallback chain, Redis cache.
-│                         Stores no keys. deps: @aiflow/crypto
+│                         Stores no keys. Declared deps: express, ioredis (stub;
+│                         `src/index.ts` is `export {};`, no crypto consumer yet)
 └── registry-proxy/       Sandbox egress filter (allowlist). Task 3.1. deps: none
 
 packages/
@@ -67,8 +70,10 @@ packages/
 │                             `yarn workspace @aiflow/db seed:dev-user`
 ├── queue/                BullMQ definitions: the four queues + typed payloads,
 │                         concurrency 1, default job options
-├── crypto/               AES-256-GCM helpers: encryptSecret/decryptSecret,
-│                         {"__encrypted__": ...} envelope (Task 1.3)
+├── crypto/               Declared but empty (`src/index.ts` is `export {};`).
+│                         The AES-256-GCM helpers are not here yet; the
+│                         `{"__encrypted__": ...}` envelope lives in
+│                         `packages/db/src/config-types.ts` (ENCRYPTED_TAG)
 ├── ai-roles/             Model provider adapter (Task 1.3). Leaf package.
 │                         └── public entry: src/index.ts
 │                             types.ts — ChatRole, ChatMessage, ChatConfig,
@@ -103,20 +108,20 @@ tools/                    Dev-only workspaces. Ship nowhere; still gated by
 
 ## Cross-cutting
 
-| Concern                                                            | Where                                                |
-| ------------------------------------------------------------------ | ---------------------------------------------------- |
-| Auth helpers (`requireUser`, `requireProMode`, `canAccessProject`) | `apps/web/src/features/auth` (Task 1.2a)             |
-| Projects CRUD + schema provisioning                                | `apps/web/src/features/projects` (Task 1.2b)         |
-| Analyst chat (SSE streaming + history)                             | `apps/web/src/features/chat` (Task 1.3)              |
-| Model provider adapter (z.ai GLM, mock/live)                       | `packages/ai-roles/src` (Task 1.3)                   |
-| App shell (header, side menu)                                      | `apps/web/src/shared/ui` (Task 1.2a)                 |
-| UI primitives + design tokens                                      | `packages/ui/src` (Task 1.2d)                        |
-| Prisma client factory                                              | `packages/db/src/index.ts`                           |
-| Queue definitions                                                  | `packages/queue/src`                                 |
-| Encryption helpers                                                 | `packages/crypto/src`                                |
-| Gitea client                                                       | `apps/web/src/shared/gitea` (planned)                |
-| MinIO client                                                       | `apps/web/src/shared/minio` (planned)                |
-| Env validation                                                     | `.env.example` + `apps/web/src/shared/env` (planned) |
+| Concern                                                            | Where                                                                  |
+| ------------------------------------------------------------------ | ---------------------------------------------------------------------- |
+| Auth helpers (`requireUser`, `requireProMode`, `canAccessProject`) | `apps/web/src/features/auth` (Task 1.2a)                               |
+| Projects CRUD + schema provisioning                                | `apps/web/src/features/projects` (Task 1.2b)                           |
+| Analyst chat (SSE streaming + history)                             | `apps/web/src/features/chat` (Task 1.3)                                |
+| Model provider adapter (z.ai GLM, mock/live)                       | `packages/ai-roles/src` (Task 1.3)                                     |
+| App shell (header, side menu)                                      | `apps/web/src/shared/ui` (Task 1.2a)                                   |
+| UI primitives + design tokens                                      | `packages/ui/src` (Task 1.2d)                                          |
+| Prisma client factory                                              | `packages/db/src/index.ts`                                             |
+| Queue definitions                                                  | `packages/queue/src`                                                   |
+| Encryption helpers (envelope typing)                               | `packages/db/src/config-types.ts` (`packages/crypto` is an empty stub) |
+| Gitea client                                                       | `apps/web/src/shared/gitea` (planned)                                  |
+| MinIO client                                                       | `apps/web/src/shared/minio` (planned)                                  |
+| Env validation                                                     | `.env.example` + `apps/web/src/shared/env` (planned)                   |
 
 ## Rules that keep it readable
 

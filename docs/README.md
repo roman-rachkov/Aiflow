@@ -19,5 +19,7 @@ Split out of the original `ide.md` draft. Each file is one artifact. The origina
 | [13-agent-tooling.md](13-agent-tooling.md)                     | Agent tooling registry: MCP servers, skills, subagents, prompt test log, model tiering, slash commands | Engineer, Platform            |
 | [14-decisions-needed.md](14-decisions-needed.md)               | Decisions required before implementation starts, ranked by rework cost                                 | Engineer                      |
 | [15-engineering-conventions.md](15-engineering-conventions.md) | Git workflow, module architecture, size limits, linter/formatter, refactoring cadence                  | Engineer, Platform            |
+| [16-code-map.md](16-code-map.md)                               | Code map: one line per package/slice — what it owns, public entry, deps (state file)                   | Engineer                      |
+| [17-session-review.md](17-session-review.md)                   | Session review: accumulated lessons from `/session-review` retrospectives (state file)                 | Engineer                      |
 
 All documents are in English, including role names. The originals were Russian; they were translated wholesale as a token-cost measure. See the language policy in [`CLAUDE.md`](../CLAUDE.md): internal agent traffic in English, user-facing output in the user's language.
