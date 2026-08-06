@@ -22,25 +22,72 @@ apps/
 │     │                           ProjectMeta; create is a compensation saga
 │     │                           (createProjectSchema → projectMeta.create →
 │     │                           dropProjectSchema on failure)
+│     │                         model/access.ts — resolveProjectSchema(id, ownerId)
+│     │                           (Task 2.1): the per-route auth+schema gate shared
+│     │                           by chat/files/specifications routes; self-contained
+│     │                           (canAccessProject dropped — FSD feature→feature
+│     │                           import forbidden; findUnique enforces ownership +
+│     │                           soft-delete, null→404, no existence leak)
 │     │                         ui/ — ProjectList, ProjectCard, ProjectDetails,
 │     │                           CreateProjectForm + DeleteProjectButton (the
 │     │                           delete confirm overlay lives here, not in
 │     │                           @aiflow/ui — one consumer, per D0 / § 2.3)
-│     └── chat/           Analyst chat — SSE streaming + history (Task 1.3)
+│     ├── chat/           Analyst chat — SSE streaming + history (Task 1.3)
+│     │                     └── public entry: src/index.ts
+│     │                         model/service.ts — listMessages/saveMessage over
+│     │                           ChatMessage (project-scoped); model/schema.ts —
+│     │                           readSystemPrompt() reads .claude/agents/analyst.md
+│     │                           per turn (module-relative path, not cwd);
+│     │                           withRagContext(base, context) appends RAG context
+│     │                           to the system prompt (Task 2.1); readSpecTemplate()
+│     │                           extracts the SPEC.md template block for generation
+│     │                         ui/ChatPanel.tsx — @assistant-ui/react runtime +
+│     │                           primitives; ui/researcher-runtime.ts —
+│     │                           ChatModelAdapter (POST → SSE → cumulative yield);
+│     │                           ui/parse-sse-response.ts — client SSE framing
+│     ├── files/          Upload, RAG indexing + retrieval (Task 2.1)
+│     │                     └── public entry: src/index.ts
+│     │                         model/service.ts — createUserFile/listFiles over
+│     │                           UserFile + linked Document (atomic nested create);
+│     │                         model/index-service.ts — indexDocument: MinIO bytes
+│     │                           → extractText → chunkText → embed → atomic chunk
+│     │                           replace in a $transaction (embedding written via
+│     │                           $executeRaw '[...]'::vector; never leaves INDEXING);
+│     │                         model/retrieve.ts — retrieveContext/retrieveChunks:
+│     │                           pgvector cosine top-k ($queryRawUnsafe, k=$1),
+│     │                           never throws (degrades to '' on embed failure);
+│     │                         model/extract.ts (pdf-parse text layer) + chunk.ts
+│     │                           (LlamaIndex SentenceSplitter 512/50, toVectorLiteral)
+│     │                         ui/FilePanel.tsx — upload (hidden input) + per-row
+│     │                           index trigger + status badge
+│     └── specifications/ SPEC.md version list, view, generation (Task 2.1)
 │                           └── public entry: src/index.ts
-│                               model/service.ts — listMessages/saveMessage over
-│                                 ChatMessage (project-scoped); model/schema.ts —
-│                                 readSystemPrompt() reads .claude/agents/analyst.md
-│                                 per turn (module-relative path, not cwd)
-│                               ui/ChatPanel.tsx — @assistant-ui/react runtime +
-│                                 primitives; ui/researcher-runtime.ts —
-│                                 ChatModelAdapter (POST → SSE → cumulative yield);
-│                                 ui/parse-sse-response.ts — client SSE framing
+│                               model/service.ts — listSpecifications /
+│                                 getSpecificationByVersion (findFirst: version
+│                                 @@unique but deletedAt not in it) /
+│                                 createSpecificationVersion (max+1, createdBy AI);
+│                               model/generate.ts — generateSpecification(schemaName,
+│                                 deps): non-streaming generation via DI (cross-slice
+│                                 listMessages/retrieveContext/readSpecTemplate
+│                                 injected — boundaries/dependencies capture:slice
+│                                 forbids feature→feature imports)
+│                               ui/SpecificationPanel.tsx — version list, lazy content
+│                                 view, generate button
+│   shared:
+│     ├── ui/             AppHeader, SideMenu (app composition, Task 1.2a)
+│     └── minio/          MinIO client: putObject/getObject/ensureBucket, lazy
+│                          singleton, scheme-less S3_ENDPOINT tolerated (Task 2.1)
 │   routes (app/):
 │     /  → redirect('/projects');  /projects, /projects/new, /projects/[id]
-│     /projects/[id]/research — two-panel Researcher page (Task 1.3)
+│     /projects/[id]/research — two-panel Researcher page (Task 1.3; live artifacts
+│       panel since Task 2.1: FilePanel + SpecificationPanel + Roadmap card)
 │     /api/projects (GET list, POST create), /api/projects/[id] (GET, DELETE)
-│     /api/projects/[id]/chat (POST — SSE-streamed Analyst reply, Task 1.3)
+│     /api/projects/[id]/chat (POST — SSE-streamed Analyst reply, Task 1.3;
+│       RAG context mixed into the system prompt since Task 2.1)
+│     /api/projects/[id]/files (GET list, POST upload — Task 2.1)
+│     /api/projects/[id]/files/[fid]/index (POST — synchronous RAG indexing, 2.1)
+│     /api/projects/[id]/specifications (GET list, POST generate — Task 2.1)
+│     /api/projects/[id]/specifications/[version] (GET one version — Task 2.1)
 └── worker/               BullMQ workers, one dir per queue (spec, plan, code, deploy)
     └── public entry: src/index.ts
         deps: @aiflow/{db,queue,ai-roles} (declared; worker itself is a stub)
@@ -74,16 +121,24 @@ packages/
 │                         The AES-256-GCM helpers are not here yet; the
 │                         `{"__encrypted__": ...}` envelope lives in
 │                         `packages/db/src/config-types.ts` (ENCRYPTED_TAG)
-├── ai-roles/             Model provider adapter (Task 1.3). Leaf package.
+├── ai-roles/             Model provider adapter (Task 1.3; embeddings + universal
+│                         provider in Task 2.1). Leaf package.
 │                         └── public entry: src/index.ts
 │                             types.ts — ChatRole, ChatMessage, ChatConfig,
 │                               ChatResult (nullable token counts), ModelProvider
-│                               (chat()), StreamingProvider (+ chatWithUsage())
-│                             zai-provider.ts — ZaiProvider: mock path (canned
-│                               replies, no key) + live dispatch; createZaiProvider()
-│                             zai-live.ts — streamLiveChat(): POST to
-│                               api.z.ai/api/paas/v4/chat/completions (OpenAI-
-│                               compatible), role mapping, usage capture
+│                               (chat()), StreamingProvider (+ chatWithUsage()),
+│                               EmbeddingsProvider (embed()), OpenAICompatibleProvider
+│                               (extends both), ProviderConfig
+│                             openai-compatible.ts — createOpenAICompatibleProvider:
+│                               parameterized ${baseURL}/chat/completions streaming +
+│                               /embeddings; mock path when no key (canned chat,
+│                               deterministic 1536-dim embeddings)
+│                             zai-provider.ts — createZaiProvider(): thin wrapper
+│                               returning a z.ai-configured OpenAICompatibleProvider
+│                               (env: OPENAI_BASE_URL ?? z.ai; OPENAI_API_KEY ??
+│                               ZAI_API_KEY; OPENAI_CHAT_MODEL ?? glm-4.6;
+│                               OPENAI_EMBEDDING_MODEL ?? text-embedding-3-small)
+│                             mock-chat.ts / mock-embeddings.ts — extracted mock paths
 │                             sse-parser.ts — generic SSE frame reassembly
 │                               (reusable; reader released in finally)
 └── ui/                   Design system (Task 1.2d). Primitives: Button, Input +
@@ -111,16 +166,19 @@ tools/                    Dev-only workspaces. Ship nowhere; still gated by
 | Concern                                                            | Where                                                                  |
 | ------------------------------------------------------------------ | ---------------------------------------------------------------------- |
 | Auth helpers (`requireUser`, `requireProMode`, `canAccessProject`) | `apps/web/src/features/auth` (Task 1.2a)                               |
+| Per-route project access gate (`resolveProjectSchema`)             | `apps/web/src/features/projects/model/access.ts` (Task 2.1)            |
 | Projects CRUD + schema provisioning                                | `apps/web/src/features/projects` (Task 1.2b)                           |
-| Analyst chat (SSE streaming + history)                             | `apps/web/src/features/chat` (Task 1.3)                                |
-| Model provider adapter (z.ai GLM, mock/live)                       | `packages/ai-roles/src` (Task 1.3)                                     |
+| Analyst chat (SSE streaming + history, RAG-augmented)              | `apps/web/src/features/chat` (Task 1.3; RAG in Task 2.1)               |
+| File upload + RAG indexing + retrieval                             | `apps/web/src/features/files` (Task 2.1)                               |
+| SPEC.md version list, view, generation                             | `apps/web/src/features/specifications` (Task 2.1)                      |
+| Model provider adapter (universal OpenAI-compatible, chat+embed)   | `packages/ai-roles/src` (Task 1.3; universal + embeddings in Task 2.1) |
 | App shell (header, side menu)                                      | `apps/web/src/shared/ui` (Task 1.2a)                                   |
+| MinIO object storage client                                        | `apps/web/src/shared/minio` (Task 2.1)                                 |
 | UI primitives + design tokens                                      | `packages/ui/src` (Task 1.2d)                                          |
 | Prisma client factory                                              | `packages/db/src/index.ts`                                             |
 | Queue definitions                                                  | `packages/queue/src`                                                   |
 | Encryption helpers (envelope typing)                               | `packages/db/src/config-types.ts` (`packages/crypto` is an empty stub) |
 | Gitea client                                                       | `apps/web/src/shared/gitea` (planned)                                  |
-| MinIO client                                                       | `apps/web/src/shared/minio` (planned)                                  |
 | Env validation                                                     | `.env.example` + `apps/web/src/shared/env` (planned)                   |
 
 ## Rules that keep it readable
@@ -133,7 +191,8 @@ tools/                    Dev-only workspaces. Ship nowhere; still gated by
   artifacts, gitignored, and exempt from the size rules.
 - `packages/crypto` is declared but empty until its consumers arrive;
   `packages/ai-roles`, `packages/db`, and `packages/ui` are real (ai-roles
-  shipped in Task 1.3).
+  shipped in Task 1.3; Task 2.1 generalized it into a universal
+  OpenAI-compatible provider with embeddings).
 - **`packages/ui` is a deliberate exception to the § 2.3 promotion test.** That
   rule says a slice used by one app stays a slice, and `apps/web` is still the
   only consumer. It was overridden by decision in Task 1.2d: the design system is
