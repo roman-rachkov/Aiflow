@@ -70,27 +70,48 @@ apps/
 │     │                           (LlamaIndex SentenceSplitter 512/50, toVectorLiteral)
 │     │                         ui/FilePanel.tsx — upload (hidden input) + per-row
 │     │                           index trigger + status badge
-│     └── specifications/ SPEC.md version list, view, generation (Task 2.1)
-│                           └── public: `index.ts` (server) + `client.ts` (panel)
-│                               model/service.ts — listSpecifications /
-│                                 getSpecificationByVersion (findFirst: version
-│                                 @@unique but deletedAt not in it) /
-│                                 createSpecificationVersion (max+1, createdBy AI);
-│                               model/generate.ts — generateSpecification(schemaName,
-│                                 deps): non-streaming generation via DI (cross-slice
-│                                 listMessages/retrieveContext/readSpecTemplate
-│                                 injected — boundaries/dependencies capture:slice
-│                                 forbids feature→feature imports)
-│                               ui/SpecificationPanel.tsx — version list, lazy content
-│                                 view, generate button
+│     ├── specifications/ SPEC.md version list, view, generation (Task 2.1)
+│     │                     └── public: `index.ts` (server) + `client.ts` (panel)
+│     │                         model/service.ts — listSpecifications /
+│     │                           getSpecificationByVersion (findFirst: version
+│     │                           @@unique but deletedAt not in it) /
+│     │                           createSpecificationVersion (max+1, createdBy AI);
+│     │                         model/generate.ts — generateSpecification(schemaName,
+│     │                           deps): non-streaming generation via DI (cross-slice
+│     │                           listMessages/retrieveContext/readSpecTemplate
+│     │                           injected — boundaries/dependencies capture:slice
+│     │                           forbids feature→feature imports)
+│     │                         ui/SpecificationPanel.tsx — version list, lazy content
+│     │                           view, generate button
+│     └── editor/         Pro code editor over Gitea (Task 2.2)
+│                           └── public: `index.ts` (server) + `client.ts` (EditorShell)
+│                               model/access.ts — resolveEditorContext (owner +
+│                                 soft-delete + lazy Gitea provision) +
+│                                 assertProApiUser (403 JSON; pages use
+│                                 requireProMode redirect instead)
+│                               model/provision.ts — ensureGiteaProvisioned mutex +
+│                                 README stub for old projects with null gitea*
+│                               model/service.ts barrel — listTree / getFileContent /
+│                                 commitFiles / createPath|deletePath|renamePath /
+│                                 listCommits / getDiff (via tree/commit/paths/history)
+│                               model/http.ts — gateEditorRequest + mapEditorError
+│                               model/ws-hub.ts + ws-publish.ts — in-memory Hub;
+│                                 REST publishSaved / publishTreeChanged
+│                               ui/ — Monaco shell, FileTree, tabs, Git panel,
+│                                 terminal stub; WS reconnect in useEditorWs
 │   shared:
 │     ├── ui/             AppHeader, SideMenu (app composition, Task 1.2a)
-│     └── minio/          MinIO client: putObject/getObject/ensureBucket, lazy
-│                          singleton, scheme-less S3_ENDPOINT tolerated (Task 2.1)
+│     ├── minio/          MinIO client: putObject/getObject/ensureBucket, lazy
+│     │                    singleton, scheme-less S3_ENDPOINT tolerated (Task 2.1)
+│     └── gitea/          Gitea REST v1 client (Task 2.2): createRepo/deleteRepo/
+│                          getTree/getFile/createOrUpdateFile/deleteFile/
+│                          listCommits/getCommitDiff/getAuthenticatedUser;
+│                          fetch-only, GiteaUpstreamError → routes map to 502
 │   routes (app/):
 │     /  → redirect('/projects');  /projects, /projects/new, /projects/[id]
 │     /projects/[id]/research — two-panel Researcher page (Task 1.3; live artifacts
 │       panel since Task 2.1: FilePanel + SpecificationPanel + Roadmap card)
+│     /projects/[id]/editor — Pro Monaco editor (Task 2.2; requireProMode)
 │     /api/projects (GET list, POST create), /api/projects/[id] (GET, DELETE)
 │     /api/projects/[id]/chat (POST — SSE-streamed Analyst reply, Task 1.3;
 │       RAG context mixed into the system prompt since Task 2.1)
@@ -98,6 +119,11 @@ apps/
 │     /api/projects/[id]/files/[fid]/index (POST — synchronous RAG indexing, 2.1)
 │     /api/projects/[id]/specifications (GET list, POST generate — Task 2.1)
 │     /api/projects/[id]/specifications/[version] (GET one version — Task 2.1)
+│     /api/projects/[id]/editor/{tree,file,commits,diff} (GET — Task 2.2)
+│     /api/projects/[id]/editor/commit (POST), /editor/files (POST/DELETE),
+│       /editor/files/rename (POST — Task 2.2)
+│     WS /api/projects/[id]/editor/ws — custom server (`apps/web/server.ts` +
+│       `ws`); session cookie; non-Pro → close 4403 (Task 2.2)
 │     /api/health (GET — compose liveness; no auth)
 └── worker/               BullMQ workers, one dir per queue (spec, plan, code, deploy)
     └── public entry: src/index.ts
@@ -210,13 +236,14 @@ compose topology          `docker compose up` (no `--build`): postgres, redis,
 | Model provider adapter (universal OpenAI-compatible, chat+embed)   | `packages/ai-roles/src` (Task 1.3; universal + embeddings in Task 2.1) |
 | App shell (header, side menu)                                      | `apps/web/src/shared/ui` (Task 1.2a)                                   |
 | MinIO object storage client                                        | `apps/web/src/shared/minio` (Task 2.1)                                 |
+| Gitea HTTP client (REST v1, fetch-only)                            | `apps/web/src/shared/gitea` (Task 2.2)                                 |
+| Pro code editor (Monaco + Gitea files/git + in-memory WS hub)      | `apps/web/src/features/editor` (Task 2.2); WS via `apps/web/server.ts` |
 | UI primitives + design tokens (OpenUI-backed)                      | `packages/ui/src` (Task 1.2d; OpenUI D0a)                              |
 | OpenUI brand tokens (CSS `:root` overrides)                        | `apps/web/src/app/globals.css` (D0a; no ThemeProvider)                 |
 | Prisma client factory                                              | `packages/db/src/index.ts`                                             |
 | Queue definitions                                                  | `packages/queue/src`                                                   |
 | Encryption helpers (envelope typing)                               | `packages/db/src/config-types.ts` (`packages/crypto` is an empty stub) |
 | Gitea identity on `ProjectMeta` (owner/repo/branch)                | `packages/db` public schema (Task 2.2)                                 |
-| Gitea HTTP client (REST v1, fetch-only)                            | `apps/web/src/shared/gitea` (Task 2.2)                                 |
 | Env validation                                                     | `.env.example` + `apps/web/src/shared/env` (planned)                   |
 
 ## Rules that keep it readable

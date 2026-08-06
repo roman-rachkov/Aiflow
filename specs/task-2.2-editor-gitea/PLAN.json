@@ -118,7 +118,7 @@
   {
     "title": "Test editor services and API gates",
     "description": "Add Vitest coverage: (1) `apps/web/src/features/editor/model/service.test.ts` — mock `@/shared/gitea`; assert tree sort, commit empty-message template, conflict mapping, `.gitkeep` for dirs, binary → error; (2) `apps/web/src/features/editor/model/provision.test.ts` — lazy backfill updates null gitea fields once; (3) thin route tests for at least `tree` and `commit` with mocked `requireUser` / resolveEditorContext / services asserting 403 (BASIC), 404 (no access), 400 (empty files), 409 (conflict), 200 happy path. No browser e2e required.",
-    "status": "PENDING",
+    "status": "DONE",
     "priority": "high",
     "dependencies": [
       "Editor read REST routes",
@@ -131,7 +131,7 @@
   {
     "title": "Smoke verify Pro editor primary path",
     "description": "Final gate for Task 2.2 exit criteria (no Playwright required). Add `apps/web/src/features/editor/model/smoke.test.ts` (or script documented in task acceptance run via Vitest) that, with fully mocked Gitea + Prisma public client, walks the primary path: resolveEditorContext (lazy provision) → listTree → getFileContent → commitFiles → listCommits → getDiff, and asserts WS hub `publishEditorEvent` is invoked for saved/treeChanged when wired. Manually checklist in acceptance (for human/compose): with `docker compose up`, Pro user creates project → Gitea repo exists → open `/projects/[id]/editor` → edit README → Save → commit appears in Git panel. Run `yarn verify` as the automated smoke bar. Update `docs/16-code-map.md`: add `features/editor`, `shared/gitea`, editor routes + WS, ProjectMeta gitea fields.",
-    "status": "PENDING",
+    "status": "DONE",
     "priority": "medium",
     "dependencies": [
       "Editor page route and Pro navigation",
