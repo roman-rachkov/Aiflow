@@ -6,6 +6,7 @@ import {
   gateEditorRequest,
   gitAuthorFromSession,
   mapEditorError,
+  publishSaved,
   type CommitFileInput,
 } from '@/features/editor';
 
@@ -32,6 +33,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       files,
       author: gitAuthorFromSession(user),
     });
+    publishSaved(id, user.id, result.commitSha, result.files);
     return NextResponse.json(result);
   } catch (err) {
     return mapEditorError(err);

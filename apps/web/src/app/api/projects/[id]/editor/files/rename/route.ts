@@ -5,6 +5,7 @@ import {
   gateEditorRequest,
   gitAuthorFromSession,
   mapEditorError,
+  publishTreeChanged,
   renamePath,
 } from '@/features/editor';
 
@@ -41,6 +42,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       sha: body.sha,
       author: gitAuthorFromSession(user),
     });
+    publishTreeChanged(id, user.id);
     return NextResponse.json(result);
   } catch (err) {
     return mapEditorError(err);

@@ -44,6 +44,7 @@
 }
 
 @source '../../src/**/*.{ts,tsx}';
+@source '../../src/features/editor/**/*.{ts,tsx}';
 
 /*
  * Required, and silent when wrong: Yarn symlinks the workspace into

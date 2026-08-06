@@ -7,6 +7,8 @@ import {
   gateEditorRequest,
   gitAuthorFromSession,
   mapEditorError,
+  publishSaved,
+  publishTreeChanged,
 } from '@/features/editor';
 
 /**
@@ -31,6 +33,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       isDir: body.isDir === true,
       author: gitAuthorFromSession(user),
     });
+    publishSaved(id, user.id, result.commitSha, [result.path]);
     return NextResponse.json(result);
   } catch (err) {
     return mapEditorError(err);
@@ -54,6 +57,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
       sha,
       author: gitAuthorFromSession(user),
     });
+    publishTreeChanged(id, user.id);
     return NextResponse.json(result);
   } catch (err) {
     return mapEditorError(err);

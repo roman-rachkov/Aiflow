@@ -15,5 +15,5 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
 
   if (!project) notFound();
 
-  return <ProjectDetails project={project} />;
+  return <ProjectDetails project={project} showEditorLink={user.uiMode === 'PRO'} />;
 }

@@ -5,19 +5,20 @@ import { Card, CardDescription, CardTitle } from '@aiflow/ui';
 import { DeleteProjectButton } from './DeleteProjectButton';
 import type { ProjectView } from '../model/types';
 
+type Props = {
+  project: ProjectView;
+  /** When true, show the Pro-only code editor entry. */
+  showEditorLink?: boolean;
+};
+
 /**
  * The detail view for one project. A server component that renders the
  * project's metadata; the delete affordance is the only interactive piece, so
  * it is isolated in a client component (`DeleteProjectButton`).
  *
- * The primary CTA opens Researcher (`/research`) — chat, files, SPEC — which
- * is the Customer's main screen (docs/09-ui-spec.md § 4). Without this link
- * the page looks like a dead end: name + delete and nothing else.
- *
- * Dates are formatted in Russian per the product language policy
- * (user-facing output in the user's language — CLAUDE.md).
+ * Primary CTAs: Researcher (all users) and Code Editor (Pro only).
  */
-export function ProjectDetails({ project }: { project: ProjectView }) {
+export function ProjectDetails({ project, showEditorLink = false }: Props) {
   return (
     <div className="max-w-2xl">
       <div className="flex items-start justify-between gap-4">
@@ -30,13 +31,21 @@ export function ProjectDetails({ project }: { project: ProjectView }) {
         <DeleteProjectButton projectId={project.id} />
       </div>
 
-      <div className="mt-6">
+      <div className="mt-6 flex flex-wrap gap-3">
         <Link
           href={`/projects/${project.id}/research`}
           className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-white hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:outline-hidden"
         >
           Открыть исследование
         </Link>
+        {showEditorLink ? (
+          <Link
+            href={`/projects/${project.id}/editor`}
+            className="inline-flex h-10 items-center justify-center rounded-md border border-border bg-surface px-4 text-sm font-medium text-fg hover:bg-surface-muted focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:outline-hidden"
+          >
+            Редактор кода
+          </Link>
+        ) : null}
       </div>
 
       <Card className="mt-6">
