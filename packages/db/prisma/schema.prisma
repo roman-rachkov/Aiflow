@@ -12,10 +12,10 @@ datasource db {
 }
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
   // Explicit output: two schemas generating into the same default location
   // would collide. Resolves decision C2 in docs/14-decisions-needed.md.
-  output   = "../generated/public"
+  output        = "../generated/public"
   // Host (Windows) + compose (node:22-bookworm / debian) share the bind-mounted
   // generated/ tree. Without both targets, a Windows `prisma generate` leaves
   // the Linux app unable to load the query engine (login → CallbackRouteError
@@ -70,22 +70,27 @@ enum UiMode {
 
 // Project metadata — the pointer to the project's own schema.
 model ProjectMeta {
-  id          String        @id @default(uuid())
-  name        String
-  description String?       @db.Text
-  schemaName  String        @unique // e.g. project_abc123
-  ownerId     String
-  owner       User          @relation(fields: [ownerId], references: [id])
-  status      ProjectStatus @default(ACTIVE)
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  id                 String        @id @default(uuid())
+  name               String
+  description        String?       @db.Text
+  schemaName         String        @unique // e.g. project_abc123
+  ownerId            String
+  owner              User          @relation(fields: [ownerId], references: [id])
+  status             ProjectStatus @default(ACTIVE)
+  // Gitea repo identity — nullable until lazy provision (Task 2.2).
+  giteaOwner         String?
+  giteaRepo          String?
+  giteaDefaultBranch String        @default("main")
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
   // Soft delete — see the convention on User. `deletedAt` is the single
   // deletion mechanism; the former ProjectStatus.DELETED value was removed to
   // avoid two indicators that can disagree.
-  deletedAt   DateTime?
+  deletedAt          DateTime?
 
   deployments DeploymentMeta[]
 
+  @@unique([giteaOwner, giteaRepo])
   @@index([ownerId])
   @@index([deletedAt])
 }

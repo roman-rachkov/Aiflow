@@ -111,6 +111,8 @@ services/
 packages/
 ├── db/                   Prisma schemas + generated clients
 │                         ├── prisma/schema.prisma        → public schema
+│                         │     ProjectMeta holds nullable Gitea identity
+│                         │     (giteaOwner/giteaRepo/giteaDefaultBranch; Task 2.2)
 │                         ├── prisma/schema_project_template.prisma → project schemas
 │                         ├── generated/public, generated/project (build artifacts)
 │                         ├── src/index.ts  — the Prisma client factory:
@@ -211,7 +213,7 @@ compose topology          `docker compose up` (no `--build`): postgres, redis,
 | Prisma client factory                                              | `packages/db/src/index.ts`                                             |
 | Queue definitions                                                  | `packages/queue/src`                                                   |
 | Encryption helpers (envelope typing)                               | `packages/db/src/config-types.ts` (`packages/crypto` is an empty stub) |
-| Gitea client                                                       | `apps/web/src/shared/gitea` (planned)                                  |
+| Gitea identity on `ProjectMeta` (owner/repo/branch)                | `packages/db` public schema (Task 2.2); client `shared/gitea` planned  |
 | Env validation                                                     | `.env.example` + `apps/web/src/shared/env` (planned)                   |
 
 ## Rules that keep it readable
