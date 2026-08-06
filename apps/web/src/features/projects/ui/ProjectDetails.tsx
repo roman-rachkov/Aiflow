@@ -7,8 +7,8 @@ import type { ProjectView } from '../model/types';
 
 type Props = {
   project: ProjectView;
-  /** When true, show the Pro-only code editor entry. */
-  showEditorLink?: boolean;
+  /** When true, show Pro-only entries (editor, model settings). */
+  showProLinks?: boolean;
 };
 
 /**
@@ -16,9 +16,9 @@ type Props = {
  * project's metadata; the delete affordance is the only interactive piece, so
  * it is isolated in a client component (`DeleteProjectButton`).
  *
- * Primary CTAs: Researcher (all users) and Code Editor (Pro only).
+ * Primary CTAs: Researcher (all users); Code Editor + Model settings (Pro).
  */
-export function ProjectDetails({ project, showEditorLink = false }: Props) {
+export function ProjectDetails({ project, showProLinks = false }: Props) {
   return (
     <div className="max-w-2xl">
       <div className="flex items-start justify-between gap-4">
@@ -38,13 +38,21 @@ export function ProjectDetails({ project, showEditorLink = false }: Props) {
         >
           Открыть исследование
         </Link>
-        {showEditorLink ? (
-          <Link
-            href={`/projects/${project.id}/editor`}
-            className="inline-flex h-10 items-center justify-center rounded-md border border-border bg-surface px-4 text-sm font-medium text-fg hover:bg-surface-muted focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:outline-hidden"
-          >
-            Редактор кода
-          </Link>
+        {showProLinks ? (
+          <>
+            <Link
+              href={`/projects/${project.id}/editor`}
+              className="inline-flex h-10 items-center justify-center rounded-md border border-border bg-surface px-4 text-sm font-medium text-fg hover:bg-surface-muted focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:outline-hidden"
+            >
+              Редактор кода
+            </Link>
+            <Link
+              href={`/projects/${project.id}/settings/models`}
+              className="inline-flex h-10 items-center justify-center rounded-md border border-border bg-surface px-4 text-sm font-medium text-fg hover:bg-surface-muted focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:outline-hidden"
+            >
+              Настройки модели
+            </Link>
+          </>
         ) : null}
       </div>
 

@@ -87,7 +87,8 @@ generator client {
 model ModelConfig {
   id        String @id @default(uuid())
   projectId String @unique // duplicated for integrity within the schema
-  // JSON shape: { "analyst": { "provider":"routerai", "model":"gpt-4o" }, "coder": {...} }
+  // On disk: { "__encrypted__": "<base64>" } — whole logical blob encrypted.
+  // Plaintext before encrypt: { "analyst": { "provider", "model", "baseURL?", "apiKey?" } }
   config    Json   @default("{}")
 }
 
@@ -217,11 +218,12 @@ invalid — `WeakMap` requires object keys, so `.set(schemaName, client)` with a
 
 ## 5. Encrypting sensitive data
 
-The `ModelConfig.config` field holds encrypted API keys. Before writing to the database:
+The `ModelConfig.config` column holds the **entire** logical JSON blob as one
+AES-256-GCM envelope (not a nested `{ model, config }` pair). Before writing:
 
-1. Serialize the JSON to a string.
-2. Encrypt with AES-256-GCM using the master key (`process.env.ENCRYPTION_KEY`).
-3. Store it in `config` as a JSON object with a single `__encrypted__` key whose value is the Base64 string of the encrypted data.
+1. Serialize the logical JSON (e.g. `{ analyst: { provider, model, baseURL?, apiKey? } }`) to a string.
+2. Encrypt with AES-256-GCM via `@aiflow/crypto` under `process.env.ENCRYPTION_KEY` (exactly 32 UTF-8 bytes).
+3. Store `{ "__encrypted__": "<base64 of iv(12)||authTag(16)||ciphertext>" }` — typed as `ModelConfigValue` / guarded by `asEncryptedValue` in `packages/db`.
 
 Reading reverses the process. The master key must be 32 bytes long and kept in secure storage (environment variable, Vault).
 

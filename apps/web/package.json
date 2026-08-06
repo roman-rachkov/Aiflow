@@ -12,6 +12,8 @@
     "rag:mcp": "node ../../node_modules/tsx/dist/cli.mjs --env-file=.env.local scripts/rag-mcp.ts"
   },
   "dependencies": {
+    "@aiflow/ai-roles": "workspace:^",
+    "@aiflow/crypto": "workspace:^",
     "@aiflow/db": "workspace:^",
     "@aiflow/ui": "workspace:^",
     "@assistant-ui/react": "0.15.4",

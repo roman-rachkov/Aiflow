@@ -9,9 +9,7 @@ structure by search. Layout per A4 in
 apps/
 ├── web/                  Next.js (App Router, TS strict, Tailwind v4)
 │                         └── public entry: src/app, src/features/*
-│                             deps: @aiflow/{db,queue,ai-roles,ui} (@aiflow/crypto
-│                             wired in next.config/tsconfig but empty — no
-│                             runtime consumer yet)
+│                             deps: @aiflow/{db,queue,ai-roles,ui,crypto}
 │                             layout: app/ (routing only) → features/ →
 │                                     shared/ → packages/ (§ 2.2)
 │                             scripts/ingest-repo.ts — `yarn workspace
@@ -71,6 +69,7 @@ apps/
 │     │                         ui/FilePanel.tsx — upload (hidden input) + per-row
 │     │                           index trigger + status badge
 │     ├── specifications/ SPEC.md version list, view, generation (Task 2.1)
+│     ├── model-config/   Analyst ModelConfig encrypt/API/UI (Task 2.3)
 │     │                     └── public: `index.ts` (server) + `client.ts` (panel)
 │     │                         model/service.ts — listSpecifications /
 │     │                           getSpecificationByVersion (findFirst: version
@@ -156,10 +155,11 @@ packages/
 │                             `yarn workspace @aiflow/db seed:dev-user`
 ├── queue/                BullMQ definitions: the four queues + typed payloads,
 │                         concurrency 1, default job options
-├── crypto/               Declared but empty (`src/index.ts` is `export {};`).
-│                         The AES-256-GCM helpers are not here yet; the
-│                         `{"__encrypted__": ...}` envelope lives in
-│                         `packages/db/src/config-types.ts` (ENCRYPTED_TAG)
+├── crypto/               AES-256-GCM leaf (Task 2.3): `encrypt` / `decrypt` /
+│                         `readEncryptionKey`. Envelope
+│                         `{"__encrypted__": base64(iv||tag||ciphertext)}`.
+│                         Typed as `ModelConfigValue` (= `EncryptedValue`) in
+│                         `packages/db/src/config-types.ts`
 ├── ai-roles/             Model provider adapter (Task 1.3; embeddings + universal
 │                         provider in Task 2.1). Leaf package.
 │                         └── public entry: src/index.ts
@@ -233,6 +233,7 @@ compose topology          `docker compose up` (no `--build`): postgres, redis,
 | File upload + RAG indexing + retrieval                             | `apps/web/src/features/files` (Task 2.1)                               |
 | Dev-time repo RAG MCP (`aiflow-rag` search/status)                 | `apps/web/scripts/{ingest-repo,rag-mcp,rag-query,dev-rag-shared}.ts`   |
 | SPEC.md version list, view, generation                             | `apps/web/src/features/specifications` (Task 2.1)                      |
+| Analyst ModelConfig (encrypt, API, settings UI)                    | `apps/web/src/features/model-config` (Task 2.3)                        |
 | Model provider adapter (universal OpenAI-compatible, chat+embed)   | `packages/ai-roles/src` (Task 1.3; universal + embeddings in Task 2.1) |
 | App shell (header, side menu)                                      | `apps/web/src/shared/ui` (Task 1.2a)                                   |
 | MinIO object storage client                                        | `apps/web/src/shared/minio` (Task 2.1)                                 |
@@ -242,7 +243,7 @@ compose topology          `docker compose up` (no `--build`): postgres, redis,
 | OpenUI brand tokens (CSS `:root` overrides)                        | `apps/web/src/app/globals.css` (D0a; no ThemeProvider)                 |
 | Prisma client factory                                              | `packages/db/src/index.ts`                                             |
 | Queue definitions                                                  | `packages/queue/src`                                                   |
-| Encryption helpers (envelope typing)                               | `packages/db/src/config-types.ts` (`packages/crypto` is an empty stub) |
+| Encryption helpers (AES-256-GCM + envelope typing)                 | `packages/crypto` + `packages/db/src/config-types.ts`                  |
 | Gitea identity on `ProjectMeta` (owner/repo/branch)                | `packages/db` public schema (Task 2.2)                                 |
 | Env validation                                                     | `.env.example` + `apps/web/src/shared/env` (planned)                   |
 
@@ -254,10 +255,10 @@ compose topology          `docker compose up` (no `--build`): postgres, redis,
   entry rather than an importable surface.
 - Generated clients (`packages/db/generated/*`) and `next-env.d.ts` are build
   artifacts, gitignored, and exempt from the size rules.
-- `packages/crypto` is declared but empty until its consumers arrive;
-  `packages/ai-roles`, `packages/db`, and `packages/ui` are real (ai-roles
-  shipped in Task 1.3; Task 2.1 generalized it into a universal
-  OpenAI-compatible provider with embeddings).
+- `packages/crypto` is real (Task 2.3 AES-256-GCM); `packages/ai-roles`,
+  `packages/db`, and `packages/ui` are real (ai-roles shipped in Task 1.3;
+  Task 2.1 generalized it into a universal OpenAI-compatible provider with
+  embeddings).
 - **`packages/ui` is a deliberate exception to the § 2.3 promotion test.** That
   rule says a slice used by one app stays a slice, and `apps/web` is still the
   only consumer. It was overridden by decision in Task 1.2d: the design system is

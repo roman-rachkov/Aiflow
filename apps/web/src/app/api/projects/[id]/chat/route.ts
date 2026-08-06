@@ -1,28 +1,22 @@
 import { NextResponse } from 'next/server';
 
-import { createProviderFromEnv, readProviderConfigFromEnv } from '@aiflow/ai-roles';
 import type { ChatConfig, ChatMessage } from '@aiflow/ai-roles';
 
 import { requireUser } from '@/features/auth';
 import { retrieveContext } from '@/features/files/rag';
 import { listMessages, saveMessage } from '@/features/chat/model/service';
 import { readSystemPrompt, withRagContext } from '@/features/chat/model/schema';
+import { resolveAnalystProvider } from '@/features/model-config';
+import type { ResolvedAnalystProvider } from '@/features/model-config';
 import { resolveProjectSchema } from '@/features/projects';
 
 /**
  * Streaming chat turn against the Analyst agent.
  *
  * Auth and validation run before the response body is committed: a missing or
- * foreign project answers 404 (no existence leak — the same answer for "not
- * yours" and "does not exist"), and an empty message answers 400. Once those
- * pass, the user's message is persisted immediately so a provider failure
- * never loses the question. The assistant reply is then streamed as SSE; the
- * ASSISTANT row is written only after the stream completes successfully, with
- * token counts read from the provider's usage side-channel.
- *
- * Deep imports into `features/chat/model/*` are intentional: the slice's barrel
- * is wired up in task 12, and `import/no-internal-modules` is scoped to `features`
- * modules so these `app/` paths are allowed. See the chat slice's `index.ts`.
+ * foreign project answers 404 (no existence leak). ModelConfig is resolved via
+ * `resolveAnalystProvider` (project key → OpenAI-compatible; else env).
+ * Embeddings/RAG stay on env inside `retrieveContext`.
  */
 
 const SSE_HEADERS = {
@@ -48,19 +42,14 @@ function toProviderMessages(
   return views.map((m) => ({ role: m.role, content: m.content }));
 }
 
-/** Model + key from OPENAI_* env (via {@link readProviderConfigFromEnv}). */
-function buildChatConfig(systemPrompt: string): ChatConfig {
-  const { chatModel, apiKey } = readProviderConfigFromEnv();
-  return { model: chatModel, apiKey, systemPrompt };
-}
-
 /** Run the provider stream, emitting SSE frames and persisting the assistant row. */
 function streamAssistantReply(
   schemaName: string,
   history: ChatMessage[],
   config: ChatConfig,
+  resolved: ResolvedAnalystProvider,
 ): ReadableStream<Uint8Array> {
-  const provider = createProviderFromEnv();
+  const { provider } = resolved;
 
   return new ReadableStream({
     async start(controller) {
@@ -109,13 +98,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: 'Введите сообщение' }, { status: 400 });
   }
 
-  // Persist the user's turn before streaming so a provider failure keeps it.
   await saveMessage(schemaName, { role: 'USER', content: message });
 
-  // Retrieve RAG context for the user's message. `retrieveContext` never
-  // throws, but the try/catch is belt-and-suspenders per the SPEC: an embed or
-  // pgvector failure degrades to task 1.3 chat-without-RAG (empty context),
-  // never breaks the chat turn.
   let ragContext = '';
   try {
     ragContext = await retrieveContext(schemaName, message);
@@ -125,8 +109,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   const history = toProviderMessages(await listMessages(schemaName));
   const systemPrompt = withRagContext(readSystemPrompt(), ragContext);
-  const config = buildChatConfig(systemPrompt);
-  const body = streamAssistantReply(schemaName, history, config);
+  const resolved = await resolveAnalystProvider(schemaName);
+  const config: ChatConfig = {
+    model: resolved.chatConfig.model,
+    apiKey: resolved.chatConfig.apiKey,
+    systemPrompt,
+  };
+  const body = streamAssistantReply(schemaName, history, config, resolved);
 
   return new Response(body, { headers: SSE_HEADERS });
 }

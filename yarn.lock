@@ -14,7 +14,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@aiflow/ai-roles@workspace:packages/ai-roles":
+"@aiflow/ai-roles@workspace:^, @aiflow/ai-roles@workspace:packages/ai-roles":
   version: 0.0.0-use.local
   resolution: "@aiflow/ai-roles@workspace:packages/ai-roles"
   dependencies:
@@ -23,7 +23,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@aiflow/crypto@workspace:packages/crypto":
+"@aiflow/crypto@workspace:^, @aiflow/crypto@workspace:packages/crypto":
   version: 0.0.0-use.local
   resolution: "@aiflow/crypto@workspace:packages/crypto"
   dependencies:
@@ -118,6 +118,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@aiflow/web@workspace:apps/web"
   dependencies:
+    "@aiflow/ai-roles": "workspace:^"
+    "@aiflow/crypto": "workspace:^"
     "@aiflow/db": "workspace:^"
     "@aiflow/ui": "workspace:^"
     "@assistant-ui/react": "npm:0.15.4"

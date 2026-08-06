@@ -4,7 +4,13 @@ import { PrismaClient as ProjectClient } from '../generated/project';
 // Re-export the typed wrappers for the Json config columns so consumers go
 // through them rather than writing arbitrary JSON to ModelConfig.config /
 // EmbeddedAgent.config. See ./config-types.ts.
-export type { AgentConfigValue, EncryptedValue, ModelConfigValue } from './config-types';
+export type {
+  AgentConfigValue,
+  AnalystModelConfigPlain,
+  AnalystProviderId,
+  EncryptedValue,
+  ModelConfigValue,
+} from './config-types';
 export { asEncryptedValue } from './config-types';
 
 // Project-schema provisioning (Task 1.2b). `generateProjectSql` / the name

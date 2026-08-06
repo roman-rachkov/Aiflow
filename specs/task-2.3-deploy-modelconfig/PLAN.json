@@ -2,7 +2,7 @@
   {
     "title": "Implement @aiflow/crypto AES-256-GCM",
     "description": "Replace the empty stub in `packages/crypto` with a real leaf package (Node `crypto` only — no Prisma). Public surface in `packages/crypto/src/index.ts`: `encrypt(plaintext: string, key?: Buffer): EncryptedEnvelope`, `decrypt(envelope: EncryptedEnvelope, key?: Buffer): string`, `readEncryptionKey(): Buffer`. Key policy (SPEC assumption #1): `process.env.ENCRYPTION_KEY` must be exactly **32 UTF-8 bytes**; throw a clear error if missing/wrong length. Envelope shape: `{ __encrypted__: string }` where the string is Base64 of `iv(12) || authTag(16) || ciphertext` (document byte layout in JSDoc). Algorithm: AES-256-GCM. Split into `encrypt.ts` / `key.ts` if needed to stay ≤200 lines / fn ≤50. Ensure TypeScript builds via existing `typecheck` script. Consumers will wrap results with `asEncryptedValue` from `@aiflow/db` — do not depend on `@aiflow/db` from this package.",
-    "status": "PENDING",
+    "status": "DONE",
     "priority": "critical",
     "dependencies": [],
     "acceptance": "`@aiflow/crypto` exports encrypt, decrypt, readEncryptionKey; round-trip works with a 32-byte key; wrong-length ENCRYPTION_KEY throws; package has no Prisma/deps beyond Node builtins; `yarn workspace @aiflow/crypto typecheck` succeeds.",
@@ -11,7 +11,7 @@
   {
     "title": "Test @aiflow/crypto round-trip",
     "description": "Add Vitest tests under `packages/crypto` (e.g. `src/crypto.test.ts` or `src/index.test.ts`). Wire a test script if the package lacks one so root `yarn test` picks it up (match monorepo vitest pattern used by other packages). Cover: (1) encrypt→decrypt round-trip restores plaintext; (2) wrong key fails decrypt; (3) truncated / non-32-byte `ENCRYPTION_KEY` rejected by `readEncryptionKey`; (4) malformed envelope (missing tag, bad base64, short buffer) rejected. Set `ENCRYPTION_KEY` in test setup to a fixed 32-char string. No network. Keep ≤200 lines.",
-    "status": "PENDING",
+    "status": "DONE",
     "priority": "high",
     "dependencies": ["Implement @aiflow/crypto AES-256-GCM"],
     "acceptance": "`yarn test` runs crypto tests; round-trip, wrong key, truncated key, and malformed envelope cases pass; `yarn verify` green for this package path.",
@@ -20,7 +20,7 @@
   {
     "title": "Align ModelConfigValue envelope types",
     "description": "Update `packages/db/src/config-types.ts` so `ModelConfigValue` matches SPEC: the **entire** logical JSON blob is stored as a single `EncryptedValue` envelope in `ModelConfig.config` (not `{ model, config: EncryptedValue }`). Logical plaintext before encrypt: `{ analyst: { provider, model, baseURL?, apiKey? } }`. Keep `EncryptedValue` + `asEncryptedValue` unchanged. Export any helper types needed by web (e.g. `AnalystModelConfigPlain`) if useful, or document the shape in JSDoc only. Update comments referencing the old scaffolding shape; briefly align related notes in `docs/03` / code-map encryption line if they still describe the nested form (SPEC assumption #14/#20). No Prisma migration required — column stays Json.",
-    "status": "PENDING",
+    "status": "DONE",
     "priority": "critical",
     "dependencies": [],
     "acceptance": "`ModelConfigValue` is the encrypted envelope of the analyst blob; `asEncryptedValue` still guards `__encrypted__`; old nested `{ model, config }` type is gone; package typecheck passes.",
@@ -29,7 +29,7 @@
   {
     "title": "ModelConfig feature service",
     "description": "Create FSD slice `apps/web/src/features/model-config` with `model/service.ts` (+ types), barrel `index.ts`. Depend on `@aiflow/crypto`, `@aiflow/db` (`getProjectClient`, `asEncryptedValue`), soft-delete filter `deletedAt: null`. Functions: `getAnalystModelConfig(schemaName)` → public DTO `{ provider, model, baseURL, hasApiKey }` + `source: 'project' | 'env'` (never plaintext key; on missing row or decrypt fail → env hints via `readProviderConfigFromEnv()`); `upsertAnalystModelConfig(schemaName, projectId, input)` — validate non-empty provider/model; if `apiKey` omitted/null/'' without clear → keep previous key; if `clearApiKey: true` → rewrite blob without key; encrypt whole JSON via `encrypt` then `asEncryptedValue`; upsert by `projectId`. Providers MVP: `openai` | `routerai`. Keep files ≤200 / fn ≤50. Add `@aiflow/crypto` workspace dependency on `@aiflow/web` if missing.",
-    "status": "PENDING",
+    "status": "DONE",
     "priority": "critical",
     "dependencies": [
       "Implement @aiflow/crypto AES-256-GCM",
@@ -41,7 +41,7 @@
   {
     "title": "ModelConfig GET and PUT API routes",
     "description": "Add thin App Router handlers (logic only in feature): `GET` and `PUT` at `apps/web/src/app/api/projects/[id]/model-config/route.ts`. Gate: `requireUser()` → Pro check (`uiMode !== 'PRO'` → 403 JSON Russian) → owner/project access (`deletedAt: null`) → 404 if missing. GET → 200 SPEC shape `{ analyst, source }`. PUT body `{ analyst: { provider, model, baseURL?, apiKey? }, clearApiKey? }` → 400 validation, 500 if ENCRYPTION_KEY invalid, 200 same as GET. Never log or return plaintext keys. Wiring only in `app/`.",
-    "status": "PENDING",
+    "status": "DONE",
     "priority": "critical",
     "dependencies": ["ModelConfig feature service"],
     "acceptance": "GET/PUT match SPEC; BASIC → 403; non-owner → 404; plaintext key never in responses; `yarn verify` green.",
@@ -50,7 +50,7 @@
   {
     "title": "Chat and SPEC resolve ModelConfig",
     "description": "Update existing `POST /api/projects/[id]/chat` and specifications generation path so before calling the LLM they resolve Analyst config: (1) load+decrypt project ModelConfig; (2) if analyst apiKey present → `createOpenAICompatibleProvider({ baseURL, apiKey, chatModel })` and use ModelConfig model; (3) else `createProviderFromEnv()` / `readProviderConfigFromEnv()`. Prefer a small shared helper in `features/model-config` (e.g. `resolveAnalystProvider(schemaName)`) to avoid duplicating logic. Embeddings/RAG stay on env (SPEC). Do not touch model-router wiring. Keep routes thin; no secrets in logs.",
-    "status": "PENDING",
+    "status": "DONE",
     "priority": "high",
     "dependencies": ["ModelConfig feature service"],
     "acceptance": "Chat and SPEC generation use project ModelConfig when key present, else env fallback; embeddings unchanged on env; no plaintext keys logged; `yarn verify` green.",
@@ -59,7 +59,7 @@
   {
     "title": "Model settings page and Pro nav",
     "description": "Add page `apps/web/src/app/(app)/projects/[id]/settings/models/page.tsx` — wiring: `requireUser` + `requireProMode` + project access; render UI from `features/model-config/ui`. Form (Russian): heading «Модель Analyst»; select provider (`openai`/`routerai`); inputs model, optional baseURL, password apiKey (empty + «Ключ сохранён (••••)» when hasApiKey; empty save = keep; Button «Удалить ключ» → clearApiKey); Save; status text for project vs env; toast success/error; loading Spinner, error+«Повторить», saving disabled. SideMenu / project nav: Pro-only «Настройки модели» → this URL. Add `@source` in `globals.css` for the new feature dir if needed. Primitives from `@aiflow/ui`; files ≤200 lines.",
-    "status": "PENDING",
+    "status": "DONE",
     "priority": "high",
     "dependencies": ["ModelConfig GET and PUT API routes"],
     "acceptance": "`/projects/[id]/settings/models` works for Pro owners; BASIC redirected; menu link Pro-only; save/clear key UX matches SPEC; Tailwind classes apply; `yarn verify` green.",

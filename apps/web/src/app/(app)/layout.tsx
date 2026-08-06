@@ -14,7 +14,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <UserBadge email={user.email} name={user.name} />
       </AppHeader>
       <div className="flex flex-1">
-        <SideMenu />
+        <SideMenu isPro={user.uiMode === 'PRO'} />
         <main className="flex-1 px-8 py-6">{children}</main>
       </div>
     </div>

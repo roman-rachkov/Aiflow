@@ -23,16 +23,14 @@ const retrieveContext = vi.fn().mockResolvedValue('');
 const requireUser = vi.fn();
 const resolveProjectSchema = vi.fn();
 const chatWithUsage = vi.fn();
+const resolveAnalystProvider = vi.fn();
 
 vi.mock('@/features/auth', () => ({ requireUser }));
 vi.mock('@/features/chat/model/service', () => ({ listMessages, saveMessage }));
 vi.mock('@/features/chat/model/schema', () => ({ readSystemPrompt, withRagContext }));
 vi.mock('@/features/files/rag', () => ({ retrieveContext }));
 vi.mock('@/features/projects', () => ({ resolveProjectSchema }));
-vi.mock('@aiflow/ai-roles', () => ({
-  createProviderFromEnv: () => ({ chatWithUsage }),
-  readProviderConfigFromEnv: () => ({ chatModel: 'test-model', apiKey: 'test-key' }),
-}));
+vi.mock('@/features/model-config', () => ({ resolveAnalystProvider }));
 
 const { POST } = await import('./route');
 
@@ -88,6 +86,11 @@ function mockHappyPath(): void {
   resolveProjectSchema.mockResolvedValue('project_x');
   listMessages.mockResolvedValue([]);
   readSystemPrompt.mockReturnValue('system prompt');
+  resolveAnalystProvider.mockResolvedValue({
+    provider: { chatWithUsage },
+    chatConfig: { model: 'test-model', apiKey: 'test-key' },
+    source: 'env',
+  });
 }
 
 describe('POST /api/projects/[id]/chat — happy path', () => {

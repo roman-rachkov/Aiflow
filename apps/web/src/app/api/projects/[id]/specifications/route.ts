@@ -1,32 +1,18 @@
 import { NextResponse } from 'next/server';
 
-import { createProviderFromEnv, readProviderConfigFromEnv } from '@aiflow/ai-roles';
-import type { ChatConfig } from '@aiflow/ai-roles';
-
 import { requireUser } from '@/features/auth';
 import { listMessages, readSpecTemplate } from '@/features/chat';
 import { retrieveContext } from '@/features/files/rag';
+import { resolveAnalystProvider } from '@/features/model-config';
 import { resolveProjectSchema } from '@/features/projects';
 import { generateSpecification, listSpecifications } from '@/features/specifications';
 
 /**
  * List and generate endpoints for a project's SPEC.md versions.
  *
- * Both handlers share the chat route's auth/resolve preamble — `requireUser`
- * then `resolveProjectSchema`, answering 404 for a missing or foreign project
- * (no existence leak). List returns the version-desc array. Generate ignores
- * the request body and runs the non-streaming generation orchestrator in the
- * specifications slice, wiring the cross-slice functions this route (in `app/`)
- * is allowed to import (the orchestrator itself cannot, due to the
- * `boundaries/dependencies` slice-capture policy). On a provider failure the
- * orchestrator throws; this handler maps any throw to 500.
+ * Generate resolves Analyst ModelConfig via `resolveAnalystProvider` (project
+ * key when present, else env). Embeddings/RAG stay on env inside retrieve.
  */
-
-/** Model + key from OPENAI_* env (via {@link readProviderConfigFromEnv}). */
-function buildConfig(): Pick<ChatConfig, 'model' | 'apiKey'> {
-  const { chatModel, apiKey } = readProviderConfigFromEnv();
-  return { model: chatModel, apiKey };
-}
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -51,12 +37,17 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   }
 
   try {
+    const resolved = await resolveAnalystProvider(schemaName);
     const view = await generateSpecification(schemaName, {
       listMessages,
       retrieveContext,
       readSpecTemplate,
-      createProvider: createProviderFromEnv,
-      config: { ...buildConfig(), systemPrompt: '' },
+      createProvider: () => resolved.provider,
+      config: {
+        model: resolved.chatConfig.model,
+        apiKey: resolved.chatConfig.apiKey,
+        systemPrompt: '',
+      },
     });
     return NextResponse.json({
       id: view.id,

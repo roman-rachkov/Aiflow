@@ -1,19 +1,21 @@
 import Link from 'next/link';
 
+import { ProProjectNav } from './ProProjectNav';
+
 /**
  * Primary navigation. Lives in `shared/ui` rather than in a feature slice: the
  * header is not authentication, and putting it there pushed the auth slice past
  * the 400-line budget in docs/15-engineering-conventions.md § 5.5.
  *
- * Destinations beyond the dashboard arrive with their own tasks; they are
- * listed now so the shell is not visibly empty.
+ * Pro project link («Настройки модели») appears when the path is under a
+ * project and `isPro` is true.
  */
 const NAV_ITEMS = [
   { href: '/projects', label: 'Проекты' },
   { href: '/deployments', label: 'Развёртывания' },
 ] as const;
 
-export function SideMenu() {
+export function SideMenu({ isPro = false }: { isPro?: boolean }) {
   return (
     <nav className="w-52 shrink-0 border-r border-border px-4 py-6">
       <ul className="flex flex-col gap-1">
@@ -27,6 +29,7 @@ export function SideMenu() {
             </Link>
           </li>
         ))}
+        <ProProjectNav isPro={isPro} />
       </ul>
     </nav>
   );

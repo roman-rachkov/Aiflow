@@ -1,21 +1,16 @@
 /**
  * Typed wrappers for the `Json` config columns.
  *
- * `ModelConfig.config` and `EmbeddedAgent.config` hold values the schema
- * cannot express precisely: API keys are AES-256-GCM encrypted and stored as
- * a tagged object (`{ "__encrypted__": "<ciphertext>" }`). A bare `Json`
- * column accepts any JSON, so the invariant lives here as a branded type plus
- * a runtime guard, not in Prisma.
+ * `ModelConfig.config` stores the **entire** logical JSON blob as one
+ * AES-256-GCM envelope (`{ "__encrypted__": "<base64>" }`). Logical plaintext
+ * before encrypt (MVP Analyst):
+ * `{ analyst: { provider, model, baseURL?, apiKey? } }`.
  *
- * The brand (`__brand`) is nominal-only — it compiles away, so the on-disk
- * shape stays a plain object and existing rows read back unchanged. The point
- * is that you cannot assign an arbitrary `Record<string, unknown>` to a column
- * expecting an `EncryptedValue` without going through the guard, which checks
- * the shape.
+ * A bare `Json` column accepts any JSON, so the invariant lives here as a
+ * branded type plus a runtime guard, not in Prisma. Encryption itself lives in
+ * `@aiflow/crypto`; this file owns only the value-object typing.
  *
- * See docs/03-data-model.md and the `ai-studio-internals` skill for the
- * encryption scheme; encryption itself lives in `@aiflow/crypto` (once that
- * package is real). This file owns only the value-object typing.
+ * See docs/03-data-model.md and the `ai-studio-internals` skill.
  */
 
 const ENCRYPTED_TAG = '__encrypted__';
@@ -27,11 +22,24 @@ const ENCRYPTED_TAG = '__encrypted__';
 export type EncryptedValue = { readonly [ENCRYPTED_TAG]: string; __brand: 'EncryptedValue' };
 
 /**
- * The config stored on `ModelConfig.config` — provider/model settings whose
- * secret parts are encrypted. The non-secret parts (model name, base URL) are
- * free-form until `@aiflow/crypto` ships a fuller schema.
+ * On-disk shape of `ModelConfig.config`: one encrypted envelope wrapping the
+ * full analyst (and future role) blob — not a nested `{ model, config }` pair.
  */
-export type ModelConfigValue = { readonly model: string; readonly config: EncryptedValue };
+export type ModelConfigValue = EncryptedValue;
+
+/** MVP providers accepted by ModelConfig Analyst settings. */
+export type AnalystProviderId = 'openai' | 'routerai';
+
+/**
+ * Logical plaintext for the Analyst role before the whole blob is encrypted.
+ * `apiKey` is omitted when the project has no stored key.
+ */
+export type AnalystModelConfigPlain = {
+  readonly provider: AnalystProviderId;
+  readonly model: string;
+  readonly baseURL?: string;
+  readonly apiKey?: string;
+};
 
 /**
  * The config stored on `EmbeddedAgent.config`. Less constrained than

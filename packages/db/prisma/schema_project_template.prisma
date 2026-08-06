@@ -24,10 +24,10 @@ generator client {
 }
 
 // LLM provider and model configuration per AI role.
-// `config` holds API keys AES-256-GCM encrypted as {"__encrypted__": "..."}.
+// `config` is one AES-256-GCM envelope {"__encrypted__": "..."} wrapping the
+// full logical blob ({ analyst: { provider, model, baseURL?, apiKey? } }).
 // Prisma cannot express this invariant, so the column is `Json` but writes go
-// through the branded `ModelConfigValue` / `asEncryptedValue` types in
-// packages/db/src/config-types.ts — that is where the shape is enforced.
+// through `ModelConfigValue` / `asEncryptedValue` in packages/db/src/config-types.ts.
 model ModelConfig {
   id        String   @id @default(uuid())
   projectId String   @unique
