@@ -2,7 +2,7 @@
  * Mock chat path for the OpenAI-compatible provider: streams a canned Russian
  * analyst follow-up so local dev and tests run without network or a key.
  *
- * Extracted from the former `ZaiProvider` mock body so `openai-compatible.ts`
+ * Extracted from the former mock chat body so `openai-compatible.ts`
  * stays under the 200-line file limit. `withNullUsageStream` wraps the canned
  * generator so `chatWithUsage` resolves usage to nulls once the stream drains.
  */

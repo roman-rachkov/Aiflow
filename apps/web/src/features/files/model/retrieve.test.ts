@@ -25,13 +25,13 @@ vi.mock('@aiflow/db', () => ({
 }));
 
 vi.mock('@aiflow/ai-roles', () => ({
-  createZaiProvider: vi.fn(() => ({ embed })),
+  createProviderFromEnv: vi.fn(() => ({ embed })),
 }));
 
 const { retrieveChunks, retrieveContext } = await import('./retrieve');
 
-/** A 1536-dim vector literal the provider mock resolves with. */
-const VEC = Array.from({ length: 1536 }, () => 0.5);
+/** A 768-dim vector literal the provider mock resolves with. */
+const VEC = Array.from({ length: 768 }, () => 0.5);
 
 afterEach(() => {
   vi.clearAllMocks();
@@ -44,6 +44,7 @@ describe('retrieveChunks — SQL shape', () => {
 
     await retrieveChunks('project_x', 'q');
 
+    expect(embed).toHaveBeenCalledWith(['search_query: q']);
     expect(queryRawUnsafe).toHaveBeenCalledTimes(1);
     const [sql, k] = queryRawUnsafe.mock.calls[0] as [string, number];
 
@@ -52,8 +53,9 @@ describe('retrieveChunks — SQL shape', () => {
     expect(sql).toContain('"deletedAt" IS NULL');
     expect(sql).toContain("status = 'INDEXED'");
     // pgvector cosine distance + vector cast, both in SELECT and ORDER BY.
-    expect(sql).toContain('<=>');
-    expect(sql).toContain('::vector');
+    // Qualified as public.* because Prisma's schema search_path hides them.
+    expect(sql).toContain('OPERATOR(public.<=>)');
+    expect(sql).toContain('::public.vector');
     // k is bound as the LIMIT parameter, never inlined.
     expect(sql).toContain('LIMIT $1');
     expect(k).toBe(5);

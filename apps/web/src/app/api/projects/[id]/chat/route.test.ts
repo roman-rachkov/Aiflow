@@ -30,7 +30,7 @@ vi.mock('@/features/chat/model/schema', () => ({ readSystemPrompt, withRagContex
 vi.mock('@/features/files', () => ({ retrieveContext }));
 vi.mock('@/features/projects', () => ({ resolveProjectSchema }));
 vi.mock('@aiflow/ai-roles', () => ({
-  createZaiProvider: () => ({ chatWithUsage }),
+  createProviderFromEnv: () => ({ chatWithUsage }),
 }));
 
 const { POST } = await import('./route');

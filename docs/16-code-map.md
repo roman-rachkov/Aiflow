@@ -14,6 +14,10 @@ apps/
 │                             runtime consumer yet)
 │                             layout: app/ (routing only) → features/ →
 │                                     shared/ → packages/ (§ 2.2)
+│                             scripts/ingest-docs.ts — `yarn workspace
+│                               @aiflow/web docs:ingest`: fresh project schema
+│                               + index docs/*.md (+ CLAUDE.md) for local RAG
+│                               (nomic-embed / LM Studio); no MinIO
 │   features:
 │     ├── auth/           NextAuth v5, guards, session (Task 1.2a)
 │     ├── projects/       Projects CRUD + schema provisioning (Task 1.2b)
@@ -132,12 +136,12 @@ packages/
 │                             openai-compatible.ts — createOpenAICompatibleProvider:
 │                               parameterized ${baseURL}/chat/completions streaming +
 │                               /embeddings; mock path when no key (canned chat,
-│                               deterministic 1536-dim embeddings)
-│                             zai-provider.ts — createZaiProvider(): thin wrapper
-│                               returning a z.ai-configured OpenAICompatibleProvider
-│                               (env: OPENAI_BASE_URL ?? z.ai; OPENAI_API_KEY ??
-│                               ZAI_API_KEY; OPENAI_CHAT_MODEL ?? glm-4.6;
-│                               OPENAI_EMBEDDING_MODEL ?? text-embedding-3-small)
+│                               deterministic 768-dim embeddings)
+│                             env-provider.ts — createProviderFromEnv() /
+│                               readProviderConfigFromEnv(): the app seam; one
+│                               OpenAI-compatible provider from OPENAI_* env
+│                               (LM Studio, z.ai, OpenAI — same factory);
+│                               createZaiProvider() is a deprecated alias
 │                             mock-chat.ts / mock-embeddings.ts — extracted mock paths
 │                             sse-parser.ts — generic SSE frame reassembly
 │                               (reusable; reader released in finally)

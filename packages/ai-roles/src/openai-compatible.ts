@@ -6,7 +6,7 @@
  *
  * Two modes, selected at construction:
  * - MOCK: `config.apiKey` absent/empty. Chat streams a canned reply (see
- *   `mock-chat.ts`); `embed` returns a deterministic 1536-dim vector per input
+ *   `mock-chat.ts`); `embed` returns a deterministic 768-dim vector per input
  *   (see `mock-embeddings.ts`). No network, no key — local dev + tests.
  * - LIVE: `config.apiKey` present. Real streaming POST to
  *   `${baseURL}/chat/completions` and real `POST ${baseURL}/embeddings`.
@@ -153,7 +153,7 @@ async function liveEmbed(texts: string[], provider: ProviderConfig): Promise<num
 
 /**
  * Construct an {@link OpenAICompatibleProvider}. Reads nothing from the env —
- * the caller (e.g. {@link createZaiProvider}) resolves env into a
+ * the caller (e.g. {@link createProviderFromEnv}) resolves env into a
  * {@link ProviderConfig} so this factory stays pure and testable. MOCK mode is
  * selected when `config.apiKey` is absent/empty.
  */

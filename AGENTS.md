@@ -15,7 +15,8 @@ Real packages today: `apps/web` (Next.js 15 App Router), `packages/db` (Prisma, 
 `packages/ui` (design system), `tools/session-analyzer` (dev-only analytics).
 Declared-but-empty stubs (do not assume they work yet): `apps/worker` (BullMQ),
 `services/model-router`, `services/registry-proxy`, `packages/queue`, `packages/crypto`.
-`packages/ai-roles` is now real (Task 1.3: the ZaiProvider model adapter). The code map
+`packages/ai-roles` is now real (Task 1.3 / 2.1: OpenAI-compatible provider +
+`createProviderFromEnv`). The code map
 at `docs/16-code-map.md` tracks which is which — read it first.
 
 > Note: `docs/16-code-map.md` and `docs/17-session-review.md` exist on disk but are **not yet

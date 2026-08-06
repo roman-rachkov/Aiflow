@@ -7,14 +7,14 @@ import type { ProviderConfig } from './types';
 /**
  * Tests for the OpenAI-compatible provider. Covers the new `embed` contract in
  * both MOCK (no key) and LIVE (fetch stubbed) modes, and pins the
- * acceptance-shape requirement: every embedding vector must be length 1536
+ * acceptance-shape requirement: every embedding vector must be length 768
  * (text-embedding-3-small) so downstream pgvector writes/tests shape-match.
  *
- * Chat streaming is already covered exhaustively in zai-provider.test.ts (the
+ * Chat streaming is already covered exhaustively in env-provider.test.ts (the
  * z.ai factory delegates to this provider); here we only assert the new surface.
  */
 
-const EMBED_DIM = 1536;
+const EMBED_DIM = 768;
 
 /** A mock-mode config: no apiKey ⇒ canned replies + deterministic vectors. */
 const MOCK_CONFIG: ProviderConfig = {
@@ -39,7 +39,7 @@ afterEach(() => {
 });
 
 describe('createOpenAICompatibleProvider.embed (mock path, no key)', () => {
-  it('returns one vector per input, each length 1536', async () => {
+  it('returns one vector per input, each length 768', async () => {
     const provider = createOpenAICompatibleProvider(MOCK_CONFIG);
     const vectors = await provider.embed(['hi']);
     expect(vectors).toHaveLength(1);

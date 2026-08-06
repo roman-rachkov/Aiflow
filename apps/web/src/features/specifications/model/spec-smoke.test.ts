@@ -62,7 +62,7 @@ vi.mock('@aiflow/db', () => ({
 }));
 
 vi.mock('@aiflow/ai-roles', () => ({
-  createZaiProvider: vi.fn(() => ({ chat })),
+  createProviderFromEnv: vi.fn(() => ({ chat })),
 }));
 
 const { generateSpecification, listSpecifications, getSpecificationByVersion } =

@@ -36,7 +36,7 @@ describe('generateProjectSql', () => {
   it('includes the pgvector column and the HNSW index', () => {
     const sql = projectSchema.generateProjectSql('project_vec');
 
-    expect(sql).toContain('embedding vector(1536)');
+    expect(sql).toContain('embedding vector(768)');
     expect(sql).toContain('DocumentChunk_embedding_idx');
     expect(sql).toContain('USING hnsw');
   });

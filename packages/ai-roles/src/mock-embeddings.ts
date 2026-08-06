@@ -1,16 +1,16 @@
 /**
  * Mock embeddings path for the OpenAI-compatible provider.
  *
- * Returns a deterministic 1536-dim vector per input so local dev and tests can
+ * Returns a deterministic 768-dim vector per input so local dev and tests can
  * exercise the RAG pipeline (pgvector writes, similarity) with no network and
  * no key. The vector is a deterministic pseudo-random fill seeded by the text
  * hash: the same input always yields the same vector, so cached queries and
- * snapshot tests are stable across runs. Length 1536 matches
- * text-embedding-3-small so downstream shape checks pass.
+ * snapshot tests are stable across runs. Length 768 matches
+ * nomic-embed-text-v1.5 so downstream shape checks pass.
  */
 
-/** Length of a text-embedding-3-small vector; matches the live embedding model. */
-export const MOCK_EMBEDDING_DIM = 1536;
+/** Length of a nomic-embed-text-v1.5 vector; matches the live embedding model. */
+export const MOCK_EMBEDDING_DIM = 768;
 
 /**
  * Deterministic 32-bit hash of `s` (FNV-1a variant). Stable per input string,
@@ -37,7 +37,7 @@ function mulberry32(seed: number): () => number {
   };
 }
 
-/** Build one deterministic 1536-dim vector for `text`. */
+/** Build one deterministic 768-dim vector for `text`. */
 function mockVector(text: string): number[] {
   const rand = mulberry32(hashSeed(text));
   const vec = new Array<number>(MOCK_EMBEDDING_DIM);
@@ -47,7 +47,7 @@ function mockVector(text: string): number[] {
   return vec;
 }
 
-/** Return a deterministic 1536-dim vector per input, in order. */
+/** Return a deterministic 768-dim vector per input, in order. */
 export function mockEmbed(texts: string[]): number[][] {
   return texts.map(mockVector);
 }

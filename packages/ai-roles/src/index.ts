@@ -1,3 +1,3 @@
 export * from './types';
-export * from './zai-provider';
+export * from './env-provider';
 export * from './openai-compatible';

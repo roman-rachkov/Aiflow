@@ -33,12 +33,12 @@ const templatePath = join(packageRoot, 'prisma', 'schema_project_template.prisma
  * column, and the HNSW index over it is what makes RAG retrieval usable at all
  * — a sequential scan over embeddings defeats the purpose.
  *
- * Dimension 1536 matches OpenAI text-embedding-3-small. Changing the embedding
- * model changes this number, and existing rows become invalid.
+ * Dimension 768 matches nomic-embed-text-v1.5 (LM Studio local test). Changing
+ * the embedding model changes this number, and existing rows become invalid.
  */
 const VECTOR_DDL = `
 -- pgvector column and index (not expressible in the Prisma schema)
-ALTER TABLE "DocumentChunk" ADD COLUMN IF NOT EXISTS embedding vector(1536);
+ALTER TABLE "DocumentChunk" ADD COLUMN IF NOT EXISTS embedding vector(768);
 CREATE INDEX IF NOT EXISTS "DocumentChunk_embedding_idx"
   ON "DocumentChunk" USING hnsw (embedding vector_cosine_ops);
 `;

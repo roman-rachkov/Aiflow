@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-import { createZaiProvider } from '@aiflow/ai-roles';
+import { createProviderFromEnv } from '@aiflow/ai-roles';
 import type { ChatConfig, ChatMessage } from '@aiflow/ai-roles';
 
 import { requireUser } from '@/features/auth';
@@ -65,7 +65,7 @@ function streamAssistantReply(
   history: ChatMessage[],
   config: ChatConfig,
 ): ReadableStream<Uint8Array> {
-  const provider = createZaiProvider();
+  const provider = createProviderFromEnv();
 
   return new ReadableStream({
     async start(controller) {

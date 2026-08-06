@@ -18,7 +18,7 @@
  * catch the embed call and return `''` / `[]` instead of throwing, so the
  * caller sees an empty context, indistinguishable from "no documents".
  */
-import { createZaiProvider } from '@aiflow/ai-roles';
+import { createProviderFromEnv } from '@aiflow/ai-roles';
 import { getProjectClient } from '@aiflow/db';
 
 import { toVectorLiteral } from './chunk';
@@ -44,11 +44,11 @@ export async function retrieveChunks(
   query: string,
   k = 5,
 ): Promise<RetrievedChunk[]> {
-  const provider = createZaiProvider() as EmbeddingProvider;
+  const provider = createProviderFromEnv() as EmbeddingProvider;
 
   let queryVec: number[];
   try {
-    const [vec] = await provider.embed([query]);
+    const [vec] = await provider.embed([`search_query: ${query}`]);
     queryVec = vec;
   } catch {
     // Provider/embedding failure: degrade to chat-without-RAG, never throw.
@@ -56,13 +56,16 @@ export async function retrieveChunks(
   }
 
   const literal = toVectorLiteral(queryVec);
+  // Qualify vector ops with `public.` — Prisma's per-schema connection sets
+  // search_path to the project schema only, so unqualified `<=>` / `vector`
+  // (extension objects that live in `public`) fail at runtime.
   const sql =
-    `SELECT id, content, embedding <=> '${literal}'::vector AS distance ` +
+    `SELECT id, content, embedding OPERATOR(public.<=>) '${literal}'::public.vector AS distance ` +
     `FROM "DocumentChunk" ` +
     `WHERE "documentId" IN (` +
     `SELECT id FROM "Document" ` +
     `WHERE "deletedAt" IS NULL AND status = 'INDEXED') ` +
-    `ORDER BY embedding <=> '${literal}'::vector LIMIT $1`;
+    `ORDER BY embedding OPERATOR(public.<=>) '${literal}'::public.vector LIMIT $1`;
 
   const client = getProjectClient(schemaName);
   // `$queryRawUnsafe` returns `unknown` per Prisma's types — cast the row

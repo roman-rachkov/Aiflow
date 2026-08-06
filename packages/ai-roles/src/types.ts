@@ -3,8 +3,9 @@
  *
  * This package is a leaf: it carries no runtime code and no `@aiflow/`
  * dependencies — only the contracts a model provider must satisfy. Concrete
- * providers (e.g. `ZaiProvider`) are added by later tasks and implement these
- * interfaces; the route handler consumes them.
+ * providers (via {@link createOpenAICompatibleProvider} /
+ * {@link createProviderFromEnv}) implement these interfaces; the route handler
+ * consumes them.
  *
  * Definitions follow SPEC § "ModelRouter адаптер" (task 1.3). `ChatResult` and
  * `StreamingProvider` extend that minimal contract with a side-channel for
@@ -61,8 +62,8 @@ export interface ChatWithUsageResult {
 /**
  * A provider that, in addition to streaming text, reports token usage. The
  * `stream` is consumed first; `usage` resolves only after the stream ends, so
- * the caller can await it to read the final `ChatResult`. `ZaiProvider`
- * implements this interface so the route handler can persist usage stats.
+ * the caller can await it to read the final `ChatResult`. The OpenAI-compatible
+ * provider implements this so the route handler can persist usage stats.
  */
 export interface StreamingProvider extends ModelProvider {
   /**
@@ -75,7 +76,7 @@ export interface StreamingProvider extends ModelProvider {
 /**
  * A provider that maps input texts to dense vectors. The vectors are ordered
  * to match the input array; downstream code (e.g. pgvector for RAG) writes them
- * as-is. Dimension is provider/model-specific (text-embedding-3-small is 1536).
+ * as-is. Dimension is provider/model-specific (nomic-embed-text-v1.5 is 768).
  */
 export interface EmbeddingsProvider {
   /** Embed each input text; returns one vector per input, in order. */

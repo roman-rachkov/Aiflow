@@ -1,0 +1,11 @@
+[
+  {
+    "title": "Create index.js file with hello message",
+    "description": "Create a single JavaScript file named 'index.js' that prints 'Hello, AIFlow!' to the console and exits with code 0. The file should contain only the necessary Node.js code without any dependencies or additional logic.",
+    "status": "PENDING",
+    "priority": "critical",
+    "dependencies": [],
+    "acceptance": "Running 'node index.js' in the terminal outputs exactly 'Hello, AIFlow!' and exits with status code 0.",
+    "needsConfirmation": false
+  }
+]

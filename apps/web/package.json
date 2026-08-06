@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "docs:ingest": "node ../../node_modules/tsx/dist/cli.mjs --env-file=.env.local scripts/ingest-docs.ts"
   },
   "dependencies": {
     "@aiflow/db": "workspace:^",

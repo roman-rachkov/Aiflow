@@ -1,0 +1,14 @@
+```json
+{
+  "verdict": "ACCEPTED",
+  "summary": "index.js file created with correct console output and exit code.",
+  "details": {
+    "acceptance_met": true,
+    "compilation": true,
+    "lint": true,
+    "tests": null,
+    "issues": [],
+    "suggestions": ""
+  }
+}
+```

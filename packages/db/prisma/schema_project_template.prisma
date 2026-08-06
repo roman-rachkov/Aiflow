@@ -228,7 +228,7 @@ enum IndexStatus {
 
 // Chunk + embedding. The vector column is added by the generated SQL script,
 // not here: Prisma has no native vector type.
-//   ALTER TABLE "DocumentChunk" ADD COLUMN embedding vector(1536);
+//   ALTER TABLE "DocumentChunk" ADD COLUMN embedding vector(768);
 //   CREATE INDEX ON "DocumentChunk" USING hnsw (embedding vector_cosine_ops);
 model DocumentChunk {
   id         String   @id @default(uuid())

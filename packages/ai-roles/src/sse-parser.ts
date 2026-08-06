@@ -7,7 +7,7 @@
  * chunk boundaries are reassembled via a line buffer — only complete frames
  * separated by a blank line are emitted, matching the SSE spec.
  *
- * Package-internal: only `ZaiProvider` imports this.
+ * Package-internal: only the OpenAI-compatible live chat path imports this.
  */
 
 /** One parsed `data:` frame from the z.ai chat-completions SSE stream. */

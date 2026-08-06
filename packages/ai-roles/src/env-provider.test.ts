@@ -1,16 +1,16 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import type { ChatConfig, ChatMessage } from './types';
-import { ZaiProvider } from './zai-provider';
+import { createProviderFromEnv } from './env-provider';
+import type { ChatConfig, ChatMessage, OpenAICompatibleProvider } from './types';
 
 /**
- * Tests for ZaiProvider. Two paths are covered:
- *  - MOCK: `ZAI_API_KEY` unset. Canned Russian reply, null usage.
+ * Tests for {@link createProviderFromEnv}. Two paths are covered:
+ *  - MOCK: no API key (`OPENAI_API_KEY` / `ZAI_API_KEY` unset). Canned Russian reply, null usage.
  *  - LIVE: `globalThis.fetch` stubbed to return a ReadableStream of SSE frames.
  *
  * The live tests never hit the network: every fetch call is a `vi.fn` that
  * returns a hand-built Response. Env is controlled by deleting/restoring
- * `ZAI_API_KEY` around each test so the constructor reads what we expect.
+ * key vars around each test so the factory reads what we expect.
  */
 
 const BASE_CONFIG: ChatConfig = {
@@ -19,6 +19,29 @@ const BASE_CONFIG: ChatConfig = {
 };
 
 const USER_MSG: ChatMessage = { role: 'USER', content: 'Describe the app' };
+
+/** Snapshot of key env vars so afterEach can restore the caller's shell. */
+let savedOpenAiKey: string | undefined;
+let savedZaiKey: string | undefined;
+let snapshotted = false;
+
+function clearApiKeys(): void {
+  if (!snapshotted) {
+    savedOpenAiKey = process.env.OPENAI_API_KEY;
+    savedZaiKey = process.env.ZAI_API_KEY;
+    snapshotted = true;
+  }
+  delete process.env.OPENAI_API_KEY;
+  delete process.env.ZAI_API_KEY;
+}
+
+function restoreApiKeys(): void {
+  if (!snapshotted) return;
+  if (savedOpenAiKey === undefined) delete process.env.OPENAI_API_KEY;
+  else process.env.OPENAI_API_KEY = savedOpenAiKey;
+  if (savedZaiKey === undefined) delete process.env.ZAI_API_KEY;
+  else process.env.ZAI_API_KEY = savedZaiKey;
+}
 
 /** Build a ReadableStream of SSE bytes from an array of `data:` payloads. */
 function makeSseBody(dataLines: string[]): ReadableStream<Uint8Array> {
@@ -62,34 +85,37 @@ async function drain(stream: AsyncIterable<string>): Promise<string[]> {
   return out;
 }
 
-/** Construct a live provider: env key set so the constructor picks live mode. */
-function liveProvider(): ZaiProvider {
-  process.env.ZAI_API_KEY = 'test-key';
-  return new ZaiProvider();
+/** Construct a live provider: env key set so the factory picks live mode. */
+function liveProvider(): OpenAICompatibleProvider {
+  process.env.OPENAI_API_KEY = 'test-key';
+  return createProviderFromEnv();
 }
 
 afterEach(() => {
   vi.unstubAllGlobals();
-  delete process.env.ZAI_API_KEY;
+  restoreApiKeys();
 });
 
-describe('ZaiProvider mock path (no ZAI_API_KEY)', () => {
+describe('createProviderFromEnv mock path (no API key)', () => {
   it('yields multiple non-empty chunks', async () => {
-    const provider = new ZaiProvider();
+    clearApiKeys();
+    const provider = createProviderFromEnv();
     const chunks = await drain(provider.chat([USER_MSG], BASE_CONFIG));
     expect(chunks.length).toBeGreaterThan(1);
     for (const c of chunks) expect(c.length).toBeGreaterThan(0);
   });
 
   it('usage resolves to nulls once the stream drains', async () => {
-    const provider = new ZaiProvider();
+    clearApiKeys();
+    const provider = createProviderFromEnv();
     const { stream, usage } = await provider.chatWithUsage([USER_MSG], BASE_CONFIG);
     await drain(stream);
     await expect(usage).resolves.toEqual({ tokensIn: null, tokensOut: null });
   });
 
   it('accepts a systemPrompt in config and all three roles in messages', async () => {
-    const provider = new ZaiProvider();
+    clearApiKeys();
+    const provider = createProviderFromEnv();
     const messages: ChatMessage[] = [
       { role: 'SYSTEM', content: 'sys' },
       { role: 'USER', content: 'u' },
@@ -101,7 +127,7 @@ describe('ZaiProvider mock path (no ZAI_API_KEY)', () => {
   });
 });
 
-describe('ZaiProvider live path (mocked fetch)', () => {
+describe('createProviderFromEnv live path (mocked fetch)', () => {
   it('yields concatenated content in order and resolves usage', async () => {
     const body = makeSseBody([delta('Hello'), delta(' world'), usageFrame(12, 34), '[DONE]']);
     stubFetch(sseResponse(body));

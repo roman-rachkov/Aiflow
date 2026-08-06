@@ -86,7 +86,7 @@ vi.mock('@aiflow/db', () => ({
 vi.mock('@/shared/minio', () => ({ getObject, putObject: vi.fn() }));
 
 vi.mock('@aiflow/ai-roles', () => ({
-  createZaiProvider: vi.fn(() => ({ embed })),
+  createProviderFromEnv: vi.fn(() => ({ embed })),
 }));
 
 const { createUserFile } = await import('./service');
@@ -125,7 +125,7 @@ describe('RAG smoke: upload -> index -> retrieve', () => {
       document: { id: 'd1' },
     });
     embed.mockImplementation((texts: string[]) =>
-      Promise.resolve(texts.map(() => Array.from({ length: 1536 }, (_, i) => i / 1536))),
+      Promise.resolve(texts.map(() => Array.from({ length: 768 }, (_, i) => i / 768))),
     );
     chunkCreate.mockResolvedValue({ id: 'c1' });
 
@@ -134,13 +134,13 @@ describe('RAG smoke: upload -> index -> retrieve', () => {
     expect(indexResult.chunkCount).toBeGreaterThan(0);
     expect(executeRaw).toHaveBeenCalled();
     // Tagged template: call[0] is the cooked strings array; the joined SQL
-    // must contain the `::vector` cast the indexer writes per chunk.
+    // must contain the `::public.vector` cast the indexer writes per chunk.
     const firstCall = executeRaw.mock.calls[0];
-    expect((firstCall[0] as readonly string[]).join('')).toContain('::vector');
+    expect((firstCall[0] as readonly string[]).join('')).toContain('::public.vector');
 
     // 3. retrieveContext — seed $queryRawUnsafe with one chunk; embed re-stubbed
     // because the per-test `clearAllMocks` in earlier runs is not shared here.
-    embed.mockResolvedValue([Array.from({ length: 1536 }, (_, i) => i / 1536)]);
+    embed.mockResolvedValue([Array.from({ length: 768 }, (_, i) => i / 768)]);
     queryRawUnsafe.mockResolvedValue([{ id: 'c1', content: 'Some notes text', distance: 0.1 }]);
 
     const context = await retrieveContext('project_x', 'notes');

@@ -68,7 +68,7 @@ vi.mock('@aiflow/db', () => ({
 vi.mock('@/shared/minio', () => ({ getObject }));
 
 vi.mock('@aiflow/ai-roles', () => ({
-  createZaiProvider: vi.fn(() => ({ embed })),
+  createProviderFromEnv: vi.fn(() => ({ embed })),
 }));
 
 const { indexDocument } = await import('./index-service');
@@ -90,10 +90,10 @@ describe('indexDocument — happy path', () => {
     getObject.mockResolvedValue(Buffer.from('Some text. More text here.'));
     findUnique.mockResolvedValue(ROW);
     // `chunkText` is real, so derive the vector count from the chunks it produced:
-    // one 1536-dim vector per input text. This keeps the test independent of the
+    // one 768-dim vector per input text. This keeps the test independent of the
     // exact split count for such a short string.
     embed.mockImplementation((texts: string[]) =>
-      Promise.resolve(texts.map((_, i) => Array.from({ length: 1536 }, () => i))),
+      Promise.resolve(texts.map((_, i) => Array.from({ length: 768 }, () => i))),
     );
     chunkCreate.mockResolvedValue({ id: 'c0' });
 
@@ -102,9 +102,11 @@ describe('indexDocument — happy path', () => {
     expect(result.status).toBe('INDEXED');
     expect(result.chunkCount).toBeGreaterThan(0);
 
-    // `embed` saw the same number of chunks the service reports back.
-    const chunks = embed.mock.calls[0][0] as string[];
-    expect(result.chunkCount).toBe(chunks.length);
+    // `embed` saw the same number of chunks the service reports back,
+    // each prefixed with nomic's `search_document:` recommendation.
+    const embedInputs = embed.mock.calls[0][0] as string[];
+    expect(result.chunkCount).toBe(embedInputs.length);
+    expect(embedInputs.every((t) => t.startsWith('search_document: '))).toBe(true);
 
     const statuses = documentUpdate.mock.calls.map((c) => {
       const arg = c[0] as { data: { status: string } };
@@ -116,16 +118,16 @@ describe('indexDocument — happy path', () => {
     expect(chunkDeleteMany.mock.invocationCallOrder[0]).toBeLessThan(
       chunkCreate.mock.invocationCallOrder[0],
     );
-    expect(chunkCreate).toHaveBeenCalledTimes(chunks.length);
+    expect(chunkCreate).toHaveBeenCalledTimes(embedInputs.length);
 
-    expect(executeRaw).toHaveBeenCalledTimes(chunks.length);
+    expect(executeRaw).toHaveBeenCalledTimes(embedInputs.length);
     for (const call of executeRaw.mock.calls) {
       // Tagged template: call[0] is the cooked strings array, call[1..] the
       // interpolated values. The service renders
       //   `... SET embedding = ${literal}::vector WHERE id = ${id}`
       // so the joined template strings contain the `::vector` cast ...
       const sql = (call[0] as readonly string[]).join('');
-      expect(sql).toContain('::vector');
+      expect(sql).toContain('::public.vector');
       // ... and the first interpolation is the '[...]' vector literal itself.
       expect(call[1]).toMatch(/^\[[-0-9.eE,]+\]$/);
     }

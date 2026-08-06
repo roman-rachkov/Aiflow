@@ -18,7 +18,7 @@
  * (`toVectorLiteral` does `join(',')` over a `number[]`), never from user
  * text, so the raw SQL interpolation is injection-safe by construction.
  */
-import { createZaiProvider } from '@aiflow/ai-roles';
+import { createProviderFromEnv } from '@aiflow/ai-roles';
 import { getProjectClient } from '@aiflow/db';
 
 import { getObject } from '@/shared/minio';
@@ -107,7 +107,7 @@ async function writeChunks(
     });
     await tx.$executeRaw`UPDATE "DocumentChunk" SET embedding = ${toVectorLiteral(
       vectors[i],
-    )}::vector WHERE id = ${created.id}`;
+    )}::public.vector WHERE id = ${created.id}`;
   }
 }
 
@@ -135,7 +135,7 @@ async function runIndex(
   const chunks = chunkText(text);
   if (chunks.length === 0) throw new Error('no chunks produced');
 
-  const vectors = await createZaiProvider().embed(chunks);
+  const vectors = await createProviderFromEnv().embed(chunks.map((c) => `search_document: ${c}`));
 
   await client.$transaction(async (tx) => {
     await writeChunks(tx, documentId, chunks, vectors);
