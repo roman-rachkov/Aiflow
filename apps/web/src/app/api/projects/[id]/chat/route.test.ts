@@ -16,13 +16,18 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 const saveMessage = vi.fn();
 const listMessages = vi.fn();
 const readSystemPrompt = vi.fn();
+const withRagContext = vi.fn((base: string, context: string) =>
+  context ? `${base}\n\n${context}` : base,
+);
+const retrieveContext = vi.fn().mockResolvedValue('');
 const requireUser = vi.fn();
 const resolveProjectSchema = vi.fn();
 const chatWithUsage = vi.fn();
 
 vi.mock('@/features/auth', () => ({ requireUser }));
 vi.mock('@/features/chat/model/service', () => ({ listMessages, saveMessage }));
-vi.mock('@/features/chat/model/schema', () => ({ readSystemPrompt }));
+vi.mock('@/features/chat/model/schema', () => ({ readSystemPrompt, withRagContext }));
+vi.mock('@/features/files', () => ({ retrieveContext }));
 vi.mock('@/features/projects', () => ({ resolveProjectSchema }));
 vi.mock('@aiflow/ai-roles', () => ({
   createZaiProvider: () => ({ chatWithUsage }),

@@ -4,8 +4,9 @@ import { createZaiProvider } from '@aiflow/ai-roles';
 import type { ChatConfig, ChatMessage } from '@aiflow/ai-roles';
 
 import { requireUser } from '@/features/auth';
+import { retrieveContext } from '@/features/files';
 import { listMessages, saveMessage } from '@/features/chat/model/service';
-import { readSystemPrompt } from '@/features/chat/model/schema';
+import { readSystemPrompt, withRagContext } from '@/features/chat/model/schema';
 import { resolveProjectSchema } from '@/features/projects';
 
 /**
@@ -116,8 +117,20 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   // Persist the user's turn before streaming so a provider failure keeps it.
   await saveMessage(schemaName, { role: 'USER', content: message });
 
+  // Retrieve RAG context for the user's message. `retrieveContext` never
+  // throws, but the try/catch is belt-and-suspenders per the SPEC: an embed or
+  // pgvector failure degrades to task 1.3 chat-without-RAG (empty context),
+  // never breaks the chat turn.
+  let ragContext = '';
+  try {
+    ragContext = await retrieveContext(schemaName, message);
+  } catch {
+    ragContext = '';
+  }
+
   const history = toProviderMessages(await listMessages(schemaName));
-  const config = buildChatConfig(readSystemPrompt());
+  const systemPrompt = withRagContext(readSystemPrompt(), ragContext);
+  const config = buildChatConfig(systemPrompt);
   const body = streamAssistantReply(schemaName, history, config);
 
   return new Response(body, { headers: SSE_HEADERS });
