@@ -6,7 +6,20 @@
  * Pro gate reminder: pages → `requireProMode` (redirect); API/WS →
  * `assertProApiUser` (403 JSON) / WS close **4403**. Never redirect from API.
  */
-export type { EditorContext, GiteaRepoIdentity, ProApiUser } from './model/types';
+export type {
+  CommitFileInput,
+  CommitResult,
+  EditorCommitSummary,
+  EditorContext,
+  EditorDiff,
+  EditorDiffFile,
+  EditorFileContent,
+  EditorGitAuthor,
+  GiteaRepoIdentity,
+  PathMutationResult,
+  ProApiUser,
+  TreeNode,
+} from './model/types';
 export { assertProApiUser, isBinaryContent, resolveEditorContext } from './model/access';
 export {
   ensureGiteaProvisioned,
@@ -14,3 +27,22 @@ export {
   provisionGiteaRepo,
   resolveGiteaOwner,
 } from './model/provision';
+export {
+  BinaryFileError,
+  ConflictError,
+  NotFoundError,
+  isBinaryFileError,
+  isConflictError,
+  isNotFoundError,
+} from './model/errors';
+export { commitFiles, getDiff, getFileContent, listCommits, listTree } from './model/service';
+export { createPath, deletePath, renamePath } from './model/service';
+export type {
+  CommitFilesInput,
+  CreatePathInput,
+  DeletePathInput,
+  GetDiffOptions,
+  ListEditorCommitsOptions,
+  ListTreeOptions,
+  RenamePathInput,
+} from './model/service';

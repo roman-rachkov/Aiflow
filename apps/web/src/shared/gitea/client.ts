@@ -8,6 +8,7 @@ import type {
   AuthenticatedUser,
   CreateRepoInput,
   DeleteFileInput,
+  DeleteFileResult,
   FileContent,
   GetFileOptions,
   GetTreeOptions,
@@ -15,6 +16,7 @@ import type {
   RepoInfo,
   TreeEntry,
   WriteFileInput,
+  WriteFileResult,
 } from './types';
 
 export { getCommitDiff, listCommits } from './commits';
@@ -132,7 +134,7 @@ export async function createOrUpdateFile(
   repo: string,
   path: string,
   input: WriteFileInput,
-): Promise<FileContent> {
+): Promise<WriteFileResult> {
   const base = `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`;
   const body = {
     content: Buffer.from(input.content, 'utf8').toString('base64'),
@@ -142,7 +144,7 @@ export async function createOrUpdateFile(
     author: identity(input.author),
     committer: identity(input.committer),
   };
-  const raw = await requestJson<{ content: RawContent }>(
+  const raw = await requestJson<{ content: RawContent; commit: { sha: string } }>(
     `${base}/contents/${encodeRepoPath(path)}`,
     { method: 'POST', body: JSON.stringify(body) },
   );
@@ -153,6 +155,7 @@ export async function createOrUpdateFile(
     encoding: 'utf-8',
     sha: c.sha,
     size: c.size,
+    commitSha: raw.commit.sha,
   };
 }
 
@@ -162,7 +165,7 @@ export async function deleteFile(
   repo: string,
   path: string,
   input: DeleteFileInput,
-): Promise<void> {
+): Promise<DeleteFileResult> {
   const base = `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`;
   const body = {
     sha: input.sha,
@@ -171,10 +174,11 @@ export async function deleteFile(
     author: identity(input.author),
     committer: identity(input.committer),
   };
-  await requestVoid(`${base}/contents/${encodeRepoPath(path)}`, {
-    method: 'DELETE',
-    body: JSON.stringify(body),
-  });
+  const raw = await requestJson<{ commit: { sha: string } }>(
+    `${base}/contents/${encodeRepoPath(path)}`,
+    { method: 'DELETE', body: JSON.stringify(body) },
+  );
+  return { commitSha: raw.commit.sha };
 }
 
 function identity(id: GitIdentity): { name: string; email: string } {

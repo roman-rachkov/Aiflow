@@ -40,6 +40,16 @@ export type FileContent = {
   size: number;
 };
 
+/** Contents create/update response including the new commit SHA. */
+export type WriteFileResult = FileContent & {
+  commitSha: string;
+};
+
+/** Contents delete response — commit that removed the path. */
+export type DeleteFileResult = {
+  commitSha: string;
+};
+
 /** Create or update a file via Contents API. */
 export type WriteFileInput = {
   content: string;

@@ -35,6 +35,7 @@ export type {
   CommitSummary,
   CreateRepoInput,
   DeleteFileInput,
+  DeleteFileResult,
   FileContent,
   GetFileOptions,
   GetTreeOptions,
@@ -43,4 +44,5 @@ export type {
   RepoInfo,
   TreeEntry,
   WriteFileInput,
+  WriteFileResult,
 } from './types';
