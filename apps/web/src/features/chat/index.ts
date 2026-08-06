@@ -7,5 +7,5 @@
  */
 export type { ChatMessageView, SaveMessageInput } from './model/types';
 export { listMessages, saveMessage } from './model/service';
-export { readSystemPrompt, withRagContext } from './model/schema';
+export { readSystemPrompt, readSpecTemplate, withRagContext } from './model/schema';
 export { ChatPanel } from './ui/ChatPanel';

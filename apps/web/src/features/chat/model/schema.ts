@@ -48,6 +48,37 @@ export function readSystemPrompt(): string {
 }
 
 /**
+ * Read the SPEC.md template block from the Analyst agent definition.
+ *
+ * The template lives in `.claude/agents/analyst.md` under the
+ * `## SPEC.md format` heading, inside a `markdown` fenced code block. SPEC
+ * generation feeds this exact block to the model as the structure to follow,
+ * so section headings stay fixed (the Planner parses them) while prose inside
+ * is generated in the user's language. Same file and same module-relative
+ * path resolution as {@link readSystemPrompt}; re-read on every call so an
+ * edit to the agent definition takes effect without a redeploy.
+ */
+export function readSpecTemplate(): string {
+  const file = readSystemPrompt();
+  const headingIdx = file.indexOf('## SPEC.md format');
+  if (headingIdx === -1) {
+    throw new Error('SPEC.md format heading not found in analyst.md');
+  }
+  const after = file.slice(headingIdx);
+  const openFence = '```markdown\n';
+  const start = after.indexOf(openFence);
+  if (start === -1) {
+    throw new Error('SPEC.md template opening fence not found in analyst.md');
+  }
+  const bodyStart = start + openFence.length;
+  const end = after.indexOf('\n```', bodyStart);
+  if (end === -1) {
+    throw new Error('SPEC.md template closing fence not found in analyst.md');
+  }
+  return after.slice(bodyStart, end);
+}
+
+/**
  * Mix RAG context into the Analyst system prompt (SPEC assumption #8).
  *
  * The retrieval context is appended implicitly — the chat UI is unchanged and

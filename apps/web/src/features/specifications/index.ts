@@ -11,3 +11,5 @@ export {
   getSpecificationByVersion,
   listSpecifications,
 } from './model/service';
+export type { GenerationDeps } from './model/generate';
+export { generateSpecification } from './model/generate';
