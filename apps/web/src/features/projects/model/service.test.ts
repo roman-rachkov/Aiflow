@@ -28,6 +28,19 @@ vi.mock('@aiflow/db', () => ({
   generateProjectSchemaName,
 }));
 
+/** Minimal stubs so createProject typechecks/runs; full saga asserts → next task. */
+const createRepo = vi.fn();
+const deleteRepo = vi.fn();
+const getAuthenticatedUser = vi.fn();
+const createOrUpdateFile = vi.fn();
+
+vi.mock('@/shared/gitea', () => ({
+  createRepo,
+  deleteRepo,
+  getAuthenticatedUser,
+  createOrUpdateFile,
+}));
+
 const { listProjects, getProject, createProject, removeProject } = await import('./service');
 
 const ROW = {
@@ -41,8 +54,28 @@ const ROW = {
   updatedAt: new Date('2026-01-02'),
 };
 
+function stubGiteaHappyPath(): void {
+  process.env.GITEA_REPO_OWNER = 'aistudio';
+  createRepo.mockResolvedValue({
+    id: 1,
+    name: 'repo',
+    fullName: 'aistudio/repo',
+    private: true,
+    defaultBranch: 'main',
+    owner: 'aistudio',
+  });
+  createOrUpdateFile.mockResolvedValue({
+    path: 'README.md',
+    content: '',
+    encoding: 'utf-8',
+    sha: 'abc',
+    size: 0,
+  });
+}
+
 afterEach(() => {
   vi.clearAllMocks();
+  delete process.env.GITEA_REPO_OWNER;
 });
 
 describe('listProjects', () => {
@@ -95,6 +128,7 @@ describe('getProject', () => {
 
 describe('createProject', () => {
   it('provisions the schema, then inserts the row, in that order', async () => {
+    stubGiteaHappyPath();
     generateProjectSchemaName.mockReturnValue('project_new');
     createProjectSchema.mockResolvedValue(undefined);
     create.mockResolvedValue(ROW);
@@ -103,32 +137,40 @@ describe('createProject', () => {
 
     expect(createProjectSchema).toHaveBeenCalledWith('project_new');
     expect(create).toHaveBeenCalledWith({
-      data: {
+      data: expect.objectContaining({
         name: 'Demo',
         description: null,
         schemaName: 'project_new',
         ownerId: 'u1',
         status: 'ACTIVE',
-      },
+        giteaOwner: 'aistudio',
+        giteaRepo: expect.stringMatching(/^project-[a-f0-9]{32}$/),
+        giteaDefaultBranch: 'main',
+        id: expect.any(String),
+      }),
     });
     expect(dropProjectSchema).not.toHaveBeenCalled();
   });
 
   it('drops the schema to compensate when the insert fails', async () => {
+    stubGiteaHappyPath();
     generateProjectSchemaName.mockReturnValue('project_new');
     createProjectSchema.mockResolvedValue(undefined);
     create.mockRejectedValue(new Error('insert failed'));
     dropProjectSchema.mockResolvedValue(undefined);
+    deleteRepo.mockResolvedValue(undefined);
 
     await expect(createProject({ name: 'Demo', ownerId: 'u1' })).rejects.toThrow('insert failed');
     expect(dropProjectSchema).toHaveBeenCalledWith('project_new');
   });
 
   it('still rethrows the original error if the compensating drop also fails', async () => {
+    stubGiteaHappyPath();
     generateProjectSchemaName.mockReturnValue('project_new');
     createProjectSchema.mockResolvedValue(undefined);
     create.mockRejectedValue(new Error('insert failed'));
     dropProjectSchema.mockRejectedValue(new Error('drop failed'));
+    deleteRepo.mockRejectedValue(new Error('delete failed'));
 
     await expect(createProject({ name: 'Demo', ownerId: 'u1' })).rejects.toThrow('insert failed');
   });

@@ -25,8 +25,10 @@ apps/
 │     │                     └── public entry: src/index.ts
 │     │                         model/service.ts — create/list/get/remove over
 │     │                           ProjectMeta; create is a compensation saga
-│     │                           (createProjectSchema → projectMeta.create →
-│     │                           dropProjectSchema on failure)
+│     │                           (schema → Gitea repo+README → meta.create;
+│     │                           deleteRepo+dropProjectSchema on failure).
+│     │                           model/gitea-provision.ts — owner resolve +
+│     │                           createRepo/README helpers (@/shared/gitea)
 │     │                         model/access.ts — resolveProjectSchema(id, ownerId)
 │     │                           (Task 2.1): the per-route auth+schema gate shared
 │     │                           by chat/files/specifications routes; self-contained
