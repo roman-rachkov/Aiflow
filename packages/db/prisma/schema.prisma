@@ -16,6 +16,11 @@ generator client {
   // Explicit output: two schemas generating into the same default location
   // would collide. Resolves decision C2 in docs/14-decisions-needed.md.
   output   = "../generated/public"
+  // Host (Windows) + compose (node:22-bookworm / debian) share the bind-mounted
+  // generated/ tree. Without both targets, a Windows `prisma generate` leaves
+  // the Linux app unable to load the query engine (login → CallbackRouteError
+  // masked as "wrong password").
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
 }
 
 // Platform user.

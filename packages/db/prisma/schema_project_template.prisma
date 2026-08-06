@@ -19,6 +19,8 @@ datasource db {
 generator client {
   provider = "prisma-client-js"
   output   = "../generated/project"
+  // Same Windows-host / Linux-compose pair as schema.prisma — keep in sync.
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
 }
 
 // LLM provider and model configuration per AI role.

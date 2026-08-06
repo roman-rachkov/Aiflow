@@ -111,7 +111,9 @@ later means auditing every call site.
 
 **Separate `output` paths.** `packages/db/prisma/schema.prisma` generates into
 `../generated/public`, `schema_project_template.prisma` into `../generated/project`. Both are
-gitignored as build artifacts.
+gitignored as build artifacts. Both generators also set
+`binaryTargets = ["native", "debian-openssl-3.0.x"]` so a generate on Windows still ships the
+Linux engine that compose (`node:22-bookworm`) needs on the same bind-mounted tree.
 
 Prisma's multi-schema preview feature was the alternative and is rejected: it models a fixed
 set of named schemas, while this platform creates schemas at runtime, one per project. The
@@ -195,12 +197,12 @@ Decided during Task 1.2d, and recorded here because it overrides a written rule.
 | SPEC UI scope           | Version list + single-version view only; diff/compare deferred to a later mini-task                                                                                                                    | Task 2.1                                                           |
 | Indexing execution      | Synchronous in the route handler for MVP-0 (dozens of chunks, one embeddings batch); worker queue deferred to MVP-1                                                                                    | Task 2.1                                                           |
 | Cross-slice composition | `generateSpecification` takes a `GenerationDeps` bag (DI) — `boundaries/dependencies` `capture:slice` forbids feature→feature imports, so the route wires chat/files functions in                      | Task 2.1                                                           |
+| Dev Compose topology    | Stock `node:22-bookworm` + bind mount + named `node_modules` volumes; no `build:` / no app Dockerfiles in dev. Entrypoint `docker/dev-entrypoint.sh`. App Dockerfiles deferred to prod                 | this task                                                          |
 
 ## Consequences for existing documents
 
-A3 and A4 contradict what `docs/10-infrastructure.md` and `docs/11-sandbox.md` currently show. Those files were written before these decisions and are now partly stale. They are **not** yet updated — doing so is part of the scaffolding task, not a documentation edit to make in isolation:
+A3 and A4 contradict what `docs/10-infrastructure.md` and `docs/11-sandbox.md` currently show. Those files were written before these decisions and are now partly stale:
 
-- Compose `build.context` / `dockerfile` paths must point at `apps/web`, `apps/worker`, `services/model-router`, `services/registry-proxy`.
-- Both Dockerfiles: `npm ci` → `yarn install --frozen-lockfile`, and workspace manifests must be copied before install for hoisting to work.
-- Volume mounts `./src`, `./prisma` → `./apps/web/src`, `./packages/db/prisma`.
+- **Dev path (resolved):** `docker-compose.yml` uses published images only — no `build:` keys. Node services are `node:22-bookworm` with bind mounts; see the Dev Compose topology row above.
+- **Prod / future:** multi-stage Dockerfiles beside each app/service, `yarn install --frozen-lockfile`, root build context — still to be written when packaging for prod.
 - The sandbox image generates _user project_ code, which is a standalone Next.js app, not part of this monorepo. Its `npm` usage may legitimately stay — decide when writing the image.

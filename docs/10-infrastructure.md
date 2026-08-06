@@ -272,12 +272,34 @@ AIFlow/
 ### Running in development mode
 
 ```bash
-ENVIRONMENT=dev docker compose up --build
+# Copy .env.example → .env and set AUTH_SECRET / ENCRYPTION_KEY first.
+docker compose up
 ```
 
-- The Next.js app starts with hot reload (dev target in the Dockerfile).
-- The worker uses the mounted Docker socket to create sandboxes (docker-in-docker not required).
-- All ports are available locally: 3000 — app, 3001 — model-router, 3002 — Gitea, 5432 — PostgreSQL, 6379 — Redis, 9000 — MinIO API, 9001 — MinIO Console.
+**Dev path (current):** no `--build`, no app Dockerfiles. Node services use
+stock `node:22-bookworm`, the repo bind-mounted at `/workspace`, and named
+volumes for `node_modules` (required on Windows Docker Desktop). Shared
+entrypoint `docker/dev-entrypoint.sh` runs `yarn install` when the stamp is
+stale or `node_modules` looks empty, `prisma generate` (skipped when clients
+already exist), and `prisma migrate deploy` only for `ROLE=app`.
+`registry-proxy` stays on the `sandbox` network only (`NO_EGRESS`); it
+`depends_on` `app` healthy so install always happens on a networked service
+first.
+
+- The Next.js app binds `0.0.0.0:3000` and hot-reloads via polling env vars.
+- Worker / model-router / registry-proxy stay `tsx watch` stubs — no HTTP
+  healthchecks on them yet.
+- The worker mounts the Docker socket for future sandbox use (Task 3.1).
+- All ports are available locally: 3000 — app, 3001 — model-router, 3002 —
+  Gitea, 5432 — PostgreSQL, 6379 — Redis, 9000 — MinIO API, 9001 — MinIO Console.
+
+Host-side `yarn workspace @aiflow/web dev` remains possible, but then
+`DATABASE_URL` and related hostnames must use `localhost` — secondary path.
+
+> The YAML sample above still shows `build:` / multi-stage Dockerfiles — that
+> is the **prod/future** shape. Reconciling the sample with the live
+> `docker-compose.yml` (stock images, no `build:`) is tracked in the stale
+> table in [15-engineering-conventions.md](15-engineering-conventions.md) § 7.
 
 ### Port allocation
 
@@ -301,7 +323,11 @@ Both numbers are correct in their own context. Do not "fix" one to match the oth
 - In production the Docker socket mount must be removed in favor of a remote Docker daemon with authentication.
 - Default passwords and keys are for development only; production values come from a secure store.
 
-### Dockerfile for app (Next.js, multi-stage)
+### Dockerfile for app (Next.js, multi-stage) — **prod / future**
+
+> Not used by the current `docker-compose.yml`. Dev runs on stock
+> `node:22-bookworm` with bind mounts (see “Running in development mode”
+> above). Keep this section as the production packaging target.
 
 Node 22 (A5), Yarn 4 via Corepack (A3). The workspace manifests are copied
 _before_ the sources so the dependency layer is cached independently of code

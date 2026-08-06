@@ -19,6 +19,11 @@ Declared-but-empty stubs (do not assume they work yet): `apps/worker` (BullMQ),
 `createProviderFromEnv`). The code map
 at `docs/16-code-map.md` tracks which is which — read it first.
 
+**Dev stack:** `docker compose up` (no `--build`) starts the full topology —
+postgres, redis, minio, gitea, app, worker, model-router, registry-proxy — on stock
+images (`node:22-bookworm` for Node services). Bind-mount + named `node_modules`
+volumes; entrypoint `docker/dev-entrypoint.sh`. Copy `.env.example` → `.env` first.
+
 > Note: `docs/16-code-map.md` and `docs/17-session-review.md` exist on disk but are **not yet
 > listed in `docs/README.md`**. The README also still links two deleted drafts (`ide.md`,
 > `ide-analize.md`) — those dead links are by design, don't go looking.
@@ -47,13 +52,14 @@ Everything designed in `.claude/` works here — use it.
 
 Run with `yarn`. `yarn verify` reproduces CI: typecheck → lint → format:check → test.
 
-| Command                                                                                  | Purpose                                                                                                           |
-| ---------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| `yarn verify`                                                                            | The CI gate — run before marking anything done                                                                    |
-| `yarn typecheck` / `yarn lint` / `yarn test`                                             | Individual gates (`typecheck` fans out via Lerna; `lint`/`test` run at root)                                      |
-| `yarn format` / `yarn format:check`                                                      | Prettier write / check only                                                                                       |
-| `apps/web`: `yarn dev`, `yarn build`                                                     | Next.js dev server / production build                                                                             |
-| `packages/db`: `yarn generate`, `yarn migrate`, `yarn seed:dev-user`, `yarn project-sql` | Generate both Prisma clients; migrate the **`public` schema only**; seed a local dev user; render per-project SQL |
+| Command                                                                                                         | Purpose                                                                                                                                                                                               |
+| --------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `yarn verify`                                                                                                   | The CI gate — run before marking anything done                                                                                                                                                        |
+| `yarn typecheck` / `yarn lint` / `yarn test`                                                                    | Individual gates (`typecheck` fans out via Lerna; `lint`/`test` run at root)                                                                                                                          |
+| `yarn format` / `yarn format:check`                                                                             | Prettier write / check only                                                                                                                                                                           |
+| `apps/web`: `yarn dev`, `yarn build`                                                                            | Next.js (binds `0.0.0.0:3000` for compose); production build                                                                                                                                          |
+| `docker compose up`                                                                                             | Full dev stack — no `--build`. Copy `.env.example` → `.env` first                                                                                                                                     |
+| `packages/db`: `yarn generate`, `yarn migrate`, `yarn migrate:deploy`, `yarn seed:dev-user`, `yarn project-sql` | Generate both Prisma clients; `migrate` = interactive `migrate dev`; `migrate:deploy` = non-interactive (compose entrypoint); **`public` schema only**; seed a local dev user; render per-project SQL |
 
 `--max-warnings 0` makes the `warn` rules **blocking**: file ≤ 200 lines, function ≤ 50,
 complexity ≤ 10, max-depth 4, max-params 4. Test files get a 400-line allowance; config /
@@ -104,6 +110,11 @@ semantic tokens (`text-fg-muted`, `border-border`, `bg-surface`) rather than raw
   `@aiflow/*` paths it needs.
 - `packages/db` `typecheck` runs `yarn generate` first (two Prisma generators → two output dirs,
   `generated/public` and `generated/project`).
+- **Prisma `binaryTargets` must include both `native` and `debian-openssl-3.0.x`.** The
+  generated clients live on the Windows bind mount and are consumed by Linux compose services
+  (`node:22-bookworm`). A Windows-only generate leaves the app unable to load the query engine;
+  Credentials login then fails with Auth.js `CallbackRouteError`, shown as «Неверная почта или
+  пароль».
 - `getProjectClient(schemaName)` caches clients in a `Map`. You **must** call
   `evictProjectClient(schemaName)` when archiving/deleting a project, or connections leak for the
   process lifetime.

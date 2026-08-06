@@ -92,6 +92,7 @@ apps/
 │     /api/projects/[id]/files/[fid]/index (POST — synchronous RAG indexing, 2.1)
 │     /api/projects/[id]/specifications (GET list, POST generate — Task 2.1)
 │     /api/projects/[id]/specifications/[version] (GET one version — Task 2.1)
+│     /api/health (GET — compose liveness; no auth)
 └── worker/               BullMQ workers, one dir per queue (spec, plan, code, deploy)
     └── public entry: src/index.ts
         deps: @aiflow/{db,queue,ai-roles} (declared; worker itself is a stub)
@@ -163,6 +164,23 @@ tools/                    Dev-only workspaces. Ship nowhere; still gated by
                               src/taxonomy.ts owns the ourProblem split.
                               Complements Anthropic's session-report (cost),
                               deliberately not a fork of it — conventions § 8.3
+
+docker/                   Compose helpers (not a Yarn workspace).
+├── postgres/init/        CREATE EXTENSION vector, pgcrypto (first-boot only)
+└── dev-entrypoint.sh     Shared Node-service entrypoint: flock → yarn install
+                          when stamp/lock/node_modules need it → prisma generate
+                          (skip if clients present) → migrate deploy when
+                          ROLE=app → exec. registry-proxy is NO_EGRESS and
+                          depends_on app healthy so install never runs without
+                          network.
+
+compose topology          `docker compose up` (no `--build`): postgres, redis,
+                          minio, gitea + four Node services on node:22-bookworm.
+                          Bind mount `.` → `/workspace`; named volumes for each
+                          workspace `node_modules` + Yarn/Corepack cache. Stubs
+                          keep `tsx watch`; only `app` has a healthcheck
+                          (`GET /api/health`). `registry-proxy` is sandbox-only
+                          (`NO_EGRESS`, `depends_on` app healthy).
 ```
 
 ## Cross-cutting

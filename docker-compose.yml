@@ -1,20 +1,56 @@
-# AI Studio — infrastructure stack
+# AI Studio — full dev stack
 #
-# Scope: the four backing services MVP-0 needs. Application containers (app,
-# worker, model-router, registry-proxy) are deliberately absent — they arrive
-# with their Dockerfiles in later roadmap tasks. Running the stack now lets
-# `yarn dev` on the host talk to real Postgres, Redis, MinIO and Gitea.
+# Topology: postgres, redis, minio, gitea, app, worker, model-router,
+# registry-proxy. No `build:` keys — Node services use stock node:22-bookworm
+# with the repo bind-mounted and named volumes for node_modules (Windows-safe).
+# App Dockerfiles are deferred to prod.
 #
-# Start:  docker compose up -d
-# Ports:  see docs/14-decisions-needed.md — 3002 Gitea, 5432 pg, 6379 redis,
-#         9000/9001 MinIO. 3000 and 3001 stay free for the host-run app and
-#         model-router.
+# Prerequisites: copy .env.example → .env and set AUTH_SECRET / ENCRYPTION_KEY.
+# Start:  docker compose up
+# Ports:  3000 app, 3001 model-router, 3002 Gitea, 5432 pg, 6379 redis,
+#         9000/9001 MinIO.
 
 x-healthcheck-defaults: &healthcheck-defaults
   interval: 10s
   timeout: 5s
   retries: 5
   start_period: 30s
+
+# Shared settings for every Node workspace service.
+x-node-service: &node-service
+  image: node:22-bookworm
+  working_dir: /workspace
+  env_file: .env
+  environment: &node-env
+    HUSKY: '0'
+    CI: 'true'
+    WATCHPACK_POLLING: 'true'
+    CHOKIDAR_USEPOLLING: 'true'
+  extra_hosts:
+    - 'host.docker.internal:host-gateway'
+  # bash (not exec bit): bind mounts from Windows often lack +x.
+  entrypoint: ['bash', '/workspace/docker/dev-entrypoint.sh']
+  volumes: &node-volumes
+    - .:/workspace
+    # Named volumes keep node_modules on the Linux VM FS (critical on Windows).
+    - node_modules:/workspace/node_modules
+    - web_node_modules:/workspace/apps/web/node_modules
+    - worker_node_modules:/workspace/apps/worker/node_modules
+    - model_router_node_modules:/workspace/services/model-router/node_modules
+    - registry_proxy_node_modules:/workspace/services/registry-proxy/node_modules
+    - db_node_modules:/workspace/packages/db/node_modules
+    - ui_node_modules:/workspace/packages/ui/node_modules
+    - ai_roles_node_modules:/workspace/packages/ai-roles/node_modules
+    - queue_node_modules:/workspace/packages/queue/node_modules
+    - crypto_node_modules:/workspace/packages/crypto/node_modules
+    - session_analyzer_node_modules:/workspace/tools/session-analyzer/node_modules
+    - yarn_cache:/root/.yarn/berry/cache
+    - yarn_install_stamp:/var/cache/aiflow-yarn
+    # Shared so sandbox-only services can run `yarn` without downloading Corepack.
+    - corepack_home:/root/.cache/node/corepack
+  networks:
+    - internal
+  restart: unless-stopped
 
 services:
   postgres:
@@ -98,14 +134,113 @@ services:
       - internal
     restart: unless-stopped
 
+  app:
+    <<: *node-service
+    environment:
+      <<: *node-env
+      ROLE: app
+      PORT: 3000
+      # Override host-side .env (localhost) so migrate/app reach compose DNS.
+      DATABASE_URL: postgresql://${POSTGRES_USER:-ai_studio}:${POSTGRES_PASSWORD:-ai_studio}@postgres:5432/ai_studio?schema=public
+    command: ['yarn', 'workspace', '@aiflow/web', 'dev']
+    ports:
+      - '3000:3000'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      gitea:
+        condition: service_healthy
+    healthcheck:
+      # node:22-bookworm has no curl; Node 22 has global fetch.
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3000/api/health').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      <<: *healthcheck-defaults
+      start_period: 120s
+
+  worker:
+    <<: *node-service
+    environment:
+      <<: *node-env
+      ROLE: worker
+      QUEUES: 'spec:generate,plan:generate,code:execute,deploy:run'
+      DATABASE_URL: postgresql://${POSTGRES_USER:-ai_studio}:${POSTGRES_PASSWORD:-ai_studio}@postgres:5432/ai_studio?schema=public
+    command: ['yarn', 'workspace', '@aiflow/worker', 'dev']
+    volumes:
+      - .:/workspace
+      - node_modules:/workspace/node_modules
+      - web_node_modules:/workspace/apps/web/node_modules
+      - worker_node_modules:/workspace/apps/worker/node_modules
+      - model_router_node_modules:/workspace/services/model-router/node_modules
+      - registry_proxy_node_modules:/workspace/services/registry-proxy/node_modules
+      - db_node_modules:/workspace/packages/db/node_modules
+      - ui_node_modules:/workspace/packages/ui/node_modules
+      - ai_roles_node_modules:/workspace/packages/ai-roles/node_modules
+      - queue_node_modules:/workspace/packages/queue/node_modules
+      - crypto_node_modules:/workspace/packages/crypto/node_modules
+      - session_analyzer_node_modules:/workspace/tools/session-analyzer/node_modules
+      - yarn_cache:/root/.yarn/berry/cache
+      - yarn_install_stamp:/var/cache/aiflow-yarn
+      - corepack_home:/root/.cache/node/corepack
+      # Future sandbox orchestration (Task 3.1); stub ignores it today.
+      - /var/run/docker.sock:/var/run/docker.sock
+      - worker_temp:/tmp/sandbox
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - internal
+      - sandbox
+    # No healthcheck: worker is still a tsx-watch stub.
+
+  model-router:
+    <<: *node-service
+    environment:
+      <<: *node-env
+      ROLE: model-router
+      PORT: 3001
+    command: ['yarn', 'workspace', '@aiflow/model-router', 'dev']
+    ports:
+      - '3001:3001'
+    depends_on:
+      redis:
+        condition: service_healthy
+    # No healthcheck: stub has no HTTP /health yet.
+
+  registry-proxy:
+    <<: *node-service
+    environment:
+      <<: *node-env
+      ROLE: registry-proxy
+      # Entrypoint refuses yarn install when set (sandbox has no registry egress).
+      NO_EGRESS: '1'
+      ALLOWED_HOSTS: 'registry.npmjs.org,registry.yarnpkg.com,pypi.org,github.com'
+    command: ['yarn', 'workspace', '@aiflow/registry-proxy', 'dev']
+    # Sandbox is internal:true — no egress for yarn install. Wait until `app`
+    # has populated the shared stamp + node_modules volumes; entrypoint then
+    # skips install/generate when ready (or fails fast if not).
+    depends_on:
+      app:
+        condition: service_healthy
+    networks:
+      - sandbox
+    # Sandbox-only: no internal network, no published ports, no healthcheck.
+
 networks:
   internal:
     driver: bridge
 
-  # Declared now, unused until Task 3.1 brings the sandbox image. The name is
-  # fixed here because the documents disagreed (`sandbox-net` vs `sandbox`),
-  # and `internal: true` is the isolation invariant: a sandbox reaches nothing
-  # but registry-proxy.
+  # Isolation invariant: a sandbox reaches nothing but registry-proxy.
   sandbox:
     driver: bridge
     internal: true
@@ -115,3 +250,18 @@ volumes:
   redis_data:
   minio_data:
   gitea_data:
+  worker_temp:
+  node_modules:
+  web_node_modules:
+  worker_node_modules:
+  model_router_node_modules:
+  registry_proxy_node_modules:
+  db_node_modules:
+  ui_node_modules:
+  ai_roles_node_modules:
+  queue_node_modules:
+  crypto_node_modules:
+  session_analyzer_node_modules:
+  yarn_cache:
+  yarn_install_stamp:
+  corepack_home:

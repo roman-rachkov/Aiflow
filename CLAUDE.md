@@ -42,7 +42,7 @@ These override what the older docs show. `docs/10-infrastructure.md` and `docs/1
 
 - **Yarn + Lerna**, not npm.
 - **Monorepo via Yarn workspaces**: `apps/web` (Next.js), `apps/worker` (BullMQ), `services/model-router`, `services/registry-proxy`, `packages/db` (Prisma + shared types), plus `packages/queue`, `packages/ai-roles`, `packages/ui`, and `tools/*` for dev-only tooling that ships nowhere.
-- **Docker Compose uses prebuilt images only.** `docker-compose.yml` has no `build:` keys — Postgres/Redis/MinIO/Gitea come from published images, and app/worker/sandbox images are deferred to the tasks that build them. The old "flat `src/` + `prisma/` layout in the compose file" and "`npm ci` calls in the Dockerfiles" notes are moot: there are no Dockerfiles and no app build context yet.
+- **Docker Compose (dev) = stock images, no `build:`.** Infra (Postgres/Redis/MinIO/Gitea) and Node services (`app`, `worker`, `model-router`, `registry-proxy`) all use published images — Node apps run on `node:22-bookworm` with the repo bind-mounted and named volumes for `node_modules` (Windows-safe). Shared entrypoint: `docker/dev-entrypoint.sh` (flock → yarn install when stamp/lock/node_modules need it → prisma generate → `migrate deploy` for `ROLE=app`; registry-proxy is sandbox-only/`NO_EGRESS` and `depends_on` app healthy). App/worker Dockerfiles are deferred to prod. Start with `docker compose up` (no `--build`). Prisma generators must list `binaryTargets = ["native", "debian-openssl-3.0.x"]` — the generated clients sit on the Windows bind mount and are loaded inside Linux containers; Windows-only engines make Credentials login fail with a masked Auth.js error.
 - **Repo is private.** No LICENSE file; the license question is deferred until it opens.
 - **Tailwind v4**, not v3. Tokens are declared in CSS (`@theme`) and there is no `tailwind.config.js`; the PostCSS plugin is `@tailwindcss/postcss`. Two traps: `outline-none` means `outline-style: none` in v4 (use `outline-hidden`), and automatic source detection is disabled via `source(none)` because on Windows it walks out of the repo — so **a new source directory needs an explicit `@source`** in `apps/web/src/app/globals.css` or its classes are silently missing from the CSS.
 
@@ -97,13 +97,20 @@ The quality gate is real: `--max-warnings 0` blocks lint failures, and Prettier 
 
 Or as slash commands: **`/verify`** runs the gate and reports the first failure, **`/task-start <id> <slug>`** opens a correctly-named branch with the roadmap checklist, **`/state-sync`** checks whether the state files below have fallen behind, **`/note <идея>`** captures an idea into `notes/` without interrupting the current task, **`/session-review [window]`** analyses the tool flow of recent sessions and writes a retrospective to `reports/`, **`/tool-scout <need>`** finds tooling for a need and returns a licence verdict per `docs/15` § 8.
 
-Still _prescribed by the docs_ rather than runnable, cited so you can verify them:
+**Real now** (Docker Compose):
 
-| Command                                     | Purpose                              | Source                          |
-| ------------------------------------------- | ------------------------------------ | ------------------------------- |
-| `ENVIRONMENT=dev docker compose up --build` | Start the full stack                 | `docs/10-infrastructure.md:265` |
-| `docker compose up --scale worker=3`        | Scale BullMQ workers                 | `docs/10-infrastructure.md:283` |
-| `npx prisma migrate dev`                    | Migrate the `public` schema **only** | `docs/03-data-model.md:223`     |
+| Command                              | Purpose                                                           |
+| ------------------------------------ | ----------------------------------------------------------------- |
+| `docker compose up`                  | Full dev stack (no `--build`). Copy `.env.example` → `.env` first |
+| `docker compose up --scale worker=3` | Scale BullMQ workers (when the worker is real; stub today)        |
+
+Still _prescribed by the docs_ rather than the primary path:
+
+| Command                  | Purpose                              | Source                      |
+| ------------------------ | ------------------------------------ | --------------------------- |
+| `npx prisma migrate dev` | Migrate the `public` schema **only** | `docs/03-data-model.md:223` |
+
+> Host-side `yarn workspace @aiflow/web dev` still works, but then `DATABASE_URL` and friends must use `localhost` instead of compose hostnames — secondary path; primary is compose.
 
 Project schemas (`project_{uuid}`) are **not** migrated by `prisma migrate` — they are created from a generated SQL script derived from `schema_project_template.prisma` (`docs/03-data-model.md` § 8).
 
