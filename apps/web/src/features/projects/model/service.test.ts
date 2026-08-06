@@ -28,8 +28,15 @@ vi.mock('@aiflow/db', () => ({
   generateProjectSchemaName,
 }));
 
-/** Minimal stubs so createProject typechecks/runs; full saga asserts → next task. */
-const createRepo = vi.fn();
+type CreateRepoInput = {
+  name: string;
+  private?: boolean;
+  defaultBranch?: string;
+  description?: string;
+};
+
+/** Gitea stubs for createProject saga (schema → repo → meta). */
+const createRepo = vi.fn<(input: CreateRepoInput) => Promise<unknown>>();
 const deleteRepo = vi.fn();
 const getAuthenticatedUser = vi.fn();
 const createOrUpdateFile = vi.fn();
@@ -54,6 +61,8 @@ const ROW = {
   updatedAt: new Date('2026-01-02'),
 };
 
+const REPO_NAME_RE = /^project-[a-f0-9]{32}$/;
+
 function stubGiteaHappyPath(): void {
   process.env.GITEA_REPO_OWNER = 'aistudio';
   createRepo.mockResolvedValue({
@@ -73,12 +82,41 @@ function stubGiteaHappyPath(): void {
   });
 }
 
+function arrangeSchemaReady(): void {
+  generateProjectSchemaName.mockReturnValue('project_new');
+  createProjectSchema.mockResolvedValue(undefined);
+}
+
+/** Assert call A happened before call B (Vitest mock invocation order). */
+function expectCalledBefore(
+  earlier: { mock: { invocationCallOrder: number[] } },
+  later: { mock: { invocationCallOrder: number[] } },
+): void {
+  expect(earlier.mock.invocationCallOrder[0]).toBeLessThan(later.mock.invocationCallOrder[0]);
+}
+
+function expectMetaCreateWithGitea(): void {
+  expect(create).toHaveBeenCalledWith({
+    data: expect.objectContaining({
+      name: 'Demo',
+      description: null,
+      schemaName: 'project_new',
+      ownerId: 'u1',
+      status: 'ACTIVE',
+      giteaOwner: 'aistudio',
+      giteaRepo: expect.stringMatching(REPO_NAME_RE),
+      giteaDefaultBranch: 'main',
+      id: expect.any(String),
+    }),
+  });
+}
+
 afterEach(() => {
   vi.clearAllMocks();
   delete process.env.GITEA_REPO_OWNER;
 });
 
-describe('listProjects', () => {
+describe('listProjects filters', () => {
   it('filters by owner and deletedAt: null, newest first', async () => {
     findMany.mockResolvedValue([ROW]);
 
@@ -89,7 +127,9 @@ describe('listProjects', () => {
       orderBy: { createdAt: 'desc' },
     });
   });
+});
 
+describe('listProjects mapping', () => {
   it('maps rows to the view (no schemaName / ownerId / deletedAt)', async () => {
     findMany.mockResolvedValue([ROW]);
 
@@ -126,48 +166,59 @@ describe('getProject', () => {
   });
 });
 
-describe('createProject', () => {
-  it('provisions the schema, then inserts the row, in that order', async () => {
+describe('createProject happy path', () => {
+  it('runs schema → createRepo → meta.create with gitea fields', async () => {
     stubGiteaHappyPath();
-    generateProjectSchemaName.mockReturnValue('project_new');
-    createProjectSchema.mockResolvedValue(undefined);
+    arrangeSchemaReady();
     create.mockResolvedValue(ROW);
 
     await createProject({ name: 'Demo', ownerId: 'u1' });
 
     expect(createProjectSchema).toHaveBeenCalledWith('project_new');
-    expect(create).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        name: 'Demo',
-        description: null,
-        schemaName: 'project_new',
-        ownerId: 'u1',
-        status: 'ACTIVE',
-        giteaOwner: 'aistudio',
-        giteaRepo: expect.stringMatching(/^project-[a-f0-9]{32}$/),
-        giteaDefaultBranch: 'main',
-        id: expect.any(String),
-      }),
+    expect(createRepo).toHaveBeenCalledWith({
+      name: expect.stringMatching(REPO_NAME_RE),
+      private: true,
+      defaultBranch: 'main',
+      description: 'Demo',
     });
+    expectMetaCreateWithGitea();
+    expectCalledBefore(createProjectSchema, createRepo);
+    expectCalledBefore(createRepo, create);
     expect(dropProjectSchema).not.toHaveBeenCalled();
+    expect(deleteRepo).not.toHaveBeenCalled();
   });
+});
 
-  it('drops the schema to compensate when the insert fails', async () => {
+describe('createProject compensation', () => {
+  it('on meta.create failure deletes repo, drops schema, rethrows', async () => {
     stubGiteaHappyPath();
-    generateProjectSchemaName.mockReturnValue('project_new');
-    createProjectSchema.mockResolvedValue(undefined);
+    arrangeSchemaReady();
     create.mockRejectedValue(new Error('insert failed'));
     dropProjectSchema.mockResolvedValue(undefined);
     deleteRepo.mockResolvedValue(undefined);
 
     await expect(createProject({ name: 'Demo', ownerId: 'u1' })).rejects.toThrow('insert failed');
+
+    expect(deleteRepo).toHaveBeenCalledWith('aistudio', expect.stringMatching(REPO_NAME_RE));
     expect(dropProjectSchema).toHaveBeenCalledWith('project_new');
   });
 
-  it('still rethrows the original error if the compensating drop also fails', async () => {
+  it('on createRepo failure drops schema and does not insert meta', async () => {
+    process.env.GITEA_REPO_OWNER = 'aistudio';
+    arrangeSchemaReady();
+    createRepo.mockRejectedValue(new Error('gitea down'));
+    dropProjectSchema.mockResolvedValue(undefined);
+
+    await expect(createProject({ name: 'Demo', ownerId: 'u1' })).rejects.toThrow('gitea down');
+
+    expect(create).not.toHaveBeenCalled();
+    expect(deleteRepo).not.toHaveBeenCalled();
+    expect(dropProjectSchema).toHaveBeenCalledWith('project_new');
+  });
+
+  it('still rethrows the original error if compensating cleanup fails', async () => {
     stubGiteaHappyPath();
-    generateProjectSchemaName.mockReturnValue('project_new');
-    createProjectSchema.mockResolvedValue(undefined);
+    arrangeSchemaReady();
     create.mockRejectedValue(new Error('insert failed'));
     dropProjectSchema.mockRejectedValue(new Error('drop failed'));
     deleteRepo.mockRejectedValue(new Error('delete failed'));
@@ -177,7 +228,7 @@ describe('createProject', () => {
 });
 
 describe('removeProject', () => {
-  it('soft-deletes (sets deletedAt) and evicts the project client', async () => {
+  it('soft-deletes and evicts without deleting the Gitea repo', async () => {
     findUnique.mockResolvedValue({ id: 'p1', ownerId: 'u1', schemaName: 'project_abc' });
     update.mockResolvedValue(undefined);
     evictProjectClient.mockResolvedValue(undefined);
@@ -189,6 +240,7 @@ describe('removeProject', () => {
       data: { deletedAt: expect.any(Date) },
     });
     expect(evictProjectClient).toHaveBeenCalledWith('project_abc');
+    expect(deleteRepo).not.toHaveBeenCalled();
   });
 
   it('returns false and does nothing for a foreign project', async () => {
@@ -197,6 +249,7 @@ describe('removeProject', () => {
     await expect(removeProject('p1', 'u1')).resolves.toBe(false);
     expect(update).not.toHaveBeenCalled();
     expect(evictProjectClient).not.toHaveBeenCalled();
+    expect(deleteRepo).not.toHaveBeenCalled();
   });
 
   it('returns false for a missing project', async () => {
