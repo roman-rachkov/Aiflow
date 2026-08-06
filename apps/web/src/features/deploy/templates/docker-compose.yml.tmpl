@@ -1,0 +1,10 @@
+# AI Studio generated compose — single app service.
+services:
+  app:
+    image: {{IMAGE_NAME}}
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+    restart: unless-stopped

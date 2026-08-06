@@ -7,13 +7,10 @@ import { ProProjectNav } from './ProProjectNav';
  * header is not authentication, and putting it there pushed the auth slice past
  * the 400-line budget in docs/15-engineering-conventions.md § 5.5.
  *
- * Pro project link («Настройки модели») appears when the path is under a
- * project and `isPro` is true.
+ * Project links («Развёртывания», Pro «Настройки модели») appear when the path
+ * is under a project.
  */
-const NAV_ITEMS = [
-  { href: '/projects', label: 'Проекты' },
-  { href: '/deployments', label: 'Развёртывания' },
-] as const;
+const NAV_ITEMS = [{ href: '/projects', label: 'Проекты' }] as const;
 
 export function SideMenu({ isPro = false }: { isPro?: boolean }) {
   return (

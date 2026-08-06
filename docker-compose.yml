@@ -196,7 +196,9 @@ services:
       - yarn_cache:/root/.yarn/berry/cache
       - yarn_install_stamp:/var/cache/aiflow-yarn
       - corepack_home:/root/.cache/node/corepack
-      # Future sandbox orchestration (Task 3.1); stub ignores it today.
+      # DEV-ONLY (open question #4): host docker.sock gives full Docker control.
+      # Production must use remote Docker (TLS), a dedicated Docker host, or K8s
+      # Jobs — do not mount the host socket. Vault/Swarm secrets are out of scope.
       - /var/run/docker.sock:/var/run/docker.sock
       - worker_temp:/tmp/sandbox
     depends_on:

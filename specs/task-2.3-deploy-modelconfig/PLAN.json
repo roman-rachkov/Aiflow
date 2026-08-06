@@ -68,7 +68,7 @@
   {
     "title": "Implement @aiflow/queue package",
     "description": "Replace empty `packages/queue` stub with real BullMQ helpers. Export: queue name constants for all four (`spec:generate`, `plan:generate`, `code:execute`, `deploy:run`) for compose `QUEUES=` compatibility; Redis connection factory from `REDIS_URL` (or existing env); `getDeployQueue()`; typed `DeployRunPayload` `{ projectId, deploymentId, schemaName, giteaOwner, giteaRepo, giteaDefaultBranch }`; default job options (limited attempts for infra; build failures fail-fast — document attempts: 1 for deploy build errors). App is producer-only; no workers here. Keep package ≤200 lines per file; leaf aside from bullmq/ioredis (already in package.json).",
-    "status": "PENDING",
+    "status": "DONE",
     "priority": "critical",
     "dependencies": [],
     "acceptance": "`@aiflow/queue` exports four queue names, connection factory, getDeployQueue, DeployRunPayload type; typecheck passes; no dockerode dependency.",
@@ -77,7 +77,7 @@
   {
     "title": "Deploy templates and export API",
     "description": "Create `features/deploy` (or templates under it): `Dockerfile.tmpl` + `docker-compose.yml.tmpl` — minimal Node 22 / Next-compatible single `app` service, image name `aistudio-project-{shortId}`, port 3000. Service: `renderDeployTemplates(project)` and `exportDeployTemplates(ctx, { commitToGitea })` using `@/shared/gitea` Contents API to write `Dockerfile` and `docker-compose.yml` on default branch with message `chore: add deploy templates (AI Studio)`. Route: `POST /api/projects/[id]/deploy/export` — Pro+owner; body `{ commitToGitea?: boolean }` default true; 200 `{ dockerfile, compose, committed, commitSha? }`; 404 if no gitea fields (hint open editor for provision); 502 Gitea. Next.js must not call dockerode. Files ≤200 / fn ≤50.",
-    "status": "PENDING",
+    "status": "DONE",
     "priority": "critical",
     "dependencies": [],
     "acceptance": "Export returns rendered texts; commitToGitea true writes both files to Gitea; false returns texts only; Pro/owner gates enforced; `yarn verify` green.",
@@ -86,7 +86,7 @@
   {
     "title": "Deployments create list and detail APIs",
     "description": "In `features/deploy` + thin routes: (1) `POST /api/projects/[id]/deployments` — Pro+owner; optional `{ exportFirst?: true }` default true → always re-export/overwrite templates then: if any Deployment/DeploymentMeta status BUILDING for project → 409; create `Deployment` (project schema) and `DeploymentMeta` (public) with **same uuid**, status BUILDING, url null, initial log; `getDeployQueue().add('deploy:run', payload)` — **no dockerode in apps/web**; return 202 `{ deploymentId, status: 'BUILDING' }`; errors 403/404/409/502/503. (2) `GET .../deployments` — owner BASIC+PRO; array without full log, `createdAt desc`. (3) `GET .../deployments/[deploymentId]` — owner; full object including log; 404. Soft-delete filters. Depend on queue + export helpers.",
-    "status": "PENDING",
+    "status": "DONE",
     "priority": "critical",
     "dependencies": ["Implement @aiflow/queue package", "Deploy templates and export API"],
     "acceptance": "POST enqueues deploy:run and creates paired Deployment/Meta ids; second BUILDING → 409; GET list/detail match SPEC; apps/web has zero dockerode imports; `yarn verify` green.",
@@ -95,7 +95,7 @@
   {
     "title": "Worker deploy:run dockerode consumer",
     "description": "Implement `apps/worker` BullMQ consumer for queue `deploy:run` only (other queues may remain no-op stubs). Add `dockerode` dependency to **apps/worker only** (MIT — note in JSDoc / §8). Handler steps: validate payload; clone repo via git + token URL `http://oauth2:TOKEN@gitea:3000/...` into `/tmp/deploy-{deploymentId}` (or worker_temp); `dockerode.buildImage` with tag `aistudio/{giteaRepo}:{shortSha|timestamp}`; stream build output appending to `Deployment.log` periodically; on success set status DEPLOYED, `imageTag`, stub `url` like `local://image/{imageTag}` (build-only MVP — container start optional); on failure FAILED + message in log; sync `DeploymentMeta`; delete temp dir. Job attempts: fail-fast on build errors. **docker.sock is DEV-ONLY** (OQ #4): update compose comment on `/var/run/docker.sock` mount to say dev-only; document in worker JSDoc that prod needs remote Docker/TLS/K8s Jobs — do not implement Vault/Swarm; on `ENVIRONMENT=prod` without remote `DOCKER_HOST` log a warning (no hard-fail required). Next.js must never import dockerode.",
-    "status": "PENDING",
+    "status": "DONE",
     "priority": "critical",
     "dependencies": ["Implement @aiflow/queue package", "Deployments create list and detail APIs"],
     "acceptance": "Worker processes deploy:run with dockerode; success→DEPLOYED+stub url, failure→FAILED; log streams; temp cleaned; compose sock mount commented as dev-only; no dockerode in apps/web; `yarn workspace @aiflow/worker typecheck` succeeds.",
@@ -104,7 +104,7 @@
   {
     "title": "Test ModelConfig and deploy enqueue",
     "description": "Vitest: (1) `features/model-config` service — mock crypto + prisma; upsert encrypts blob, clearApiKey, get returns hasApiKey without plaintext, env fallback on missing; (2) model-config route gates 403/404; (3) deploy POST — mock queue + gitea export + db; asserts queue.add called with DeployRunPayload, identical Deployment/Meta ids, 409 when BUILDING exists, no dockerode import in web; (4) optional chat resolve helper uses project vs env. Keep test files within budget (≤400 for tests).",
-    "status": "PENDING",
+    "status": "DONE",
     "priority": "high",
     "dependencies": [
       "ModelConfig GET and PUT API routes",
@@ -117,7 +117,7 @@
   {
     "title": "Test worker deploy:run handler",
     "description": "Add Vitest for worker handler with **mocked dockerode** (and mocked git/fs as needed): success path updates Deployment+Meta to DEPLOYED with imageTag and stub url; failure path → FAILED with log message; ensure retries do not infinite-loop on build error. No live Docker-in-Docker required in CI. Document that local smoke uses compose docker.sock when available.",
-    "status": "PENDING",
+    "status": "DONE",
     "priority": "high",
     "dependencies": ["Worker deploy:run dockerode consumer"],
     "acceptance": "Mocked success and failure status transitions pass under `yarn test`; no real docker required; `yarn verify` green.",
@@ -126,7 +126,7 @@
   {
     "title": "Deployments UI and editor Build button",
     "description": "Page `/projects/[id]/deployments`: owner BASIC+PRO; list date/status icons (BUILDING yellow, DEPLOYED green, FAILED red)/imageTag/url; Pro button «Собрать сейчас» → POST deployments → toast «Сборка поставлена в очередь»; row expand/drawer for full log; poll ~3–5s while BUILDING; disable second build while BUILDING (or rely on 409 toast). Wire editor «Сборка» button to same POST then navigate to deployments highlighting new row (replace Task 2.2 stub). BASIC: read-only, no Build/export. Russian copy; `@aiflow/ui`; `@source` if needed. Optional minimal dashboard last-status badge is non-blocking.",
-    "status": "PENDING",
+    "status": "DONE",
     "priority": "high",
     "dependencies": ["Deployments create list and detail APIs"],
     "acceptance": "Deployments page lists statuses/logs; Pro can start build; BASIC read-only; editor Build calls real POST and navigates; polling updates BUILDING rows; `yarn verify` green.",
@@ -135,7 +135,7 @@
   {
     "title": "Smoke verify deploy and ModelConfig path",
     "description": "Final Task 2.3 gate: mocked primary-path smoke test covering ModelConfig upsert→chat resolve fallback AND deploy export→enqueue→worker handler status transition (all mocked). Run `yarn verify`. Update `docs/16-code-map.md`: `packages/crypto` real, `packages/queue` real, `features/model-config`, `features/deploy`, worker deploy:run + dockerode, note docker.sock **dev-only**. Manual compose checklist in acceptance comments: Pro sets Analyst key → chat uses it; Pro Build → BUILDING→DEPLOYED with log; BASIC sees history only.",
-    "status": "PENDING",
+    "status": "DONE",
     "priority": "medium",
     "dependencies": [
       "Model settings page and Pro nav",

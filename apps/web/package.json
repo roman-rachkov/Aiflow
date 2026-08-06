@@ -15,6 +15,7 @@
     "@aiflow/ai-roles": "workspace:^",
     "@aiflow/crypto": "workspace:^",
     "@aiflow/db": "workspace:^",
+    "@aiflow/queue": "workspace:^",
     "@aiflow/ui": "workspace:^",
     "@assistant-ui/react": "0.15.4",
     "@auth/prisma-adapter": "2.7.4",

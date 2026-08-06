@@ -69,7 +69,6 @@ apps/
 │     │                         ui/FilePanel.tsx — upload (hidden input) + per-row
 │     │                           index trigger + status badge
 │     ├── specifications/ SPEC.md version list, view, generation (Task 2.1)
-│     ├── model-config/   Analyst ModelConfig encrypt/API/UI (Task 2.3)
 │     │                     └── public: `index.ts` (server) + `client.ts` (panel)
 │     │                         model/service.ts — listSpecifications /
 │     │                           getSpecificationByVersion (findFirst: version
@@ -82,6 +81,23 @@ apps/
 │     │                           forbids feature→feature imports)
 │     │                         ui/SpecificationPanel.tsx — version list, lazy content
 │     │                           view, generate button
+│     ├── model-config/   Analyst ModelConfig encrypt/API/UI (Task 2.3)
+│     │                     └── public: `index.ts` (server) + `client.ts` (form)
+│     │                         model/service.ts — get/upsert Analyst config;
+│     │                           encrypt full JSON blob via @aiflow/crypto;
+│     │                           public DTO never includes plaintext apiKey;
+│     │                           soft-delete filter on ModelConfig
+│     │                         model/resolve-provider.ts — project key →
+│     │                           createOpenAICompatibleProvider, else env
+│     │                         ui/ — settings form (Russian), Pro-only page
+│     ├── deploy/         Manual deploy: templates, enqueue, UI (Task 2.3)
+│     │                     └── public: `index.ts` (server) + `client.ts` (panel)
+│     │                         model/templates.ts — Dockerfile + compose render
+│     │                           (`aistudio-project-{shortId}`, port 3000)
+│     │                         model/export.ts — optional Gitea Contents commit
+│     │                         model/service.ts — create Deployment+Meta (same
+│     │                           uuid), getDeployQueue().add — **no dockerode**
+│     │                         ui/DeploymentsPanel — list/poll/log; Pro Build
 │     └── editor/         Pro code editor over Gitea (Task 2.2)
 │                           └── public: `index.ts` (server) + `client.ts` (EditorShell)
 │                               model/access.ts — resolveEditorContext (owner +
@@ -111,22 +127,32 @@ apps/
 │     /projects/[id]/research — two-panel Researcher page (Task 1.3; live artifacts
 │       panel since Task 2.1: FilePanel + SpecificationPanel + Roadmap card)
 │     /projects/[id]/editor — Pro Monaco editor (Task 2.2; requireProMode)
+│     /projects/[id]/settings/models — Pro Analyst ModelConfig (Task 2.3)
+│     /projects/[id]/deployments — build history; Pro «Собрать» (Task 2.3)
 │     /api/projects (GET list, POST create), /api/projects/[id] (GET, DELETE)
 │     /api/projects/[id]/chat (POST — SSE-streamed Analyst reply, Task 1.3;
-│       RAG context mixed into the system prompt since Task 2.1)
+│       RAG context mixed into the system prompt since Task 2.1;
+│       ModelConfig → env provider resolve since Task 2.3)
 │     /api/projects/[id]/files (GET list, POST upload — Task 2.1)
 │     /api/projects/[id]/files/[fid]/index (POST — synchronous RAG indexing, 2.1)
 │     /api/projects/[id]/specifications (GET list, POST generate — Task 2.1)
 │     /api/projects/[id]/specifications/[version] (GET one version — Task 2.1)
+│     /api/projects/[id]/model-config (GET/PUT — Pro Analyst config, Task 2.3)
+│     /api/projects/[id]/deploy/export (POST — Dockerfile/compose → Gitea, 2.3)
+│     /api/projects/[id]/deployments (GET list; POST enqueue deploy:run, 2.3)
+│     /api/projects/[id]/deployments/[deploymentId] (GET detail+log, 2.3)
 │     /api/projects/[id]/editor/{tree,file,commits,diff} (GET — Task 2.2)
 │     /api/projects/[id]/editor/commit (POST), /editor/files (POST/DELETE),
 │       /editor/files/rename (POST — Task 2.2)
 │     WS /api/projects/[id]/editor/ws — custom server (`apps/web/server.ts` +
 │       `ws`); session cookie; non-Pro → close 4403 (Task 2.2)
 │     /api/health (GET — compose liveness; no auth)
-└── worker/               BullMQ workers, one dir per queue (spec, plan, code, deploy)
+└── worker/               BullMQ workers (Task 2.3: deploy:run real; others stub)
     └── public entry: src/index.ts
-        deps: @aiflow/{db,queue,ai-roles} (declared; worker itself is a stub)
+        deps: @aiflow/{db,queue}, bullmq, dockerode (MIT; **worker only**),
+          tar-fs. docker.sock mount in compose is **DEV-ONLY** (OQ #4).
+        src/deploy/handler.ts — clone Gitea → dockerode.buildImage →
+          Deployment/Meta DEPLOYED|FAILED; stub url `local://image/{tag}`
 
 services/
 ├── model-router/         Express, port 3001. OpenAI-compatible facade over
@@ -153,8 +179,10 @@ packages/
 │                             scripts/seed-dev-user.ts — a Credentials login for
 │                             local dev; refuses a non-local DATABASE_URL.
 │                             `yarn workspace @aiflow/db seed:dev-user`
-├── queue/                BullMQ definitions: the four queues + typed payloads,
-│                         concurrency 1, default job options
+├── queue/                BullMQ definitions (Task 2.3, real): four queue names,
+│                         Redis connection from REDIS_URL, getDeployQueue(),
+│                         typed DeployRunPayload, attempts:1 for deploy builds.
+│                         Producer helpers only — no dockerode, no workers here.
 ├── crypto/               AES-256-GCM leaf (Task 2.3): `encrypt` / `decrypt` /
 │                         `readEncryptionKey`. Envelope
 │                         `{"__encrypted__": base64(iv||tag||ciphertext)}`.
@@ -234,6 +262,7 @@ compose topology          `docker compose up` (no `--build`): postgres, redis,
 | Dev-time repo RAG MCP (`aiflow-rag` search/status)                 | `apps/web/scripts/{ingest-repo,rag-mcp,rag-query,dev-rag-shared}.ts`   |
 | SPEC.md version list, view, generation                             | `apps/web/src/features/specifications` (Task 2.1)                      |
 | Analyst ModelConfig (encrypt, API, settings UI)                    | `apps/web/src/features/model-config` (Task 2.3)                        |
+| Manual deploy (templates, enqueue, deployments UI)                 | `apps/web/src/features/deploy` (Task 2.3); worker `deploy:run`         |
 | Model provider adapter (universal OpenAI-compatible, chat+embed)   | `packages/ai-roles/src` (Task 1.3; universal + embeddings in Task 2.1) |
 | App shell (header, side menu)                                      | `apps/web/src/shared/ui` (Task 1.2a)                                   |
 | MinIO object storage client                                        | `apps/web/src/shared/minio` (Task 2.1)                                 |
@@ -255,10 +284,10 @@ compose topology          `docker compose up` (no `--build`): postgres, redis,
   entry rather than an importable surface.
 - Generated clients (`packages/db/generated/*`) and `next-env.d.ts` are build
   artifacts, gitignored, and exempt from the size rules.
-- `packages/crypto` is real (Task 2.3 AES-256-GCM); `packages/ai-roles`,
+- `packages/crypto` and `packages/queue` are real (Task 2.3); `packages/ai-roles`,
   `packages/db`, and `packages/ui` are real (ai-roles shipped in Task 1.3;
   Task 2.1 generalized it into a universal OpenAI-compatible provider with
-  embeddings).
+  embeddings). Worker `deploy:run` uses dockerode; **docker.sock is DEV-ONLY**.
 - **`packages/ui` is a deliberate exception to the § 2.3 promotion test.** That
   rule says a slice used by one app stays a slice, and `apps/web` is still the
   only consumer. It was overridden by decision in Task 1.2d: the design system is
