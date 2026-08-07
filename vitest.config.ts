@@ -18,6 +18,7 @@ export default defineConfig({
       'services/*/src/**/*.{test,spec}.{ts,tsx}',
       'packages/*/src/**/*.{test,spec}.{ts,tsx}',
       'tools/*/src/**/*.{test,spec}.{ts,tsx}',
+      'docker/aider-sandbox/**/*.{test,spec}.{js,ts}',
     ],
     exclude: ['**/node_modules/**', '**/dist/**', '**/.next/**', '**/generated/**'],
     coverage: {

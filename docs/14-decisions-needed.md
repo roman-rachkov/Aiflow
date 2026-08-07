@@ -79,9 +79,14 @@ The policy is set (internal traffic English, user-facing output in the user's la
 
 Cheapest option is a check in the acceptance loop rejecting Cyrillic in Planner/Reviewer JSON. Worth doing at all, or rely on review discipline?
 
-### B3. Auth providers for MVP-0
+### B3. Auth providers for MVP-0 — RESOLVED
 
-`docs/04-roadmap.md` Task 1.2 lists "NextAuth (Email magic link, GitHub OAuth)". Email magic links need an SMTP provider that is not in the compose file. Options: add Mailhog/Mailpit for dev, GitHub OAuth only for MVP-0, or credentials provider to start.
+**Credentials** (NextAuth Credentials provider). Recorded at Task 1.2a and in
+the summary table. Email magic link and GitHub OAuth both need external
+services (SMTP / OAuth app) that make local Compose development impossible;
+deferred until those are available in the stack.
+
+Rejected for MVP-0: Mailhog/Mailpit + Email provider; GitHub OAuth only.
 
 ### B4. Test framework — RESOLVED
 
@@ -119,19 +124,28 @@ Prisma's multi-schema preview feature was the alternative and is rejected: it mo
 set of named schemas, while this platform creates schemas at runtime, one per project. The
 template is not a migration target at all — it is the source for a generated SQL script.
 
-### C3. Structured output for Planner and Reviewer
+### C3. Structured output for Planner and Reviewer — RESOLVED 2026-08-07
 
-Both prompts require strict JSON. `docs/06-prompt-planner.md` recommends "GPT-4o or similar with structured outputs / function calling". Does `model-router` guarantee structured-output support across all providers, or does the platform validate and retry on parse failure? Affects the router's API surface.
+**Platform validates JSON and retries on parse failure (max 2 retries).** Do not
+require native structured-output / function-calling from every provider —
+`model-router` remains OpenAI-compatible chat; callers own schema validation.
 
-Decide this alongside question #9 in [12-open-questions.md](12-open-questions.md) (escalation to a stronger model). Escalation is a second routed request, so whatever guarantee C3 settles on has to hold for the advisor call too — and if the answer is validate-and-retry, the retry budget interacts with the disagreement case.
+Pairs with open question #9 (escalation): an advisor call is a second routed
+request under the same validate-and-retry contract; disagreement between
+primary and advisor is a separate policy, not a structured-output concern.
 
-### C4. Aider version pin
+### C4. Aider version pin — RESOLVED 2026-08-07
 
-`docs/11-sandbox.md` pins `aider-chat==0.60.0`. That release is from 2024. Keep the pin for reproducibility, or move to a current version before building the image?
+**Keep `aider-chat==0.60.0`** for the first sandbox image so builds are
+reproducible. A later bump is a one-line `ARG` change in the Dockerfile; do not
+block Task 3.1 on chasing a current release.
 
-### C5. `registry-proxy` implementation
+### C5. `registry-proxy` implementation — RESOLVED 2026-08-07
 
-Compose references `./registry-proxy` with `ALLOWED_HOSTS`, but nothing specifies what it is — Squid, Verdaccio, or a custom Node proxy. Open question #6 in [12-open-questions.md](12-open-questions.md) already notes the allowlist is too narrow. Choosing Verdaccio would partly answer both.
+**Custom Node HTTP CONNECT/forward proxy** (`services/registry-proxy`) with an
+expandable `ALLOWED_HOSTS` allowlist (comma-separated). Same answer as open
+question #6 in [12-open-questions.md](12-open-questions.md). Verdaccio deferred —
+extra stateful service for little MVP gain.
 
 ---
 
@@ -210,6 +224,14 @@ Licence verified via `npm view` + upstream `LICENSE` (MIT) — allowlisted under
 | Indexing execution      | Synchronous in the route handler for MVP-0 (dozens of chunks, one embeddings batch); worker queue deferred to MVP-1                                                                                    | Task 2.1                                                           |
 | Cross-slice composition | `generateSpecification` takes a `GenerationDeps` bag (DI) — `boundaries/dependencies` `capture:slice` forbids feature→feature imports, so the route wires chat/files functions in                      | Task 2.1                                                           |
 | Dev Compose topology    | Stock `node:22-bookworm` + bind mount + named `node_modules` volumes; no `build:` / no app Dockerfiles in dev. Entrypoint `docker/dev-entrypoint.sh`. App Dockerfiles deferred to prod                 | this task                                                          |
+| Structured JSON output  | Platform validates + retries on parse failure (max 2); no native structured-output required from every provider                                                                                        | C3 2026-08-07                                                      |
+| Aider version pin       | Keep `0.60.0` for first image reproducibility; bump is one-line ARG later                                                                                                                              | C4 2026-08-07                                                      |
+| `registry-proxy`        | Custom Node CONNECT/forward proxy + expandable `ALLOWED_HOSTS`; Verdaccio deferred                                                                                                                     | C5 2026-08-07 (= OQ #6)                                            |
+| User project template   | `templates/user-nextjs/` in this monorepo → copied into Gitea on bootstrap; sandbox image stays template-free                                                                                          | [12](12-open-questions.md) #1 2026-08-07                           |
+| Prisma in sandbox       | Validate only in sandbox; apply schema at deploy via `db push` (MVP)                                                                                                                                   | [12](12-open-questions.md) #2 2026-08-07                           |
+| Sandbox API key         | Read-only file mount at `/run/secrets/api_key`; never `API_KEY` env                                                                                                                                    | [12](12-open-questions.md) #5 2026-08-07                           |
+| Product LLM Reviewer    | Deferred to MVP-2; product gate = sandbox checks. Dev `/orchestrate` may still use Reviewer                                                                                                            | [12](12-open-questions.md) #7 2026-08-07                           |
+| Slim MVP-1 scope        | Planner + sandbox Coder for simple CRUD; 4.1–4.3 and 5.1–5.3 → MVP-2                                                                                                                                   | [12](12-open-questions.md) #8 / [04](04-roadmap.md) § 3 2026-08-07 |
 
 ## Consequences for existing documents
 

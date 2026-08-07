@@ -8,6 +8,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@aiflow/ai-roles": "workspace:^",
     "@aiflow/db": "workspace:^",
     "@aiflow/queue": "workspace:^",
     "bullmq": "^5.0.0",

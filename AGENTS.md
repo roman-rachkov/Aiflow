@@ -11,13 +11,19 @@ deployed web app: interview → `SPEC.md` → task decomposition → AI-generate
 sandboxes → deploy. Yarn 4 + Lerna monorepo, private, no LICENSE (deferred). Classic
 `node_modules` (PnP is off, see `.yarnrc.yml`).
 
+**Slim MVP-1 scope** (after MVP-0): Planner + sandbox Coder for simple CRUD; product gate =
+sandbox checks (LLM Reviewer → MVP-2). Sandbox API key via `/run/secrets/api_key` file mount.
+User-app bootstrap template: `templates/user-nextjs/`. Details: `docs/04-roadmap.md` § 3,
+`docs/12-open-questions.md` #1/#5/#7/#8.
+
 Real packages today: `apps/web` (Next.js 15 App Router), `packages/db` (Prisma, two schemas),
 `packages/ui` (design system), `packages/ai-roles` (OpenAI-compatible chat+embed),
 `packages/crypto` (AES-256-GCM ModelConfig envelope), `packages/queue` (BullMQ
-`deploy:run` helpers), `apps/worker` (`deploy:run` dockerode consumer — other queues
-still stub), `tools/session-analyzer` (dev-only analytics).
-Declared-but-empty stubs (do not assume they work yet): `services/model-router`,
-`services/registry-proxy`. The code map at `docs/16-code-map.md` tracks which is
+`deploy:run` / `plan:generate` / `code:execute` helpers), `apps/worker` (real consumers
+for `deploy:run`, `plan:generate`, and `code:execute`; `spec:generate` still stub),
+`services/registry-proxy` (sandbox egress allowlist), `tools/session-analyzer`
+(dev-only analytics). Declared-but-empty stub (do not assume it works yet):
+`services/model-router`. The code map at `docs/16-code-map.md` tracks which is
 which — read it first.
 
 **Dev stack:** `docker compose up` (no `--build`) starts the full topology —

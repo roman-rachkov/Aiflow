@@ -1,5 +1,5 @@
 /**
- * `@aiflow/queue` — BullMQ queue names, Redis connection, typed deploy producer.
+ * `@aiflow/queue` — BullMQ queue names, Redis connection, typed producers.
  * Leaf aside from bullmq/ioredis. No dockerode (that stays in `apps/worker`).
  */
 
@@ -18,3 +18,12 @@ export {
   getDeployQueue,
   type DeployRunPayload,
 } from './deploy';
+export { closePlanQueue, getPlanQueue, PLAN_JOB_OPTIONS, type PlanGeneratePayload } from './plan';
+export {
+  closeCodeQueue,
+  CODE_JOB_OPTIONS,
+  getCodeQueue,
+  sandboxLogsChannel,
+  validateCodePayload,
+  type CodeExecutePayload,
+} from './code';

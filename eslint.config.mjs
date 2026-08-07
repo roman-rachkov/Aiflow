@@ -22,6 +22,10 @@ export default tseslint.config(
       '**/next-env.d.ts',
       // Excluded from apps/web/tsconfig (run under tsx); keep out of projectService.
       'apps/web/scripts/**',
+      // Sandbox runtime is CommonJS copied into the image; not platform TS.
+      'docker/aider-sandbox/**',
+      // User-project scaffold; linted inside the sandbox, not the monorepo gate.
+      'templates/**',
       // Yarn PnP artifacts. PnP is off (see .yarnrc.yml), but a stale
       // .pnp.cjs in a working tree must not fail the gate.
       '.pnp.*',

@@ -28,12 +28,16 @@ Development is done by a single engineer using AI assistants (dogfooding as the 
 
 #### Week 1
 
-**Task 1.1. Project initialization**
+**Task 1.1. Project initialization** — done
 
 - Create the Next.js repository, set up TypeScript, ESLint, Prettier.
 - Bring up PostgreSQL, Redis, MinIO, Gitea via Docker Compose.
 - Configure Prisma for the `public` schema (User, ProjectMeta, DeploymentMeta).
 - Implement the script that creates a project schema when a `ProjectMeta` record is created.
+
+Shipped: Yarn/Lerna monorepo scaffold, Compose infra (stock images +
+`docker/dev-entrypoint.sh`), Prisma `public` + project-schema SQL from
+`schema_project_template.prisma`. Layout in `docs/16-code-map.md`.
 
 **Task 1.2a. Authentication and app shell** — done
 
@@ -68,7 +72,7 @@ decision — rationale in `docs/14-decisions-needed.md` § D0. No component libr
 was adopted: primitives are hand-written, and there is no dark theme because
 `09-ui-spec.md` § 9 mandates light only.
 
-**Task 1.2b. Projects CRUD**
+**Task 1.2b. Projects CRUD** — done
 
 - Pages: dashboard project list, project card.
 - API: create, list, delete a project.
@@ -76,22 +80,35 @@ was adopted: primitives are hand-written, and there is no dark theme because
   Task 1.1, deferred pending open question #2 on migrations.
 - Builds on the 1.2d primitives — `Card` exists for the project list.
 
-**Task 1.3. Researcher chat (MVP variant)**
+Shipped: `features/projects` (compensation saga schema → Gitea → meta.create,
+soft delete), dashboard list/card. Decisions in `docs/14-decisions-needed.md`
+(project create flow, transport, delete confirm UI).
+
+**Task 1.3. Researcher chat (MVP variant)** — done
 
 - Build the chat UI (message list, input field).
 - API route `/api/projects/[id]/chat` with SSE streaming of the AI response.
 - Integration with routerai.ru via ModelRouter (no fallback, no cache).
 - Persist dialogue history in the project schema (model `ChatMessage` — to be added to the schema).
 
+Shipped on `task/1.3-researcher-chat`: `features/chat` (SSE + history),
+`ChatMessage` in the project schema, `@aiflow/ai-roles` provider adapter.
+Specs in `specs/task-1.3-researcher-chat/`.
+
 #### Week 2
 
-**Task 2.1. RAG and SPEC generator**
+**Task 2.1. RAG and SPEC generator** — done
 
 - Set up LlamaIndex (or equivalent) for indexing uploaded files.
 - API for file upload (MinIO) and index runs.
 - Implement the Analyst prompt using RAG context.
 - SPEC.md generation on the "Create specification" command.
 - Display SPEC.md with versions and version comparison.
+
+Shipped on `task/2.1-rag-and-spec-generator`: `features/files` +
+`features/specifications`, MinIO upload, LlamaIndex.Ts chunking + pgvector,
+universal OpenAI-compatible embeddings/chat. Specs in
+`specs/task-2.1-rag-and-spec-generator/`.
 
 **Task 2.2. Code editor and Git integration** — done
 
@@ -121,49 +138,63 @@ dev-only sock), deployments UI. Specs in `specs/task-2.3-deploy-modelconfig/`.
 
 ---
 
-## 3. Iteration MVP-1 (6 weeks) – Automatic Coder and agents
+## 3. Iteration MVP-1 (slim) – Planner + sandbox Coder
 
-**Goal:** the full "idea → specification → code → deploy" cycle without mandatory manual intervention. Validated by dogfooding (building an AI Studio prototype inside the platform itself).
+**Goal (slim MVP-1, decided 2026-08-07):** Planner + Aider Coder in isolated
+sandboxes for **simple CRUD** apps. Product gate = sandbox automated checks
+(TypeScript, ESLint `--max-warnings 0`, Prettier, `prisma validate`) — not an
+LLM Reviewer. Narrow E2E path: idea → SPEC → plan → codegen → existing manual
+deploy. Full Reviewer / Support Bot / domain deploy / self-dogfood / load work
+moves to **MVP-2** (see § 3.3). Rationale: open questions #7–#8 in
+`docs/12-open-questions.md`.
 
-### 3.1. MVP-1 functionality (added to MVP-0)
+### 3.1. Slim MVP-1 functionality (added to MVP-0)
 
 - Planner: automatic task generation from SPEC.md.
-- Aider-based Coder in isolated Docker sandboxes.
-- Acceptance loop: test generation and runs, linters, Reviewer.
-- Embeddable Support Bot agent (RAG over the project specification).
-- Automatic deploy that returns a test environment URL.
-- Dogfooding: the "AI Studio" project inside the platform.
+- Aider-based Coder in isolated Docker sandboxes (simple CRUD scope).
+- Sandbox acceptance checks (lint/typecheck/validate) as the product gate.
+- Bootstrap from `templates/user-nextjs/` into the project Gitea repo.
+- Reuse MVP-0 manual deploy (`deploy:run`) for the generated image.
 
-### 3.2. Detailed task plan (MVP-1)
+### 3.2. Detailed task plan (slim MVP-1)
 
 #### Weeks 3–4: Planner, sandboxes and Coder
 
-**Task 3.1. Sandbox infrastructure**
+**Task 3.1. Sandbox infrastructure** — done
 
 - Create the `aider-sandbox` Docker image (Node.js + Python + pinned Aider version).
 - Configure dockerode to start containers with restrictions (read-only, tmpfs, network).
 - Implement the `registry-proxy` container with a URL allowlist.
 - Runner script inside the sandbox: accepts a task (JSON via env), runs Aider, returns the result.
 
-**Task 3.2. Planner**
+Decided for 3.1 (I0, 2026-08-07): lint failure is **fatal** in the runner
+(`--max-warnings 0`); API key arrives via read-only file mount at
+`/run/secrets/api_key` (not env) — see `docs/12-open-questions.md` #5.
+Aider pin and `registry-proxy` shape: C4/C5 in `docs/14-decisions-needed.md`.
+
+**Task 3.2. Planner** (done 2026-08-07)
 
 - Develop the prompt for generating a task list from SPEC.md (in a format the Coder understands).
 - Integration with the `plan:generate` queue: fetch SPEC.md, call the LLM, parse, create `Task` records.
-- UI for the Roadmap (task list with order and dependencies), with reordering.
+- UI for the Roadmap (task list with order and dependencies); drag-reorder deferred.
 
-**Task 3.3. Coder**
+**Task 3.3. Coder** (done 2026-08-07)
 
 - Worker `code:execute`: takes a task, fetches current code from Gitea, starts a sandbox.
-- Result handling: commit on success, log capture and FAILED marking on failure.
-- Dry-run mode: show the expected diff instead of executing, wait for confirmation.
-- WebSocket streaming of sandbox logs into the UI (via the API server).
+- Result handling: commit on success (runner), worker push, log capture and FAILED marking on failure.
+- Dry-run mode: planned prompt stub → `AWAITING_REVIEW`, confirm enqueues live run.
+- WebSocket streaming of sandbox logs (`sandbox:logs:{taskId}` via custom server).
+- Slim MVP-1: no LLM Reviewer — product gate = sandbox checks only.
 
-#### Weeks 5–6: Acceptance loop and agents
+### 3.3. Deferred to MVP-2
 
-**Task 4.1. Acceptance loop**
+Moved out of slim MVP-1 so Planner+Coder can stabilize first
+(`docs/12-open-questions.md` #7–#8):
+
+**Task 4.1. Acceptance loop (LLM Reviewer + test generation)**
 
 - Unit test generation by an agent (a separate task after the Coder).
-- Running ESLint, TypeScript, Prisma validate in the sandbox.
+- Running ESLint, TypeScript, Prisma validate in the sandbox (checks themselves ship in 3.1; the LLM Reviewer and generated-test loop stay here).
 - Reviewer: an LLM agent that receives the diff and acceptance criteria and issues a verdict.
 - UI for check results.
 
@@ -174,15 +205,13 @@ dev-only sock), deployments UI. Specs in `specs/task-2.3-deploy-modelconfig/`.
 - API for embedding into the target application (chat widget or iframe).
 - Including the bot in the final build (added to docker-compose).
 
-**Task 4.3. Automatic deploy**
+**Task 4.3. Automatic domain deploy**
 
-- Worker `deploy:run`: builds the Docker image with the application and agents.
+- Worker `deploy:run` extended: builds the Docker image with the application and agents.
 - Deployment to a test domain (based on Traefik or an nginx proxy).
 - URL and logs surfaced in the project UI.
 
-#### Weeks 7–8: Dogfooding, testing, stabilization
-
-**Task 5.1. Dogfooding**
+**Task 5.1. Full dogfooding**
 
 - Create the "AI Studio" project inside the platform.
 - Upload the SPEC.md produced during design.
@@ -203,13 +232,13 @@ dev-only sock), deployments UI. Specs in `specs/task-2.3-deploy-modelconfig/`.
 
 ---
 
-## 4. MVP-1 readiness criteria
+## 4. Slim MVP-1 readiness criteria
 
-1. A **Customer** with no technical knowledge gets a working web application (CRUD functionality) deployed behind a link in ≤ 2 hours.
+1. A **Customer** with no technical knowledge gets a simple CRUD web app coded by the sandbox Coder from an approved SPEC (Planner → Coder); deploy may still use the MVP-0 Build path.
 2. An **Engineer** can change code manually, and subsequent generation does not overwrite those changes (file or branch locking mechanism).
-3. The platform handles 3 concurrent projects without data mixing or crashes.
-4. All secrets are stored encrypted; isolation between projects is confirmed by tests.
-5. Dogfooding: the system successfully builds, deploys and runs a simplified prototype of itself (Analyst chat + project UI).
+3. Sandbox checks are the product gate: check failure → FAILED; success → commit. No product LLM Reviewer until MVP-2.
+4. All secrets are stored encrypted; sandbox API key is file-mounted (`/run/secrets/api_key`); project isolation holds for the concurrent projects exercised in MVP-0/1.
+5. Narrow dogfood: at least one simple CRUD app through plan → sandbox codegen (full self-dogfood and load testing → MVP-2).
 
 ## 5. Tools and repositories
 
@@ -240,9 +269,9 @@ survives two roadmap tasks is either promoted to a real task or deleted.
 | Near-limit modules (~170–194 lines) kept cohesive                                                                            | `shared/gitea/client.ts`, `files/model/index-service.ts`, `deploy/ui/useDeployments.ts`, `deploy/model/service.ts` | Audit 2026-08-07: no second concern; do not split for count alone                      | Headroom before next feature                                                 |
 | `createZaiProvider` deprecated alias                                                                                         | `packages/ai-roles`                                                                                                | Zero app call sites; kept so Task 1.3-era mocks/docs still compile                     | Cleanup after next ai-roles consumer audit                                   |
 | `ingest-repo.ts` >200 lines                                                                                                  | `apps/web/scripts/ingest-repo.ts`                                                                                  | Script exemption (conventions § 3); one-shot RAG ingest                                | None                                                                         |
-| Sandbox `runner.js` treats lint failure as warning                                                                           | `docs/11-sandbox.md` / Task 3.1                                                                                    | Scaffolding not yet enforcing `--max-warnings 0` as fatal in sandbox                   | Product lint gate for generated apps                                         |
 
 ### Cleared in refactor series 2026-08-07
 
 - `FilePanel.tsx` at 200 lines → split into `FileRow` + `file-panel-upload` (~76-line panel).
 - Editor WS `attachEditorWebSocket` deep import → re-exported from `features/editor` barrel; `server.ts` imports the barrel.
+- Sandbox runner lint-as-warning → lint is **fatal** in `docker/aider-sandbox/runner-checks.js` (`--max-warnings 0`); cleared with Task 3.1 (2026-08-07).

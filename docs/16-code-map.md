@@ -100,6 +100,17 @@ apps/
 │     │                         model/service.ts — create Deployment+Meta (same
 │     │                           uuid), getDeployQueue().add — **no dockerode**
 │     │                         ui/DeploymentsPanel — list/poll/log; Pro Build
+│     ├── tasks/          Roadmap + plan/code enqueue (Tasks 3.2–3.3)
+│     │                     └── public: `index.ts` (server) + `client.ts` (panel)
+│     │                         model/service.ts — listTasks / enqueuePlan
+│     │                           (approved Specification required; getPlanQueue)
+│     │                         model/execute.ts — enqueueExecute / enqueueConfirm
+│     │                           (getCodeQueue; Gitea context; status gates)
+│     │                         model/detail.ts — getTaskDetail + TaskLog
+│     │                         model/access.ts — assertProPlan / assertProCode
+│     │                         model/ws-attach.ts — Redis `sandbox:logs:{taskId}`
+│     │                         ui/TasksPanel + ExecuteControls + TaskLogPanel
+│     │                           (dry-run / confirm / live; Pro)
 │     └── editor/         Pro code editor over Gitea (Task 2.2)
 │                           └── public: `index.ts` (server) + `client.ts` (EditorShell)
 │                               model/access.ts — resolveEditorContext (owner +
@@ -135,7 +146,7 @@ apps/
 │     /projects/[id]/research — three-column Researcher (artifacts | chat | SPEC
 │       preview); ResearchWorkspace owns SPEC state; Create above composer;
 │       Approve + Start generation → /tasks
-│     /projects/[id]/tasks — Tasks stub until Planner / plan:generate (MVP-1)
+│     /projects/[id]/tasks — Roadmap + plan/code execute UI (Tasks 3.2–3.3)
 │     /projects/[id]/editor — Pro Monaco editor (Task 2.2; requireProMode)
 │     /projects/[id]/settings/models — Pro Analyst ModelConfig (Task 2.3)
 │     /projects/[id]/deployments — build history; Pro «Собрать» (Task 2.3)
@@ -152,25 +163,40 @@ apps/
 │     /api/projects/[id]/deploy/export (POST — Dockerfile/compose → Gitea, 2.3)
 │     /api/projects/[id]/deployments (GET list; POST enqueue deploy:run, 2.3)
 │     /api/projects/[id]/deployments/[deploymentId] (GET detail+log, 2.3)
+│     /api/projects/[id]/tasks (GET list — Task 3.2)
+│     /api/projects/[id]/tasks/plan (POST enqueue plan:generate — Pro, 3.2)
+│     /api/projects/[id]/tasks/[taskId] (GET detail+logs — Task 3.3)
+│     /api/projects/[id]/tasks/[taskId]/execute (POST dryRun? — Pro, 3.3)
+│     /api/projects/[id]/tasks/[taskId]/confirm (POST after dry-run — Pro, 3.3)
 │     /api/projects/[id]/editor/{tree,file,commits,diff} (GET — Task 2.2)
 │     /api/projects/[id]/editor/commit (POST), /editor/files (POST/DELETE),
 │       /editor/files/rename (POST — Task 2.2)
 │     WS /api/projects/[id]/editor/ws — custom server (`apps/web/server.ts` +
 │       `ws`); session cookie; non-Pro → close 4403 (Task 2.2)
+│     WS /api/projects/[id]/tasks/[taskId]/logs/ws — Redis sandbox logs (3.3)
 │     /api/health (GET — compose liveness; no auth)
-└── worker/               BullMQ workers (Task 2.3: deploy:run real; others stub)
+└── worker/               BullMQ workers (deploy:run + plan:generate +
+    │                     code:execute real; spec:generate still stub)
     └── public entry: src/index.ts
-        deps: @aiflow/{db,queue}, bullmq, dockerode (MIT; **worker only**),
+        deps: @aiflow/{db,queue,ai-roles}, bullmq, dockerode (MIT; **worker only**),
           tar-fs. docker.sock mount in compose is **DEV-ONLY** (OQ #4).
         src/deploy/handler.ts — clone Gitea → dockerode.buildImage →
           Deployment/Meta DEPLOYED|FAILED; stub url `local://image/{tag}`
+        src/plan/handler.ts — load approved Specification → generatePlanTasks
+          (env provider) → soft-delete replaceable tasks → Task+deps+TaskLog
+        src/code/handler.ts — code:execute: Task status/logs, dry-run →
+          AWAITING_REVIEW, live → sandbox + RESULT + push branch
+        src/sandbox/ — createContainer options builder (Task 3.1 hardening,
+          secret-file api_key bind, SANDBOX_NETWORK / AIDER_SANDBOX_IMAGE)
 
 services/
 ├── model-router/         Express, port 3001. OpenAI-compatible facade over
 │                         routerai/OpenAI/Anthropic, fallback chain, Redis cache.
 │                         Stores no keys. Declared deps: express, ioredis (stub;
 │                         `src/index.ts` is `export {};`, no crypto consumer yet)
-└── registry-proxy/       Sandbox egress filter (allowlist). Task 3.1. deps: none
+└── registry-proxy/       Sandbox egress allowlist proxy (Task 3.1). Express +
+                          CONNECT; ALLOWED_HOSTS; GET /health; PORT 3128.
+                          public entry: src/index.ts
 
 packages/
 ├── db/                   Prisma schemas + generated clients
@@ -190,10 +216,11 @@ packages/
 │                             scripts/seed-dev-user.ts — a Credentials login for
 │                             local dev; refuses a non-local DATABASE_URL.
 │                             `yarn workspace @aiflow/db seed:dev-user`
-├── queue/                BullMQ definitions (Task 2.3, real): four queue names,
-│                         Redis connection from REDIS_URL, getDeployQueue(),
-│                         typed DeployRunPayload, attempts:1 for deploy builds.
-│                         Producer helpers only — no dockerode, no workers here.
+├── queue/                BullMQ definitions (Tasks 2.3–3.3): four queue names,
+│                         Redis connection from REDIS_URL, getDeployQueue() /
+│                         getPlanQueue() / getCodeQueue(), typed payloads +
+│                         sandboxLogsChannel(). Producer helpers only — no
+│                         dockerode, no workers here.
 ├── crypto/               AES-256-GCM leaf (Task 2.3): `encrypt` / `decrypt` /
 │                         `readEncryptionKey`. Envelope
 │                         `{"__encrypted__": base64(iv||tag||ciphertext)}`.
@@ -217,6 +244,8 @@ packages/
 │                               (LM Studio, z.ai, OpenAI — same factory);
 │                               createZaiProvider() is a deprecated alias
 │                             mock-chat.ts / mock-embeddings.ts — extracted mock paths
+│                             planner-prompt.ts / planner.ts — PLANNER_SYSTEM_PROMPT
+│                               + generatePlanTasks (JSON parse, max 2 retries; 3.2)
 │                             sse-parser.ts — generic SSE frame reassembly
 │                               (reusable; reader released in finally)
 └── ui/                   Design system (Task 1.2d → D0a OpenUI). OpenUI-backed
@@ -245,12 +274,19 @@ tools/                    Dev-only workspaces. Ship nowhere; still gated by
 
 docker/                   Compose helpers (not a Yarn workspace).
 ├── postgres/init/        CREATE EXTENSION vector, pgcrypto (first-boot only)
+├── aider-sandbox/        Aider sandbox image (Task 3.1): Dockerfile + runner.js
+│                         (+ runner-checks/gate). Template-free; API key via
+│                         /run/secrets/api_key; commits only after gate passes.
 └── dev-entrypoint.sh     Shared Node-service entrypoint: flock → yarn install
                           when stamp/lock/node_modules need it → prisma generate
                           (skip if clients present) → migrate deploy when
                           ROLE=app → exec. registry-proxy is NO_EGRESS and
                           depends_on app healthy so install never runs without
                           network.
+
+templates/                User-project scaffolds (not Yarn workspaces).
+└── user-nextjs/          Minimal Next.js App Router + TS + Prisma. Copied to
+                          Gitea on bootstrap (OQ #1).
 
 compose topology          `docker compose up` (no `--build`): postgres, redis,
                           minio, gitea + four Node services on node:22-bookworm.
@@ -274,6 +310,7 @@ compose topology          `docker compose up` (no `--build`): postgres, redis,
 | SPEC.md version list, view, generation                             | `apps/web/src/features/specifications` (Task 2.1)                      |
 | Analyst ModelConfig (encrypt, API, settings UI)                    | `apps/web/src/features/model-config` (Task 2.3)                        |
 | Manual deploy (templates, enqueue, deployments UI)                 | `apps/web/src/features/deploy` (Task 2.3); worker `deploy:run`         |
+| Roadmap tasks + plan/code enqueue + live sandbox logs WS           | `apps/web/src/features/tasks` (3.2–3.3); worker `plan`/`code`          |
 | Model provider adapter (universal OpenAI-compatible, chat+embed)   | `packages/ai-roles/src` (Task 1.3; universal + embeddings in Task 2.1) |
 | App shell (header, top nav)                                        | `apps/web/src/shared/ui` (AppHeader, AppNav)                           |
 | MinIO object storage client                                        | `apps/web/src/shared/minio` (Task 2.1)                                 |

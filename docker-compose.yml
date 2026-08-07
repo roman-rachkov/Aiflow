@@ -179,6 +179,9 @@ services:
       ROLE: worker
       QUEUES: 'spec:generate,plan:generate,code:execute,deploy:run'
       DATABASE_URL: postgresql://${POSTGRES_USER:-ai_studio}:${POSTGRES_PASSWORD:-ai_studio}@postgres:5432/ai_studio?schema=public
+      # Compose names the network `{project}_sandbox` (dir name → aiflow_sandbox).
+      SANDBOX_NETWORK: aiflow_sandbox
+      AIDER_SANDBOX_IMAGE: aistudio/aider-sandbox:latest
     command: ['yarn', 'workspace', '@aiflow/worker', 'dev']
     volumes:
       - .:/workspace
@@ -232,7 +235,11 @@ services:
       ROLE: registry-proxy
       # Entrypoint refuses yarn install when set (sandbox has no registry egress).
       NO_EGRESS: '1'
-      ALLOWED_HOSTS: 'registry.npmjs.org,registry.yarnpkg.com,pypi.org,github.com'
+      PORT: 3128
+      # Expandable allowlist for sandbox package/CDN egress (add hosts as needed).
+      ALLOWED_HOSTS: >-
+        registry.npmjs.org,registry.yarnpkg.com,pypi.org,github.com,
+        objects.githubusercontent.com,nodejs.org,cdn.jsdelivr.net
     command: ['yarn', 'workspace', '@aiflow/registry-proxy', 'dev']
     # Sandbox is internal:true — no egress for yarn install. Wait until `app`
     # has populated the shared stamp + node_modules volumes; entrypoint then

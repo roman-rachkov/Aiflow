@@ -1,0 +1,47 @@
+[
+  {
+    "title": "Specs for Task 3.3 Coder",
+    "description": "Add specs/task-3.3-coder/SPEC.md + PLAN.json describing queue, worker, dry-run, WS logs, APIs.",
+    "status": "DONE",
+    "priority": "high",
+    "dependencies": [],
+    "acceptance": "SPEC and PLAN present under specs/task-3.3-coder/.",
+    "needsConfirmation": false
+  },
+  {
+    "title": "CodeExecutePayload and getCodeQueue",
+    "description": "packages/queue: CodeExecutePayload, getCodeQueue/closeCodeQueue, export from index; payload validation + unit tests.",
+    "status": "DONE",
+    "priority": "critical",
+    "dependencies": [],
+    "acceptance": "Queue exports typed; validation tests pass.",
+    "needsConfirmation": false
+  },
+  {
+    "title": "Worker code:execute handler",
+    "description": "apps/worker/src/code/*: load Task, dry-run→AWAITING_REVIEW, real run→sandbox+logs+RESULT+push; wire index; reuse deploy clone.",
+    "status": "DONE",
+    "priority": "critical",
+    "dependencies": ["CodeExecutePayload and getCodeQueue"],
+    "acceptance": "Dry-run path unit-tested without Docker; handler wired for QUEUE_CODE_EXECUTE.",
+    "needsConfirmation": false
+  },
+  {
+    "title": "Web execute/confirm APIs and task UI",
+    "description": "features/tasks: list/execute/confirm routes, ExecuteControls, live log WS via Redis sandbox:logs:{taskId}; extend server.ts.",
+    "status": "DONE",
+    "priority": "critical",
+    "dependencies": ["CodeExecutePayload and getCodeQueue"],
+    "acceptance": "Pro can dry-run and confirm; WS forwards log chunks; Russian UI strings.",
+    "needsConfirmation": false
+  },
+  {
+    "title": "Docs for code:execute pipeline",
+    "description": "Update docs/16-code-map.md, roadmap 3.3 note, docs/11-sandbox if needed for code:execute + secret file.",
+    "status": "DONE",
+    "priority": "medium",
+    "dependencies": ["Worker code:execute handler", "Web execute/confirm APIs and task UI"],
+    "acceptance": "Code map lists code queue, worker handler, tasks feature, WS path.",
+    "needsConfirmation": false
+  }
+]

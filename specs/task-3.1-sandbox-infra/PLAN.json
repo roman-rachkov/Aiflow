@@ -1,0 +1,63 @@
+[
+  {
+    "title": "Aider sandbox Dockerfile and runner",
+    "description": "Create docker/aider-sandbox/Dockerfile + runner.js (+ checks/gate helpers). Secret from /run/secrets/api_key; commit after gate; lint fatal.",
+    "status": "DONE",
+    "priority": "critical",
+    "dependencies": [],
+    "acceptance": "Image builds; runner refuses missing secret; gate fails without commit; success commits.",
+    "needsConfirmation": false
+  },
+  {
+    "title": "Implement registry-proxy allowlist service",
+    "description": "Replace stub with Express HTTP+CONNECT proxy; ALLOWED_HOSTS; /health; unit tests.",
+    "status": "DONE",
+    "priority": "critical",
+    "dependencies": [],
+    "acceptance": "Allowed hosts proxy; denied logged; typecheck+tests pass.",
+    "needsConfirmation": false
+  },
+  {
+    "title": "Add templates/user-nextjs scaffold",
+    "description": "Minimal Next.js App Router + TS + Prisma user project template.",
+    "status": "DONE",
+    "priority": "high",
+    "dependencies": [],
+    "acceptance": "Template files present and documented in code map.",
+    "needsConfirmation": false
+  },
+  {
+    "title": "Worker sandbox options helper",
+    "description": "apps/worker/src/sandbox createContainer options + unit tests; compose env for image/network.",
+    "status": "DONE",
+    "priority": "critical",
+    "dependencies": ["Aider sandbox Dockerfile and runner"],
+    "acceptance": "Options match hardening; tests pass without Docker.",
+    "needsConfirmation": false
+  },
+  {
+    "title": "Update sandbox docs and compose allowlist",
+    "description": "docs/11-sandbox.md secret file + commit-after-gate; compose ALLOWED_HOSTS CDN hosts; code-map.",
+    "status": "DONE",
+    "priority": "medium",
+    "dependencies": [
+      "Aider sandbox Dockerfile and runner",
+      "Implement registry-proxy allowlist service"
+    ],
+    "acceptance": "Docs match implementation; compose hosts expanded.",
+    "needsConfirmation": false
+  },
+  {
+    "title": "Smoke: sandbox unit suite",
+    "description": "Run vitest for registry-proxy allowlist, sandbox options, runner-gate.",
+    "status": "DONE",
+    "priority": "high",
+    "dependencies": [
+      "Implement registry-proxy allowlist service",
+      "Worker sandbox options helper",
+      "Aider sandbox Dockerfile and runner"
+    ],
+    "acceptance": "Related vitest suite green.",
+    "needsConfirmation": false
+  }
+]

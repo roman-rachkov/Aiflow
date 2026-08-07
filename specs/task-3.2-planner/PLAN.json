@@ -1,0 +1,54 @@
+[
+  {
+    "title": "Add PlanGeneratePayload and getPlanQueue",
+    "description": "packages/queue: plan.ts mirroring deploy.ts; export from index.ts. Payload { projectId, schemaName, specificationId, specificationVersion }.",
+    "status": "DONE",
+    "priority": "critical",
+    "dependencies": [],
+    "acceptance": "Types compile; getPlanQueue returns Queue<PlanGeneratePayload>.",
+    "needsConfirmation": false
+  },
+  {
+    "title": "Planner prompt and generatePlanTasks",
+    "description": "packages/ai-roles: PLANNER_SYSTEM_PROMPT + generatePlanTasks(provider, specMarkdown) with JSON parse and max 2 retries. Unit-test parse/retry with mock provider.",
+    "status": "DONE",
+    "priority": "critical",
+    "dependencies": [],
+    "acceptance": "Invalid JSON retries then throws; valid array returns PlanTask[].",
+    "needsConfirmation": false
+  },
+  {
+    "title": "Worker plan:generate handler",
+    "description": "apps/worker/src/plan/handler.ts: load approved Spec, env LLM, soft-delete replaceable tasks, insert Task+TaskDependency+TaskLog. Wire index.ts real worker (not stub).",
+    "status": "DONE",
+    "priority": "critical",
+    "dependencies": [
+      "Add PlanGeneratePayload and getPlanQueue",
+      "Planner prompt and generatePlanTasks"
+    ],
+    "acceptance": "Handler unit test with mocked prisma+provider; QUEUES already includes plan:generate.",
+    "needsConfirmation": false
+  },
+  {
+    "title": "features/tasks slice and API",
+    "description": "listTasks, enqueuePlan; TasksPanel RU UI; GET/POST routes; replace tasks page stub; @source if needed.",
+    "status": "DONE",
+    "priority": "high",
+    "dependencies": ["Add PlanGeneratePayload and getPlanQueue"],
+    "acceptance": "Pro+owner enqueues; approved Spec required; roadmap shows tasks.",
+    "needsConfirmation": false
+  },
+  {
+    "title": "Tests and state files",
+    "description": "Service tests mocked getProjectClient; update docs/16-code-map.md and docs/04-roadmap.md 3.2 progress.",
+    "status": "DONE",
+    "priority": "high",
+    "dependencies": [
+      "Worker plan:generate handler",
+      "features/tasks slice and API",
+      "Planner prompt and generatePlanTasks"
+    ],
+    "acceptance": "yarn typecheck/lint/test relevant packages green; code map lists tasks+plan queue.",
+    "needsConfirmation": false
+  }
+]

@@ -83,7 +83,7 @@ When you finish a task, the test is simple: could the next session act on this a
 
 **`yarn verify`** reproduces the CI gate locally: typecheck, lint, format check, tests. Run it before marking anything done.
 
-The quality gate is real: `--max-warnings 0` blocks lint failures, and Prettier is configured (`eslint-config-prettier` + `format`/`format:check` in `package.json`). Still open: `runner.js` has no commit call (`docs/11-sandbox.md`, Task 3.1).
+The quality gate is real: `--max-warnings 0` blocks lint failures, and Prettier is configured (`eslint-config-prettier` + `format`/`format:check` in `package.json`). Sandbox runner (`docker/aider-sandbox/`) treats lint/TS/Prettier/`prisma validate` as fatal and commits only after the gate passes; API key via `/run/secrets/api_key` (Task 3.1).
 
 ## Commands
 
@@ -101,10 +101,10 @@ Or as slash commands: **`/verify`** runs the gate and reports the first failure,
 
 **Real now** (Docker Compose):
 
-| Command                              | Purpose                                                           |
-| ------------------------------------ | ----------------------------------------------------------------- |
-| `docker compose up`                  | Full dev stack (no `--build`). Copy `.env.example` → `.env` first |
-| `docker compose up --scale worker=3` | Scale BullMQ workers (when the worker is real; stub today)        |
+| Command                              | Purpose                                                                                                     |
+| ------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
+| `docker compose up`                  | Full dev stack (no `--build`). Copy `.env.example` → `.env` first                                           |
+| `docker compose up --scale worker=3` | Scale BullMQ workers (`deploy:run` / `plan:generate` / `code:execute` are real; `spec:generate` still stub) |
 
 Still _prescribed by the docs_ rather than the primary path:
 
@@ -156,14 +156,25 @@ Host ports: 3000, 3001, 3002, 5432, 6379, 9000/9001. The Gitea 3000/3002 split a
 
 ## Unresolved architectural decisions
 
-`docs/12-open-questions.md` tracks nine questions; #3 (`code:execute` concurrency) is Resolved 2026-08-02 — read the status table, not the intro. Check it before implementing sandboxing, Prisma migrations, queue concurrency, or secret passing — and update its status table when one is settled.
+`docs/12-open-questions.md` tracks nine questions; most of #1–#8 are Resolved
+2026-08-07 (and #3 earlier) — read the status table, not the intro. Remaining
+open: #4 (docker.sock in prod) and #9 (escalation, post-MVP). Check the table
+before implementing sandboxing or prod worker isolation, and update it when one
+is settled.
 
-`docs/14-decisions-needed.md` is separate and more urgent: decisions that must be made _before_ scaffolding starts, because a late answer means rewriting code. Git identity, package manager, repo layout, and the SPEC.md storage question live there.
+`docs/14-decisions-needed.md` holds pre-scaffold and I0 decisions (C3–C5 and
+auth resolved 2026-08-07). B2 (language-policy enforcement) remains open via
+[13-agent-tooling.md](docs/13-agent-tooling.md) T5.
 
-Two have the most immediate impact:
+**Slim MVP-1 (OQ #8):** Planner + sandbox Coder for simple CRUD; product gate =
+sandbox checks. LLM Reviewer, Support Bot, domain deploy, and full
+dogfood/load → MVP-2 (`docs/04-roadmap.md` § 3). Sandbox API key via
+`/run/secrets/api_key` file mount (OQ #5). User app bootstrap from
+`templates/user-nextjs/` (OQ #1).
+
+Still easy to re-litigate by accident:
 
 - **#3 — `code:execute` concurrency.** **Resolved 2026-08-02** — branch-per-task removed the premise, so parallel BullMQ pulls no longer corrupt shared Git state. Kept here only because the naive implementation is still tempting.
-- **#8 — MVP-1 timeline.** The roadmap budgets 6 weeks for one engineer; the cited analysis says comparable scope usually takes 3–4 months.
 
 ## Agent tooling
 

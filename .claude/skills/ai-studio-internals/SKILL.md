@@ -43,7 +43,11 @@ Sandboxes are ephemeral and locked down (`docs/11-sandbox.md`):
 
 Destroyed after every task. Aider runs headless at a pinned version.
 
-The lint gate is fatal (`docs/11-sandbox.md` sets `status = 'failure'` on ESLint problems) and Prettier is configured (`eslint-config-prettier` + `format`/`format:check`). Still open: `runner.js` has no commit call (Task 3.1).
+The lint gate is fatal (`docs/11-sandbox.md` sets `status = 'failure'` on ESLint
+problems) and Prettier / `prisma validate` are part of the same gate. On success
+the runner commits with the task title; on failure it exits 1 with no commit.
+API key reaches the sandbox via `/run/secrets/api_key` (file bind), not `API_KEY`
+env.
 
 ## Secrets
 

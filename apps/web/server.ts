@@ -1,9 +1,9 @@
 /**
- * Custom HTTP server: Next.js App Router + editor WebSocket upgrades on :3000.
+ * Custom HTTP server: Next.js App Router + WebSocket upgrades on :3000.
  *
  * Why: App Router has no first-class WS route; `next start` ignores upgrades.
- * This process (a) prepares Next, (b) upgrades `WS /api/projects/[id]/editor/ws`
- * with the `ws` package (MIT), (c) delegates HMR / other upgrades to Next via
+ * This process (a) prepares Next, (b) upgrades editor + task-log WS paths with
+ * the `ws` package (MIT), (c) delegates HMR / other upgrades to Next via
  * `getUpgradeHandler()`. Compose still runs `yarn workspace @aiflow/web dev`.
  *
  * REST remains the source of truth; the WS channel is ephemeral state only.
@@ -20,6 +20,7 @@ import next from 'next';
 import { WebSocketServer } from 'ws';
 
 import { attachEditorWebSocket } from './src/features/editor';
+import { attachTaskLogsWebSocket } from './src/features/tasks';
 
 const hostname = process.env.HOSTNAME ?? '0.0.0.0';
 const port = Number(process.env.PORT ?? 3000);
@@ -27,6 +28,7 @@ const port = Number(process.env.PORT ?? 3000);
 const dev = process.env.npm_lifecycle_event === 'dev' || process.env.NODE_ENV === 'development';
 
 const EDITOR_WS = /^\/api\/projects\/([^/]+)\/editor\/ws\/?$/;
+const TASK_LOGS_WS = /^\/api\/projects\/([^/]+)\/tasks\/([^/]+)\/logs\/ws\/?$/;
 
 async function main(): Promise<void> {
   const app = next({ dev, hostname, port });
@@ -43,11 +45,20 @@ async function main(): Promise<void> {
 
   server.on('upgrade', (req, socket, head) => {
     const { pathname } = parse(req.url ?? '', true);
-    const match = pathname?.match(EDITOR_WS);
-    if (match?.[1]) {
-      const projectId = match[1];
+    const editorMatch = pathname?.match(EDITOR_WS);
+    if (editorMatch?.[1]) {
+      const projectId = editorMatch[1];
       wss.handleUpgrade(req, socket, head, (ws) => {
         void attachEditorWebSocket(ws, req, projectId);
+      });
+      return;
+    }
+    const logsMatch = pathname?.match(TASK_LOGS_WS);
+    if (logsMatch?.[1] && logsMatch[2]) {
+      const projectId = logsMatch[1];
+      const taskId = logsMatch[2];
+      wss.handleUpgrade(req, socket, head, (ws) => {
+        void attachTaskLogsWebSocket(ws, req, projectId, taskId);
       });
       return;
     }
