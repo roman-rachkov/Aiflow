@@ -9,6 +9,8 @@
 
 import { Card, CardTitle } from '@aiflow/ui';
 
+import { LocalDateTime } from '@/shared/ui';
+
 import type { SpecificationListItemView } from '../model/types';
 
 export type SpecificationPanelProps = {
@@ -52,18 +54,12 @@ export function SpecificationPanel({
                     <span className="ml-1 text-xs text-fg-muted">· утверждена</span>
                   ) : null}
                 </span>
-                <span className="text-xs text-fg-muted">{formatDate(spec.createdAt)}</span>
+                <LocalDateTime value={spec.createdAt} className="text-xs text-fg-muted" />
               </button>
             </li>
           ))
         )}
       </ul>
     </Card>
-  );
-}
-
-function formatDate(date: Date): string {
-  return new Intl.DateTimeFormat('ru-RU', { dateStyle: 'short', timeStyle: 'short' }).format(
-    new Date(date),
   );
 }

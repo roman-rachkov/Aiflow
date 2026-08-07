@@ -2,6 +2,8 @@
 
 import { Button, Spinner } from '@aiflow/ui';
 
+import { LocalDateTime } from '@/shared/ui';
+
 import type { DeploymentDetail, DeploymentStatus, DeploymentSummary } from '../model/types';
 import { useDeployments } from './useDeployments';
 
@@ -108,9 +110,7 @@ function Row({
         <span className="w-24 shrink-0 text-fg-muted">{STATUS_LABEL[item.status]}</span>
         <span className="min-w-0 flex-1 truncate font-mono text-xs">{item.imageTag ?? '—'}</span>
         <span className="hidden truncate text-fg-muted sm:inline">{item.url ?? '—'}</span>
-        <span className="shrink-0 text-fg-muted">
-          {new Date(item.createdAt).toLocaleString('ru-RU')}
-        </span>
+        <LocalDateTime value={item.createdAt} className="shrink-0 text-fg-muted" />
       </button>
     </li>
   );
