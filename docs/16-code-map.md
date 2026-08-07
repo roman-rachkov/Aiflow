@@ -66,8 +66,8 @@ apps/
 │     │                           never throws (degrades to '' on embed failure);
 │     │                         model/extract.ts (pdf-parse text layer) + chunk.ts
 │     │                           (LlamaIndex SentenceSplitter 512/50, toVectorLiteral)
-│     │                         ui/FilePanel.tsx — upload (hidden input) + per-row
-│     │                           index trigger + status badge
+│     │                         ui/FilePanel.tsx — list + upload; FileRow +
+│     │                           file-panel-upload for per-row index / POST
 │     ├── specifications/ SPEC.md version list, view, generation, approve (Task 2.1 + UX)
 │     │                     └── public: `index.ts` (server) + `client.ts` (panels)
 │     │                         model/service.ts — listSpecifications /
@@ -118,8 +118,10 @@ apps/
 │                                 from barrel for `apps/web/server.ts` (custom
 │                                 HTTP server; not an App Router route)
 │                               ui/ — Monaco shell, FileTree, tabs, Git panel,
-│                                 terminal stub; hooks useEditorState / useTabs /
-│                                 useEditorWs; client fetch in ui/api.ts
+│                                 terminal stub; hooks useEditorState (composes
+│                                 useEditorTree / useEditorChrome /
+│                                 useEditorDialogs / useEditorWsSideEffects /
+│                                 useTabs); client fetch in ui/api.ts
 │   shared:
 │     ├── ui/             AppHeader + AppNav (horizontal top nav; Task 1.2a / UX)
 │     ├── minio/          MinIO client: putObject/getObject/ensureBucket, lazy
