@@ -114,8 +114,12 @@ apps/
 │                               model/http.ts — gateEditorRequest + mapEditorError
 │                               model/ws-hub.ts + ws-publish.ts — in-memory Hub;
 │                                 REST publishSaved / publishTreeChanged
+│                               model/ws-attach.ts — upgrade handler for custom
+│                                 `apps/web/server.ts` (deep import until barrel
+│                                 re-export; not used from App Router routes)
 │                               ui/ — Monaco shell, FileTree, tabs, Git panel,
-│                                 terminal stub; WS reconnect in useEditorWs
+│                                 terminal stub; hooks useEditorState / useTabs /
+│                                 useEditorWs; client fetch in ui/api.ts
 │   shared:
 │     ├── ui/             AppHeader + AppNav (horizontal top nav; Task 1.2a / UX)
 │     ├── minio/          MinIO client: putObject/getObject/ensureBucket, lazy
