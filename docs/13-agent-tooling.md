@@ -104,7 +104,7 @@ Skills are packaged instruction sets for a specific class of task.
 | Skill                       | Purpose                                                                                                             | Scope     | License    | Status                 | Notes                                                                                                                                                                     |
 | --------------------------- | ------------------------------------------------------------------------------------------------------------------- | --------- | ---------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Next.js project scaffolding | Starter application template                                                                                        | `both`    | unverified | untested               | Directly tied to [12-open-questions.md](12-open-questions.md) #1: Aider is poor at creating multi-file structures from scratch. A templating skill is one possible answer |
-| Prisma schema work          | Models, migrations, validation                                                                                      | `both`    | unverified | untested               | Blocked on open question #2 (migrations without DB access)                                                                                                                |
+| Prisma schema work          | Models, migrations, validation                                                                                      | `both`    | unverified | untested               | OQ #2 resolved 2026-08-07: validate in sandbox; apply via `db push` at deploy ([12-open-questions.md](12-open-questions.md))                                              |
 | Diff review                 | Structural check of changes                                                                                         | `both`    | unverified | untested               | Overlaps the `reviewer` subagent — decide what is a skill and what is a prompt                                                                                            |
 | docker-compose generation   | Deploy artifact assembly                                                                                            | `product` | unverified | untested               | Needed by the Deployer ([04-roadmap.md](04-roadmap.md), Task 4.3)                                                                                                         |
 | `ai-studio-internals`       | Lazy-loaded context for rarely-needed AI Studio internals (ports, isolation, hardening, generated-code conventions) | `dev`     | ours       | verified               | Not a product candidate — a pure context-cost measure. Receives sections moved out of `CLAUDE.md`, which is billed on every turn of every session                         |
@@ -167,21 +167,21 @@ engineering, not legal. Recorded because the search should not be repeated.
 
 Definitions live in [`.claude/agents/`](../.claude/agents/), and they fall into two groups.
 
-**The five role agents are mirrors of the production prompts.** Copied verbatim — a modified prompt tests nothing about the version that ships. These have a `Prompt source`.
+**The four role agents with production prompts are mirrors of `docs/05`–`08`.** Copied verbatim — a modified prompt tests nothing about the version that ships. These have a `Prompt source`. Deployer has no prompt file yet (T3).
 
 **The three dev-only agents below the divider are ours.** They mirror nothing, ship nowhere, and exist to make mechanical work cheap. They run on the free local slot (see § 5) and hold read-only tools by design.
 
-| Subagent      | Role     | Prompt source                                  | Tools                               | Scope     | Status                                                                  | Tested on                             |
-| ------------- | -------- | ---------------------------------------------- | ----------------------------------- | --------- | ----------------------------------------------------------------------- | ------------------------------------- |
-| `analyst`     | Analyst  | [05-prompt-analyst.md](05-prompt-analyst.md)   | Read, Write, WebSearch, WebFetch    | `both`    | tested — defects found                                                  | 2026-08-02, AI Studio dogfooding SPEC |
-| `planner`     | Planner  | [06-prompt-planner.md](06-prompt-planner.md)   | Read, Glob, Grep                    | `both`    | tested — defects found                                                  | 2026-08-02, same SPEC, MVP-0 slice    |
-| `coder`       | Coder    | [07-prompt-coder.md](07-prompt-coder.md)       | Read, Write, Edit, Bash, Glob, Grep | `both`    | untested                                                                | —                                     |
-| `reviewer`    | Reviewer | [08-prompt-reviewer.md](08-prompt-reviewer.md) | Read, Glob, Grep, Bash              | `both`    | untested — product role deferred to MVP-2; still used by `/orchestrate` | —                                     |
-| `deployer`    | Deployer | **missing**                                    | —                                   | `product` | no prompt                                                               | —                                     |
-| —             | —        | —                                              | —                                   | —         | —                                                                       | —                                     |
-| `classifier`  | —        | none (dev-only)                                | Read, Grep, Glob                    | `dev`     | untested                                                                | —                                     |
-| `doc-checker` | —        | none (dev-only)                                | Read, Grep, Glob                    | `dev`     | untested                                                                | —                                     |
-| `lang-lint`   | —        | none (dev-only)                                | Read, Grep, Glob                    | `dev`     | untested                                                                | —                                     |
+| Subagent      | Role     | Prompt source                                  | Tools                               | Scope     | Status                                                                | Tested on                             |
+| ------------- | -------- | ---------------------------------------------- | ----------------------------------- | --------- | --------------------------------------------------------------------- | ------------------------------------- |
+| `analyst`     | Analyst  | [05-prompt-analyst.md](05-prompt-analyst.md)   | Read, Write, WebSearch, WebFetch    | `both`    | tested — defects found                                                | 2026-08-02, AI Studio dogfooding SPEC |
+| `planner`     | Planner  | [06-prompt-planner.md](06-prompt-planner.md)   | Read, Glob, Grep                    | `both`    | tested — defects found                                                | 2026-08-02, same SPEC, MVP-0 slice    |
+| `coder`       | Coder    | [07-prompt-coder.md](07-prompt-coder.md)       | Read, Write, Edit, Bash, Glob, Grep | `both`    | tested                                                                | 2026-08-05–07, `/orchestrate` + MVP-1 |
+| `reviewer`    | Reviewer | [08-prompt-reviewer.md](08-prompt-reviewer.md) | Read, Glob, Grep, Bash              | `both`    | tested — product role deferred to MVP-2; still used by `/orchestrate` | 2026-08-05–07, `/orchestrate`         |
+| `deployer`    | Deployer | **missing**                                    | —                                   | `product` | no prompt                                                             | —                                     |
+| —             | —        | —                                              | —                                   | —         | —                                                                     | —                                     |
+| `classifier`  | —        | none (dev-only)                                | Read, Grep, Glob                    | `dev`     | untested                                                              | —                                     |
+| `doc-checker` | —        | none (dev-only)                                | Read, Grep, Glob                    | `dev`     | untested                                                              | —                                     |
+| `lang-lint`   | —        | none (dev-only)                                | Read, Grep, Glob                    | `dev`     | untested                                                              | —                                     |
 
 **Gap: the Deployer has no prompt.** The role is declared in [01-system-spec.md](01-system-spec.md) § 2.3 and in the roadmap (Task 4.3), but no `prompt-deployer` document exists. The subagent was deliberately not created — writing a prompt "in the spirit of" the spec would mean inventing specification content. Deferred by decision: revisit once local MVP development is judged satisfactory. Tracked as T3 below.
 
@@ -209,6 +209,7 @@ The core value of this registry. Every subagent run during development is a free
 | 2026-08-06 | Analyst, Planner, Coder, Reviewer + T6          | `.claude/agents/*` → `05`–`08`          | Local LM Studio (`qwen/qwen3-coder-30b`) via OmniRoute (`local/qwen/qwen3-coder-30b`). Tiny hello-cli demo: skip-interview SPEC → 1-task PLAN → `index.js` → Reviewer JSON. Artifacts in `specs/lmstudio-flow-demo/`. Also: product RAG dim 768 + `docs:ingest` over `docs/*.md`                                                                                                                                                                                               | **T6 confirmed**: `POST /v1/messages` returned `T6_OK`. Full four-role cycle on local Qwen closed with Reviewer `ACCEPTED`. Analyst SPEC ~2.3k chars; Planner emitted a 1-task JSON array; Coder wrote `console.log('Hello, AIFlow!')`. Settings aliases temporarily pointed at LM Studio (backup `settings.json.bak-before-lmstudio`)                                                                                                                                                                                                                                                                                                                                                                                                                            | None for prompts. Restore paid-slot aliases when done testing. Keep `docs:ingest` as the local RAG bootstrap path                                                                                                                                                                                                                                                                                       |
 | 2026-08-07 | Analyst, Planner, Coder, Reviewer (orchestrate) | `.claude/agents/*` + `/orchestrate`     | Autonomous Cursor orchestrate for roadmap Tasks **2.2** + **2.3** (full MVP-0 tail). Skip-interview SPEC → PLAN → Coder→gate→Reviewer with `run the whole plan`. Artifacts: `specs/task-2.2-editor-gitea/`, `specs/task-2.3-deploy-modelconfig/`. Branches `task/2.2-editor-gitea` → `task/2.3-deploy-modelconfig`                                                                                                                                                             | Both plans closed `DONE`. **2.2**: Gitea client, create saga, Monaco editor, WS via custom `server.ts`, 177→ then 207 tests. **2.3**: `@aiflow/crypto`, ModelConfig, `@aiflow/queue`, worker `deploy:run`+dockerode (dev sock), deployments UI. Host `yarn verify` still fragile on Prisma generate EPERM when DLL locked; compose/`tsc` + `yarn test` green. Reviewer used selectively early; later batches relied on eslint/test gate + orchestrator mechanical lint fixes                                                                                                                                                                                                                                                                                      | Prefer smaller Coder batches when pre-commit `--max-warnings 0` catches size/unsafe-any; keep custom Next server documented in code-map; treat Prisma Windows EPERM as env, not schema failure                                                                                                                                                                                                          |
 | 2026-08-07 | Coder (parallel agents; slim MVP-1)             | product prompts + Task SPECs 3.1–3.3    | Roadmap Tasks **3.1** (sandbox + `registry-proxy`), **3.2** (Planner / `plan:generate`), **3.3** (Coder / `code:execute`) implemented via parallel coder agents. Artifacts: `specs/task-3.1-sandbox-infra/`, `specs/task-3.2-planner/`, `specs/task-3.3-coder/`; narrow dogfood checklist `specs/slim-mvp1-dogfood/`                                                                                                                                                           | Unit coverage green for plan parse, queue payloads, dry-run/live handlers, sandbox options, registry allowlist. Product gate = sandbox checks (no LLM Reviewer). Live compose dogfood remains operator-driven per checklist.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | None for prompts from this batch. Keep MVP-2 Reviewer/Support/domain/full-dogfood deferred; log live dogfood outcomes when run                                                                                                                                                                                                                                                                          |
+| 2026-08-07 | Analyst–Reviewer (pattern mining)               | `05`–`08` + § 8 external sources        | Applied open-source pattern mining (Spec Kit / BMAD / MetaGPT / bolt.diy — MIT or reference-only) into docs without vendoring runtimes: Analyst Non-goals/Success metrics/`[NEEDS CLARIFICATION]`/language purity; Planner ≤24 task cap + `effort`; Coder sandbox core aligned with docs/07; Reviewer `confidence` + severity/`sandbox∧AC` policy (MVP-2)                                                                                                                      | Docs + `.claude/agents` mirrors + `planner-prompt.ts` / `planner.ts` / `runner.js` updated. Prompt content changes; full four-role LLM re-run not part of this edit                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | Re-run `/orchestrate` smoke when convenient; keep leaked proprietary prompts out of product                                                                                                                                                                                                                                                                                                             |
 
 ---
 
@@ -231,12 +232,12 @@ Verified against the installed CLI (v2.1.220) rather than documentation: `MAX_TH
 
 Each was considered for downgrade and each was kept. The saving comes from new work landing on the free slot, not from degrading the roles that matter.
 
-| Role       | Why it stays                                                                                                                   |
-| ---------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `analyst`  | Interview + RAG reconciliation, user-facing prose, largest context demand                                                      |
-| `planner`  | Already truncated at 54 tasks on the paid model (§ 4). A weaker model worsens the known failure, and the output is strict JSON |
-| `reviewer` | Security judgement. A false `ACCEPTED` costs a debugging cycle — more than the tokens saved                                    |
-| `coder`    | Mechanical in scope but drives `Edit`; a weak model retries                                                                    |
+| Role       | Why it stays                                                                                                                                                                            |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `analyst`  | Interview + RAG reconciliation, user-facing prose, largest context demand                                                                                                               |
+| `planner`  | Historically truncated at 54 tasks (§ 4); now capped at 24 (`PLANNER_MAX_TASKS`) with parser enforcement. Output is still strict JSON — a weaker model worsens parse/structure failures |
+| `reviewer` | Security judgement. A false `ACCEPTED` costs a debugging cycle — more than the tokens saved                                                                                             |
+| `coder`    | Mechanical in scope but drives `Edit`; a weak model retries                                                                                                                             |
 
 ### Availability caveat
 
@@ -335,19 +336,9 @@ Options:
 
 **Affected artifacts:** [`CLAUDE.md`](../CLAUDE.md), docs 05–08, [`.claude/agents/lang-lint.md`](../.claude/agents/lang-lint.md)
 
-### T6. Confirm the free slot actually routes free
+### T6. Confirm the free slot actually routes free — RESOLVED 2026-08-06
 
-`model: haiku` is configured to reach a local Qwen in LM Studio, and § 5 records the whole tiering policy on that basis. The routing has not been observed end to end — both aliases resolve to real entries in the router's model list, but an authenticated probe was blocked by the permission classifier before it ran.
-
-Until this is confirmed, three dev-only agents may be quietly billing to the paid slot, which inverts the point of the exercise.
-
-Options:
-
-- Send one authenticated request per alias through the router and compare the `model` field in the response against what was asked for.
-- Watch the LM Studio server log while invoking `classifier` on a trivial input.
-- Stop the LM Studio server and confirm a `model: haiku` agent fails rather than silently succeeding — the more valuable test, since it proves there is no hidden fallback.
-
-**Affected artifacts:** [`.claude/agents/`](../.claude/agents/) (the three dev-only agents), § 5 of this document
+Verified: OmniRoute → LM Studio `local/qwen/qwen3-coder-30b` (`POST /v1/messages` → `T6_OK`) plus a four-role hello-cli cycle. Details in § 5 and the 2026-08-06 prompt test log row. Free-slot agents still fail loudly if LM Studio is down (no paid fallback).
 
 ### T7. Whether the tool-flow findings should feed the product
 
@@ -362,6 +353,45 @@ Options:
 - Emit the analyzer's JSON shape from the sandbox runner and analyze it out of band.
 
 **Affected artifacts:** [03-data-model.md](03-data-model.md) (`TaskLog`), [11-sandbox.md](11-sandbox.md), `tools/session-analyzer`
+
+---
+
+## 8. External prompt sources (pattern mining)
+
+Our production prompts live in [05](05-prompt-analyst.md)–[08](08-prompt-reviewer.md). We do **not** vendor foreign orchestrators. We mine patterns into those docs (and the trimmed Planner/Coder runtime prompts), then re-test via the log in § 4.
+
+### Selection rules
+
+- Prefer MIT / Apache-2.0 / BSD / ISC sources when copying phrasing into product prompts (`scope: product` / `both` — conventions § 8).
+- “Leaked” system-prompt catalogs are **reference only** (tool-loop shape, refusal, output contracts). Do not paste Cursor / Claude Code / v0 / Lovable / proprietary agent text into `packages/ai-roles`, sandbox runners, or `docs/05`–`08`.
+- Keep our queues, sandbox gate, soft-delete, and language policy. Extra personas (Architect, Scrum Master, UX) wait until slim MVP-1 Planner+Coder is stable.
+- Deployer stays deterministic code (T3) — no LLM prompt pack.
+
+### Role → open sources map
+
+| Our role         | Primary open sources                                                                                                                                                                                         | Steal                                                                                           | Leave behind                                                    |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| Analyst          | [BMAD-METHOD](https://github.com/bmad-code-org/BMAD-METHOD) (MIT) interview/PRD skills; [github/spec-kit](https://github.com/github/spec-kit) `/specify` + clarification markers; MetaGPT ProductManager SOP | Non-goals / success metrics; never invent; one-question facilitation; hybrid SPEC               | Full BMAD agent swarm; MetaGPT competitive-analysis digressions |
+| Planner          | Spec Kit `/plan`+`/tasks`; MetaGPT ProjectManager; prompt-builder↔JSON-parser split (e.g. Multi-Agent-Automation-Engine)                                                                                     | Strict JSON + validate/retry (C3); DAG deps; refuse on contradiction; **batch/cap** large plans | One-shot 50+ task dumps that blow context                       |
+| Coder            | [bolt.diy](https://github.com/stackblitz-labs/bolt.diy) (MIT) stack constraints; OpenHands / Aider / Cline open loops                                                                                        | Atomic task; no-commit (runner commits); report-then-stop; size limits                          | Monolithic “build the whole app in one chat”                    |
+| Reviewer (MVP-2) | MetaGPT QaEngineer; Forge-style `qa-reviewer`; confidence + security block lists                                                                                                                             | Structured verdict + AC evidence; severity; sandbox-green ∧ AC                                  | LLM-only blocking gate without sandbox checks                   |
+
+### Closest end-to-end philosophies
+
+1. **GitHub Spec Kit** — structural twin (`specify → plan → tasks → implement`); best template/clarification patterns.
+2. **BMAD-METHOD** — best Analyst facilitation and “artifact approved before code”; too heavy as a runtime.
+3. **MetaGPT / ChatDev** — classic software-company SOPs; weaker for non-technical, user-language interview.
+4. **bolt.diy** — Coder/UI generation patterns under Next/TS; proprietary app-builder leaks are inspiration only.
+5. **Awesome / leaked catalogs** — checklists for tool protocol and schema-first output, not drop-in packs.
+
+### Adoption backlog (applied into docs/05–08)
+
+| Phase | Focus                                                                         | Status             |
+| ----- | ----------------------------------------------------------------------------- | ------------------ |
+| A     | Analyst: Non-goals, Success metrics, `[NEEDS CLARIFICATION]`, language purity | Applied 2026-08-07 |
+| B     | Planner: task cap / batching, optional `effort`, stronger JSON contract       | Applied 2026-08-07 |
+| C     | Coder: sandbox `buildPrompt` aligned with docs/07 core                        | Applied 2026-08-07 |
+| D     | Reviewer (MVP-2 prep): confidence + severity policy                           | Applied 2026-08-07 |
 
 ---
 

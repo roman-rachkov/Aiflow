@@ -8,6 +8,7 @@ const SAMPLE: PlanTask = {
   description: 'Add User to schema.prisma with email and name.',
   status: 'PENDING',
   priority: 'critical',
+  effort: 'M',
   dependencies: [],
   acceptance: 'Migration applies; User table exists.',
   needsConfirmation: false,
@@ -64,6 +65,23 @@ describe('parsePlanTasks', () => {
     expect(() => {
       parsePlanTasks(JSON.stringify(bad));
     }).toThrow(/priority/);
+  });
+
+  it('defaults missing effort to M', () => {
+    const { effort: _drop, ...withoutEffort } = SAMPLE;
+    void _drop;
+    const tasks = parsePlanTasks(JSON.stringify([withoutEffort]));
+    expect(tasks[0].effort).toBe('M');
+  });
+
+  it('rejects oversized arrays', () => {
+    const many = Array.from({ length: 25 }, (_, i) => ({
+      ...SAMPLE,
+      title: `Task ${String(i)}`,
+    }));
+    expect(() => {
+      parsePlanTasks(JSON.stringify(many));
+    }).toThrow(/max is 24/);
   });
 });
 

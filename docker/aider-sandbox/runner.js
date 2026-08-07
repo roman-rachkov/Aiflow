@@ -48,17 +48,39 @@ function writeAiderConfig(apiKey) {
   fs.writeFileSync(AIDER_CONFIG, `${lines.join('\n')}\n`);
 }
 
+/** Shared core aligned with docs/07-prompt-coder.md (Aider message wrapper). */
+const CODER_CORE_PROMPT = `You are the AI Coder in AI Studio. Work in the project Git root (Next.js App Router, TypeScript, Tailwind, Prisma, PostgreSQL) on the task branch already checked out.
+
+Rules:
+- Implement the task exactly; no scope creep.
+- English only for code, comments, and the final report.
+- Never commit, never change git config, never run yarn dev.
+- Size limits: file ≤ 200 lines, function ≤ 50 (lint failures).
+- Install deps only when needed (yarn add). Network: npm registry via proxy only.
+- After edits, verify TypeScript and ESLint. The runner also runs Prettier and prisma validate before it commits.
+
+Report format:
+Task result: [title]
+Status: [success/failure]
+Changed files:
+- [path] ([created/modified/deleted])
+Commands run:
+- [command] ([result])
+Checks:
+- TypeScript: [passed/errors]
+- ESLint: [passed/errors]
+- Tests (if any): [result]
+Notes/assumptions:
+- [if any]`;
+
 function buildPrompt(task) {
-  return `
-You are the AI Coder. Your task: implement the following change in the project code.
+  return `${CODER_CORE_PROMPT}
 
 **Task:** ${task.title}
 **Description:** ${task.description}
 **Acceptance criteria:** ${task.acceptance}
 
-You are in the root directory of a Next.js Git repository (App Router, TypeScript, Tailwind, Prisma).
-Implement the task strictly as described, adding nothing extra.
-After making changes, verify the code compiles without TypeScript errors and passes ESLint.
+Implement only this task. End with the report format above. Do not commit.
 `;
 }
 

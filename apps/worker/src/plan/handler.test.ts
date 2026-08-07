@@ -22,6 +22,7 @@ const PLAN: PlanTask[] = [
     dependencies: [],
     acceptance: 'Item model validates.',
     needsConfirmation: false,
+    effort: 'M',
   },
   {
     title: 'List items API',
@@ -31,6 +32,7 @@ const PLAN: PlanTask[] = [
     dependencies: ['Add Item model'],
     acceptance: 'Route returns 200.',
     needsConfirmation: false,
+    effort: 'S',
   },
 ];
 

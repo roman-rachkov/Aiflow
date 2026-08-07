@@ -31,9 +31,9 @@ postgres, redis, minio, gitea, app, worker, model-router, registry-proxy — on 
 images (`node:22-bookworm` for Node services). Bind-mount + named `node_modules`
 volumes; entrypoint `docker/dev-entrypoint.sh`. Copy `.env.example` → `.env` first.
 
-> Note: `docs/16-code-map.md` and `docs/17-session-review.md` exist on disk but are **not yet
-> listed in `docs/README.md`**. The README also still links two deleted drafts (`ide.md`,
-> `ide-analize.md`) — those dead links are by design, don't go looking.
+> Note: `docs/16-code-map.md` and `docs/17-session-review.md` are listed in
+> `docs/README.md`. The README also still cites two deleted drafts (`ide.md`,
+> `ide-analize.md`) in prose — those dead references are by design, don't go looking.
 
 ## Tools available in this agent
 

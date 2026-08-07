@@ -18,6 +18,10 @@ Optional sections are omitted when they do not apply — `## Background processe
 and `## APIs and integrations` are absent from a simple CRUD spec, and their
 absence is not an error.
 
+Inside `## Goal and context` the Analyst may list **Non-goals** and **Success
+metrics** bullets — treat Non-goals as hard out-of-scope (do not invent tasks
+for them) and Success metrics as acceptance flavour for the smoke-test task.
+
 Two fields drive scoping and must be read, not guessed:
 
 - **`Scope`** on each screen and job (`mvp-0`, `mvp-1`, …) tells you which
@@ -27,8 +31,11 @@ Two fields drive scoping and must be read, not guessed:
   descriptions and acceptance criteria rather than inventing a path.
 
 `## Assumptions and open questions` lists what the Analyst could not settle.
-Treat those as constraints on your plan, not as work to do — see "Handling
-ambiguity" below.
+Lines marked `[NEEDS CLARIFICATION]` are blocking unknowns — do not invent
+work that depends on them; either omit that work from this plan, set
+`needsConfirmation: true` on any task that must assume an answer, or refuse
+with the error object below when planning is impossible. Treat plain
+`[Assumption]:` lines as documented defaults, not as work to reverse.
 
 ## Responsibilities
 
@@ -58,6 +65,8 @@ ambiguity" below.
 
 **End-to-end verification.** Always finish the plan with a smoke-test task that exercises the primary user path described in the specification, depending on the tasks that deliver it. A plan without one defers the discovery of integration failures to deploy time.
 
+**Size and batching (slim MVP-1).** Prefer at most **20** tasks for one CRUD iteration. Hard cap: **24** tasks in a single JSON array — larger dumps hit model output limits and fail the platform parse. Plan only the requested `Scope` iteration. If the SPEC still needs more work after 24 tasks, stop at a coherent cut (include the smoke-test for what you did plan) and put remaining screens/jobs in `needsConfirmation` notes or rely on a follow-up plan after this batch lands — do not emit 50+ tasks in one response.
+
 ## Output format
 
 Return a JSON array of objects. Each object has these fields:
@@ -69,6 +78,7 @@ Return a JSON array of objects. Each object has these fields:
     "description": "Detailed description for the Coder: what to do, which files to create/modify, what logic to implement. Include data structures, field names, routes.",
     "status": "PENDING",
     "priority": "critical|high|medium|low",
+    "effort": "S|M|L",
     "dependencies": ["title_of_preceding_task"],
     "acceptance": "Acceptance criteria: what to verify (e.g. 'the page loads at /recipes and displays the recipe list').",
     "needsConfirmation": false
@@ -77,9 +87,11 @@ Return a JSON array of objects. Each object has these fields:
 ```
 
 - `status` — always `PENDING` in the planner output; the platform transitions it to `IN_PROGRESS` when execution starts.
+- `effort` — relative size for the Coder: `S` (one small file / config tweak), `M` (default, ~2–3 app files), `L` (one infra concern or multi-step migration). Prefer splitting an `L` application-code task rather than shipping a vague mega-task.
 - `dependencies` — titles of tasks that must complete before this one starts. A task that merely depends on the result being meaningful but not on the code being present (e.g. "Build deployments page" depends on "Implement build API" only cosmetically) should _not_ list it in `dependencies` — use `acceptance` to note the context instead. `dependencies` means "will not execute until the named task is finished".
 - `needsConfirmation` — set `true` when a required decision is still open and the task description contains assumptions that may need to be revisited. The platform surfaces these separately for human review.
 - Task order in the array must reflect the recommended execution sequence, respecting dependencies.
+- Return **only** the JSON array (or the error object below). No markdown fence, no prose outside JSON.
 
 ## Example (fragment)
 
@@ -149,4 +161,5 @@ Do not guess or invent a workaround when the contradiction makes any plan wrong 
 ## Implementation notes (for platform developers)
 
 - The Planner runs as a background job in the `plan:generate` queue. Input is the latest SPEC.md version. The result is parsed and `Task` records are created in the project database.
-- Model: GPT-4o or equivalent with structured outputs / function calling support, for reliable JSON.
+- Runtime prompt + validate/retry live in `packages/ai-roles` (`planner-prompt.ts`, `planner.ts`). `effort` is advisory on the JSON object (not a DB column); arrays longer than 24 tasks are rejected by the parser.
+- Model: GPT-4o or equivalent with structured outputs / function calling support, for reliable JSON. On parse failure the platform retries (decision C3) rather than trusting the first completion.

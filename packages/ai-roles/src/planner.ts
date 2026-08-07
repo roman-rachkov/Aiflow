@@ -4,10 +4,13 @@
  */
 
 import type { ChatConfig, ChatMessage, ModelProvider } from './types';
-import { PLANNER_SYSTEM_PROMPT } from './planner-prompt';
+import { PLANNER_MAX_TASKS, PLANNER_SYSTEM_PROMPT } from './planner-prompt';
 
 /** Priority strings allowed in planner JSON (lowercase). */
 export type PlanTaskPriority = 'critical' | 'high' | 'medium' | 'low';
+
+/** Relative effort for sizing (advisory; not a DB column). */
+export type PlanTaskEffort = 'S' | 'M' | 'L';
 
 /** One planner-emitted task before DB mapping. */
 export type PlanTask = {
@@ -15,12 +18,14 @@ export type PlanTask = {
   description: string;
   status: 'PENDING';
   priority: PlanTaskPriority;
+  effort: PlanTaskEffort;
   dependencies: string[];
   acceptance: string;
   needsConfirmation: boolean;
 };
 
 const PRIORITIES = new Set<string>(['critical', 'high', 'medium', 'low']);
+const EFFORTS = new Set<string>(['S', 'M', 'L']);
 const MAX_PARSE_RETRIES = 2;
 
 /** Drain an AsyncIterable of text chunks into one string. */
@@ -59,6 +64,7 @@ export function parsePlanTask(item: unknown, index: number): PlanTask {
   const description = requireString(row.description, `task[${idx}].description`);
   const acceptance = requireString(row.acceptance, `task[${idx}].acceptance`);
   const priority = normalizePriority(row.priority, idx);
+  const effort = normalizeEffort(row.effort, idx);
   const dependencies = parseDeps(row.dependencies, index);
   return {
     title,
@@ -66,6 +72,7 @@ export function parsePlanTask(item: unknown, index: number): PlanTask {
     acceptance,
     status: 'PENDING',
     priority,
+    effort,
     dependencies,
     needsConfirmation: Boolean(row.needsConfirmation),
   };
@@ -79,6 +86,11 @@ export function parsePlanTasks(raw: string): PlanTask[] {
   }
   if (data.length === 0) {
     throw new Error('Planner JSON array is empty');
+  }
+  if (data.length > PLANNER_MAX_TASKS) {
+    throw new Error(
+      `Planner JSON array has ${String(data.length)} tasks; max is ${String(PLANNER_MAX_TASKS)}`,
+    );
   }
   return data.map((item, i) => parsePlanTask(item, i));
 }
@@ -134,6 +146,18 @@ function normalizePriority(value: unknown, idx: string): PlanTaskPriority {
     throw new Error(`Planner task[${idx}].priority invalid: ${priority}`);
   }
   return priority as PlanTaskPriority;
+}
+
+function normalizeEffort(value: unknown, idx: string): PlanTaskEffort {
+  if (value == null || value === '') return 'M';
+  if (typeof value !== 'string') {
+    throw new Error(`Planner task[${idx}].effort must be S|M|L`);
+  }
+  const effort = value.trim().toUpperCase();
+  if (!EFFORTS.has(effort)) {
+    throw new Error(`Planner task[${idx}].effort invalid: ${value}`);
+  }
+  return effort as PlanTaskEffort;
 }
 
 function parseDeps(value: unknown, index: number): string[] {

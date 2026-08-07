@@ -28,7 +28,7 @@ The prompts in `docs/05`–`08` have been translated to match. What remains open
 
 `docs/` is the source of truth. `docs/README.md` is the index — read it first.
 
-`docs/` was split out of two earlier drafts, `ide.md` and `ide-analize.md`. Those files are gone by design — they were superseded, not lost. `docs/12-open-questions.md:3` and `docs/README.md:3` still link to them; the links are dead and that is expected. Don't go looking for them.
+`docs/` was split out of two earlier drafts, `ide.md` and `ide-analize.md`. Those files are gone by design — they were superseded, not lost. `docs/12-open-questions.md:3` still links to `../ide-analize.md`, and `docs/README.md:3` cites `ide.md` in prose; the references are dead and that is expected. Don't go looking for them.
 
 ## What is being built
 

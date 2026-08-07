@@ -73,6 +73,10 @@ Notes/assumptions:
 - No file over 200 lines, no function over 50, without an inline exemption.
 - The working tree holds exactly the intended change, ready for the runner's commit.
 
+## Shared core vs executors (T1)
+
+The production sandbox injects a trimmed **core** of this prompt via `docker/aider-sandbox/runner.js` (`CODER_CORE_PROMPT` + the task fields). Dev-time Claude Code agents use this full document. Keep behavioural invariants identical across both: atomic task, English-only internal output, never commit, size limits, report-then-stop, stack pin (Next.js / TS / Tailwind / Prisma).
+
 ## Example interaction
 
 **Input task (user message):**

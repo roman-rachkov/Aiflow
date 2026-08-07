@@ -245,7 +245,8 @@ packages/
 │                               createZaiProvider() is a deprecated alias
 │                             mock-chat.ts / mock-embeddings.ts — extracted mock paths
 │                             planner-prompt.ts / planner.ts — PLANNER_SYSTEM_PROMPT
-│                               + generatePlanTasks (JSON parse, max 2 retries; 3.2)
+│                               + generatePlanTasks (JSON parse, max 2 retries,
+│                               effort S|M|L, max 24 tasks; 3.2)
 │                             sse-parser.ts — generic SSE frame reassembly
 │                               (reusable; reader released in finally)
 └── ui/                   Design system (Task 1.2d → D0a OpenUI). OpenUI-backed
@@ -275,7 +276,8 @@ tools/                    Dev-only workspaces. Ship nowhere; still gated by
 docker/                   Compose helpers (not a Yarn workspace).
 ├── postgres/init/        CREATE EXTENSION vector, pgcrypto (first-boot only)
 ├── aider-sandbox/        Aider sandbox image (Task 3.1): Dockerfile + runner.js
-│                         (+ runner-checks/gate). Template-free; API key via
+│                         (+ runner-checks/gate). CODER_CORE_PROMPT mirrors
+│                         docs/07 core; template-free; API key via
 │                         /run/secrets/api_key; commits only after gate passes.
 └── dev-entrypoint.sh     Shared Node-service entrypoint: flock → yarn install
                           when stamp/lock/node_modules need it → prisma generate
