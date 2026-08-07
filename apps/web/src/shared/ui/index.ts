@@ -1,2 +1,2 @@
 export { AppHeader } from './AppHeader';
-export { SideMenu } from './SideMenu';
+export { AppNav } from './AppNav';

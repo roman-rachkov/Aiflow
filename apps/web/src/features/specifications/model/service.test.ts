@@ -13,17 +13,22 @@ const findMany = vi.fn();
 const findFirst = vi.fn();
 const aggregate = vi.fn();
 const create = vi.fn();
+const update = vi.fn();
 
 const fakeClient = {
-  specification: { findMany, findFirst, aggregate, create },
+  specification: { findMany, findFirst, aggregate, create, update },
 };
 
 vi.mock('@aiflow/db', () => ({
   getProjectClient: vi.fn(() => fakeClient),
 }));
 
-const { listSpecifications, getSpecificationByVersion, createSpecificationVersion } =
-  await import('./service');
+const {
+  listSpecifications,
+  getSpecificationByVersion,
+  createSpecificationVersion,
+  approveSpecification,
+} = await import('./service');
 
 const ROW = {
   id: 's1',
@@ -84,6 +89,7 @@ describe('getSpecificationByVersion', () => {
       content: ROW.content,
       createdAt: ROW.createdAt,
       createdBy: 'AI',
+      approvedAt: null,
     });
   });
 
@@ -118,5 +124,51 @@ describe('createSpecificationVersion', () => {
     expect(create).toHaveBeenCalledWith({
       data: { version: 1, content: '# first SPEC', createdBy: 'AI' },
     });
+  });
+});
+
+describe('approveSpecification', () => {
+  it('sets approvedAt and approvedBy on an unapproved version', async () => {
+    findFirst.mockResolvedValue({ ...ROW });
+    const approved = {
+      ...ROW,
+      approvedAt: new Date('2026-01-03'),
+      approvedBy: 'user-1',
+    };
+    update.mockResolvedValue(approved);
+
+    const result = await approveSpecification('project_x', 2, 'user-1');
+
+    expect(update).toHaveBeenCalledWith({
+      where: { id: 's1' },
+      data: { approvedAt: expect.any(Date), approvedBy: 'user-1' },
+    });
+    expect(result).toEqual({
+      id: 's1',
+      version: 2,
+      content: ROW.content,
+      createdAt: ROW.createdAt,
+      createdBy: 'AI',
+      approvedAt: approved.approvedAt,
+    });
+  });
+
+  it('is idempotent when already approved', async () => {
+    const already = { ...ROW, approvedAt: new Date('2026-01-02'), approvedBy: 'user-1' };
+    findFirst.mockResolvedValue(already);
+
+    const result = await approveSpecification('project_x', 2, 'user-2');
+
+    expect(update).not.toHaveBeenCalled();
+    expect(result?.approvedAt).toEqual(already.approvedAt);
+  });
+
+  it('returns null when the version is missing or soft-deleted', async () => {
+    findFirst.mockResolvedValue(null);
+
+    const result = await approveSpecification('project_x', 99, 'user-1');
+
+    expect(result).toBeNull();
+    expect(update).not.toHaveBeenCalled();
   });
 });

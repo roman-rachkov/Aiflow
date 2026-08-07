@@ -55,7 +55,9 @@ async function main(): Promise<void> {
   });
 
   await new Promise<void>((resolve, reject) => {
-    server.listen(port, hostname, () => { resolve(); });
+    server.listen(port, hostname, () => {
+      resolve();
+    });
     server.once('error', reject);
   });
   console.log(`> Ready on http://${hostname}:${String(port)}`);

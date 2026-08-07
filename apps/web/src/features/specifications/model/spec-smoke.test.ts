@@ -101,6 +101,7 @@ describe('SPEC smoke: generate -> list -> view', () => {
       content: '# Project body',
       createdAt: new Date(),
       createdBy: 'AI' as const,
+      approvedAt: null,
     };
     specificationCreate.mockResolvedValue(createdRow);
 

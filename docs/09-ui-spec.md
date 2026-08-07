@@ -19,7 +19,7 @@ AI Studio is a responsive web application built around two roles: Customer (Aunt
 
 ```
 
-For the Customer the sidebar contains only Dashboard, Researcher, Deployments. The other screens are hidden. The Engineer sees the full menu.
+For the Customer the **top navigation** contains Projects, and (inside a project) Researcher, Tasks, Deployments. The Engineer (Pro) also sees Editor and Model settings.
 
 ## 3. Screen: Dashboard
 
@@ -73,7 +73,7 @@ For the Customer the sidebar contains only Dashboard, Researcher, Deployments. T
 3. Clicks "Create specification".
 4. Reviews SPEC.md in the right panel.
 5. Clicks "Approve specification".
-6. Clicks "Start generation" → redirected to /tasks with the process running.
+6. Clicks "Start generation" → redirected to /tasks. (`plan:generate` / live task progress is MVP-1; the tasks route is a stub until then.)
 
 ### Engineer actions
 
@@ -161,10 +161,11 @@ For the Customer the sidebar contains only Dashboard, Researcher, Deployments. T
 
 ## 9. Shared Elements and States
 
-### Sidebar
+### Top navigation
 
-- Customer: "My projects", "Researcher", "Deployments" (current project).
-- Engineer: adds "Tasks", "Editor", "Agents".
+- Customer: "Projects"; under a project — "Researcher", "Tasks", "Deployments".
+- Engineer (Pro): adds "Editor", "Model settings".
+- Lives in the app header (horizontal), not a left sidebar.
 
 ### Modals
 

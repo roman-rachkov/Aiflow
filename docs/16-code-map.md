@@ -68,19 +68,21 @@ apps/
 │     │                           (LlamaIndex SentenceSplitter 512/50, toVectorLiteral)
 │     │                         ui/FilePanel.tsx — upload (hidden input) + per-row
 │     │                           index trigger + status badge
-│     ├── specifications/ SPEC.md version list, view, generation (Task 2.1)
-│     │                     └── public: `index.ts` (server) + `client.ts` (panel)
+│     ├── specifications/ SPEC.md version list, view, generation, approve (Task 2.1 + UX)
+│     │                     └── public: `index.ts` (server) + `client.ts` (panels)
 │     │                         model/service.ts — listSpecifications /
 │     │                           getSpecificationByVersion (findFirst: version
 │     │                           @@unique but deletedAt not in it) /
-│     │                           createSpecificationVersion (max+1, createdBy AI);
+│     │                           createSpecificationVersion (max+1, createdBy AI) /
+│     │                           approveSpecification (approvedAt/approvedBy,
+│     │                           idempotent);
 │     │                         model/generate.ts — generateSpecification(schemaName,
 │     │                           deps): non-streaming generation via DI (cross-slice
 │     │                           listMessages/retrieveContext/readSpecTemplate
 │     │                           injected — boundaries/dependencies capture:slice
 │     │                           forbids feature→feature imports)
-│     │                         ui/SpecificationPanel.tsx — version list, lazy content
-│     │                           view, generate button
+│     │                         ui/ — SpecificationPanel (version list),
+│     │                           SpecPreviewPanel (Markdown + Approve / Start)
 │     ├── model-config/   Analyst ModelConfig encrypt/API/UI (Task 2.3)
 │     │                     └── public: `index.ts` (server) + `client.ts` (form)
 │     │                         model/service.ts — get/upsert Analyst config;
@@ -115,7 +117,7 @@ apps/
 │                               ui/ — Monaco shell, FileTree, tabs, Git panel,
 │                                 terminal stub; WS reconnect in useEditorWs
 │   shared:
-│     ├── ui/             AppHeader, SideMenu (app composition, Task 1.2a)
+│     ├── ui/             AppHeader + AppNav (horizontal top nav; Task 1.2a / UX)
 │     ├── minio/          MinIO client: putObject/getObject/ensureBucket, lazy
 │     │                    singleton, scheme-less S3_ENDPOINT tolerated (Task 2.1)
 │     └── gitea/          Gitea REST v1 client (Task 2.2): createRepo/deleteRepo/
@@ -124,8 +126,10 @@ apps/
 │                          fetch-only, GiteaUpstreamError → routes map to 502
 │   routes (app/):
 │     /  → redirect('/projects');  /projects, /projects/new, /projects/[id]
-│     /projects/[id]/research — two-panel Researcher page (Task 1.3; live artifacts
-│       panel since Task 2.1: FilePanel + SpecificationPanel + Roadmap card)
+│     /projects/[id]/research — three-column Researcher (artifacts | chat | SPEC
+│       preview); ResearchWorkspace owns SPEC state; Create above composer;
+│       Approve + Start generation → /tasks
+│     /projects/[id]/tasks — Tasks stub until Planner / plan:generate (MVP-1)
 │     /projects/[id]/editor — Pro Monaco editor (Task 2.2; requireProMode)
 │     /projects/[id]/settings/models — Pro Analyst ModelConfig (Task 2.3)
 │     /projects/[id]/deployments — build history; Pro «Собрать» (Task 2.3)
@@ -137,6 +141,7 @@ apps/
 │     /api/projects/[id]/files/[fid]/index (POST — synchronous RAG indexing, 2.1)
 │     /api/projects/[id]/specifications (GET list, POST generate — Task 2.1)
 │     /api/projects/[id]/specifications/[version] (GET one version — Task 2.1)
+│     /api/projects/[id]/specifications/[version]/approve (POST — set approvedAt)
 │     /api/projects/[id]/model-config (GET/PUT — Pro Analyst config, Task 2.3)
 │     /api/projects/[id]/deploy/export (POST — Dockerfile/compose → Gitea, 2.3)
 │     /api/projects/[id]/deployments (GET list; POST enqueue deploy:run, 2.3)
@@ -264,7 +269,7 @@ compose topology          `docker compose up` (no `--build`): postgres, redis,
 | Analyst ModelConfig (encrypt, API, settings UI)                    | `apps/web/src/features/model-config` (Task 2.3)                        |
 | Manual deploy (templates, enqueue, deployments UI)                 | `apps/web/src/features/deploy` (Task 2.3); worker `deploy:run`         |
 | Model provider adapter (universal OpenAI-compatible, chat+embed)   | `packages/ai-roles/src` (Task 1.3; universal + embeddings in Task 2.1) |
-| App shell (header, side menu)                                      | `apps/web/src/shared/ui` (Task 1.2a)                                   |
+| App shell (header, top nav)                                        | `apps/web/src/shared/ui` (AppHeader, AppNav)                           |
 | MinIO object storage client                                        | `apps/web/src/shared/minio` (Task 2.1)                                 |
 | Gitea HTTP client (REST v1, fetch-only)                            | `apps/web/src/shared/gitea` (Task 2.2)                                 |
 | Pro code editor (Monaco + Gitea files/git + in-memory WS hub)      | `apps/web/src/features/editor` (Task 2.2); WS via `apps/web/server.ts` |
@@ -295,6 +300,6 @@ compose topology          `docker compose up` (no `--build`): postgres, redis,
   built without them costs more than the build wiring saves. Recorded in
   conventions § 2.3 and decisions #10 — the rule still holds everywhere else.
 - The boundary inside that exception: `packages/ui` holds **primitives and
-  tokens** — no knowledge of this app. App **composition** (header, side menu)
+  tokens** — no knowledge of this app. App **composition** (header, top nav)
   stays in `apps/web/src/shared/ui`, because it encodes this app's routes and a
   shared package must not know them.

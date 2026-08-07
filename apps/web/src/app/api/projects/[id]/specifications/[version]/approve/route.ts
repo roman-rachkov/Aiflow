@@ -2,19 +2,17 @@ import { NextResponse } from 'next/server';
 
 import { requireUser } from '@/features/auth';
 import { resolveProjectSchema } from '@/features/projects';
-import { getSpecificationByVersion } from '@/features/specifications';
+import { approveSpecification } from '@/features/specifications';
 
 /**
- * One specification version by number.
+ * Approve one specification version.
  *
- * Shares the chat route's auth/resolve preamble — `requireUser` then
- * `resolveProjectSchema`, answering 404 for a missing or foreign project (no
- * existence leak). An invalid version (non-integer or `< 1`) is a 404 too: it
- * matches no row, and answering identically to a missing-but-well-formed
- * version avoids leaking the validation distinction. A valid-but-absent
- * version answers 404 `'Версия не найдена'`; a hit answers the full view.
+ * Auth/resolve preamble matches the version GET route. Invalid version numbers
+ * and missing rows both answer 404. Success returns the full view including
+ * `approvedAt` so the preview panel can flip to «Start generation» without a
+ * second fetch. Idempotent when already approved.
  */
-export async function GET(
+export async function POST(
   _request: Request,
   { params }: { params: Promise<{ id: string; version: string }> },
 ) {
@@ -31,7 +29,7 @@ export async function GET(
     return NextResponse.json({ error: 'Версия не найдена' }, { status: 404 });
   }
 
-  const spec = await getSpecificationByVersion(schemaName, version);
+  const spec = await approveSpecification(schemaName, version, user.id);
   if (!spec) {
     return NextResponse.json({ error: 'Версия не найдена' }, { status: 404 });
   }

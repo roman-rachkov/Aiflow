@@ -15,13 +15,14 @@ import { getProjectClient } from '@aiflow/db';
 
 import type { SpecificationListItemView, SpecificationView } from './types';
 
-/** Prisma row → full view. Drops `deletedAt`, `approvedAt`, `approvedBy`. */
+/** Prisma row → full view. Drops `deletedAt` and `approvedBy`. */
 function toView(row: {
   id: string;
   version: number;
   content: string;
   createdAt: Date;
   createdBy: 'USER' | 'AI';
+  approvedAt: Date | null;
 }): SpecificationView {
   return {
     id: row.id,
@@ -29,6 +30,7 @@ function toView(row: {
     content: row.content,
     createdAt: row.createdAt,
     createdBy: row.createdBy,
+    approvedAt: row.approvedAt,
   };
 }
 
@@ -104,5 +106,30 @@ export async function createSpecificationVersion(
     },
   });
 
+  return toView(row);
+}
+
+/**
+ * Mark a specification version as approved by the given user. Idempotent: if
+ * `approvedAt` is already set, returns the row unchanged. Missing / soft-deleted
+ * versions return `null` so the route can answer 404 without leaking existence
+ * of deleted rows.
+ */
+export async function approveSpecification(
+  schemaName: string,
+  version: number,
+  userId: string,
+): Promise<SpecificationView | null> {
+  const client = getProjectClient(schemaName);
+  const existing = await client.specification.findFirst({
+    where: { version, deletedAt: null },
+  });
+  if (!existing) return null;
+  if (existing.approvedAt) return toView(existing);
+
+  const row = await client.specification.update({
+    where: { id: existing.id },
+    data: { approvedAt: new Date(), approvedBy: userId },
+  });
   return toView(row);
 }

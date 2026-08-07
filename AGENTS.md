@@ -97,7 +97,7 @@ imports from `app/`). `app/` is routing only — no logic there. Each feature sl
 
 **The UI split is load-bearing.** `packages/ui` (`@aiflow/ui`) owns primitives + design tokens
 (`Button`, `Input`/`Field`, `Card`, `Spinner`, plus `styles/theme.css`). `apps/web/src/shared/ui`
-owns app composition (`AppHeader`, `SideMenu`) that encodes this app's routes and must not move
+owns app composition (`AppHeader`, `AppNav`) that encodes this app's routes and must not move
 into the shared package. Reach for an `@aiflow/ui` primitive before writing raw markup, and use the
 semantic tokens (`text-fg-muted`, `border-border`, `bg-surface`) rather than raw `slate-*`.
 

@@ -14,10 +14,8 @@ export interface SpecificationListItemView {
 }
 
 /**
- * Full specification body. Used by the single-version read and the create
- * result, where the caller needs `content`. `approvedAt` is intentionally
- * absent: approval is a separate flow from authorship, and create always
- * returns an unapproved version (`createdBy: 'AI'`).
+ * Full specification body. Used by the single-version read, create result, and
+ * approve result — the preview panel needs `content` and `approvedAt` together.
  */
 export interface SpecificationView {
   id: string;
@@ -25,4 +23,5 @@ export interface SpecificationView {
   content: string;
   createdAt: Date;
   createdBy: 'USER' | 'AI';
+  approvedAt: Date | null;
 }

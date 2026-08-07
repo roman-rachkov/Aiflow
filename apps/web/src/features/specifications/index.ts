@@ -7,6 +7,7 @@
  */
 export type { SpecificationListItemView, SpecificationView } from './model/types';
 export {
+  approveSpecification,
   createSpecificationVersion,
   getSpecificationByVersion,
   listSpecifications,

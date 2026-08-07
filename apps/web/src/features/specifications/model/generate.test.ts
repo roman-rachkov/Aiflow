@@ -83,6 +83,7 @@ describe('generateSpecification — collectChat concatenation', () => {
       content: 'Hello world',
       createdAt: new Date(),
       createdBy: 'AI',
+      approvedAt: null,
     });
 
     const view = await generateSpecification('project_x', deps);
