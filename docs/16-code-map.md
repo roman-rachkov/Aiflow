@@ -114,9 +114,9 @@ apps/
 │                               model/http.ts — gateEditorRequest + mapEditorError
 │                               model/ws-hub.ts + ws-publish.ts — in-memory Hub;
 │                                 REST publishSaved / publishTreeChanged
-│                               model/ws-attach.ts — upgrade handler for custom
-│                                 `apps/web/server.ts` (deep import until barrel
-│                                 re-export; not used from App Router routes)
+│                               model/ws-attach.ts — upgrade handler; exported
+│                                 from barrel for `apps/web/server.ts` (custom
+│                                 HTTP server; not an App Router route)
 │                               ui/ — Monaco shell, FileTree, tabs, Git panel,
 │                                 terminal stub; hooks useEditorState / useTabs /
 │                                 useEditorWs; client fetch in ui/api.ts

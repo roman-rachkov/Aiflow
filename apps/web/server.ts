@@ -19,7 +19,7 @@ import { parse } from 'node:url';
 import next from 'next';
 import { WebSocketServer } from 'ws';
 
-import { attachEditorWebSocket } from './src/features/editor/model/ws-attach';
+import { attachEditorWebSocket } from './src/features/editor';
 
 const hostname = process.env.HOSTNAME ?? '0.0.0.0';
 const port = Number(process.env.PORT ?? 3000);

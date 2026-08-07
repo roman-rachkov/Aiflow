@@ -50,5 +50,6 @@ export type {
 } from './model/service';
 export { publishEditorEvent } from './model/ws-hub';
 export { publishSaved, publishTreeChanged } from './model/ws-publish';
+export { attachEditorWebSocket } from './model/ws-attach';
 export type { EditorClientMessage, EditorServerEvent } from './model/ws-protocol';
 export { WS_CLOSE_FORBIDDEN } from './model/ws-protocol';

@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic';
 
 import { Button, Spinner } from '@aiflow/ui';
 
+import type { OpenFile } from './editorActions';
 import { EditorTabs } from './EditorTabs';
 
 const MonacoPane = dynamic(
@@ -13,8 +14,6 @@ const MonacoPane = dynamic(
   },
   { ssr: false, loading: () => <Spinner label="Загрузка редактора…" /> },
 );
-
-type OpenFile = { content: string; sha: string; baseline: string };
 
 type Props = {
   openFiles: Record<string, OpenFile>;
