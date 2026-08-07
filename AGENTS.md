@@ -20,7 +20,8 @@ Real packages today: `apps/web` (Next.js 15 App Router), `packages/db` (Prisma, 
 `packages/ui` (design system), `packages/ai-roles` (OpenAI-compatible chat+embed),
 `packages/crypto` (AES-256-GCM ModelConfig envelope), `packages/queue` (BullMQ
 `deploy:run` / `plan:generate` / `code:execute` helpers), `apps/worker` (real consumers
-for `deploy:run`, `plan:generate`, and `code:execute`; `spec:generate` still stub),
+for `deploy:run`, `plan:generate`, and `code:execute`; `spec:generate` is dormant — SPEC
+generation runs synchronously in the web route, so the worker falls through to a stub-ack),
 `services/registry-proxy` (sandbox egress allowlist), `tools/session-analyzer`
 (dev-only analytics). Declared-but-empty stub (do not assume it works yet):
 `services/model-router`. The code map at `docs/16-code-map.md` tracks which is

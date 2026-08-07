@@ -2,7 +2,9 @@
  * SpecPreviewPanel — right-column Markdown preview + Approve / Start generation.
  *
  * Russian copy for the Customer flow (docs/09 §4). Markdown via react-markdown.
- * Start generation navigates to /tasks (Planner enqueue is MVP-1 — stub page).
+ * Start generation navigates to /tasks, where the TasksPanel enqueues
+ * `plan:generate` (handled by `apps/worker/src/plan/handler.ts`) and polls
+ * for task status.
  */
 'use client';
 

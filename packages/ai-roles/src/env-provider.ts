@@ -46,11 +46,3 @@ export function readProviderConfigFromEnv(): ProviderConfig {
 export function createProviderFromEnv(): OpenAICompatibleProvider {
   return createOpenAICompatibleProvider(readProviderConfigFromEnv());
 }
-
-/**
- * @deprecated Prefer {@link createProviderFromEnv}. Kept so older Task 1.3
- * call sites and mocks that still import this name keep compiling.
- */
-export function createZaiProvider(): OpenAICompatibleProvider {
-  return createProviderFromEnv();
-}

@@ -182,6 +182,25 @@ For the Customer the **top navigation** contains Projects, and (inside a project
 - Light theme by default, minimalist design, accent color blue (#2563EB).
 - Font: Inter (system).
 
+### Implementation pointers
+
+Where the styling mandate above lives in code:
+
+- **Design tokens** — `packages/ui/src/styles/theme.css` (a single Tailwind v4
+  `@theme` block; no `tailwind.config.js`). Semantic `--color-*` tokens
+  (`--color-fg`, `--color-fg-muted`, `--color-border`, `--color-surface`,
+  `--color-primary`, …) surface as the Tailwind utilities the app leans on
+  (`text-fg-muted`, `border-border`, `bg-surface`, …).
+- **Shared primitives** — `packages/ui` (`@aiflow/ui`): `Button`, `Input` +
+  `Field`, `Card` + `CardTitle`/`CardDescription`, `Spinner`, `cn`.
+- **App composition** — `apps/web/src/shared/ui`: `AppHeader`, `AppNav`
+  (the horizontal nav described above), `LocalDateTime`.
+
+Not yet shared primitives (inline per feature until a second consumer appears):
+the editor runs its own `DialogHost` and an inline toast strip; there is no
+shared Modal/Toast/Tabs/Timeline. A file tree exists only inside the editor
+feature (`features/editor`), not in `packages/ui`.
+
 ## 10. Responsiveness (MVP)
 
 - Below 768px width the side panels collapse behind a hamburger menu.

@@ -176,7 +176,9 @@ apps/
 │     WS /api/projects/[id]/tasks/[taskId]/logs/ws — Redis sandbox logs (3.3)
 │     /api/health (GET — compose liveness; no auth)
 └── worker/               BullMQ workers (deploy:run + plan:generate +
-    │                     code:execute real; spec:generate still stub)
+    │                     code:execute real; spec:generate dormant — SPEC
+    │                     generation runs synchronously in the web route, so the
+    │                     worker falls through to a stub-ack)
     └── public entry: src/index.ts
         deps: @aiflow/{db,queue,ai-roles}, bullmq, dockerode (MIT; **worker only**),
           tar-fs. docker.sock mount in compose is **DEV-ONLY** (OQ #4).
@@ -241,8 +243,7 @@ packages/
 │                             env-provider.ts — createProviderFromEnv() /
 │                               readProviderConfigFromEnv(): the app seam; one
 │                               OpenAI-compatible provider from OPENAI_* env
-│                               (LM Studio, z.ai, OpenAI — same factory);
-│                               createZaiProvider() is a deprecated alias
+│                               (LM Studio, z.ai, OpenAI — same factory)
 │                             mock-chat.ts / mock-embeddings.ts — extracted mock paths
 │                             planner-prompt.ts / planner.ts — PLANNER_SYSTEM_PROMPT
 │                               + generatePlanTasks (JSON parse, max 2 retries,

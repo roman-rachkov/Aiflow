@@ -1,5 +1,13 @@
 # AI Studio — Infrastructure Configuration (Docker Compose)
 
+> **The YAML sample below is aspirational (prod/future).** It models each Node
+> service as a `build:` image with multi-stage Dockerfiles — but **none of those
+> Dockerfiles exist yet**, and the live `docker-compose.yml` uses stock
+> `node:22-bookworm` images with the repo bind-mounted. It does NOT match the
+> real dev topology. The live dev setup is described in
+> [§ "Running in development mode"](#running-in-development-mode) below; the
+> prod rewrite lands when prod Dockerfiles do.
+
 ```yaml
 # =============================================================================
 # AI Studio — Infrastructure configuration (Docker Compose)
@@ -244,8 +252,12 @@ volumes:
 ### Expected project layout
 
 Workspace layout per A4 in [14-decisions-needed.md](14-decisions-needed.md).
-Every Dockerfile lives beside the thing it builds, but its **build context is
-the repository root** — a workspace install needs the root manifests.
+
+> **No app/service Dockerfiles exist today.** In the live dev topology all four
+> Node services run on the stock `node:22-bookworm` image via
+> `yarn workspace … dev` (see compose's `x-node-service` anchor). Dockerfiles
+> beside each app are a prod/future concern; the tree below notes where they will
+> live, not what is present now.
 
 ```
 AIFlow/
@@ -257,11 +269,11 @@ AIFlow/
 ├── docker/
 │   └── postgres/init/        # CREATE EXTENSION vector, pgcrypto
 ├── apps/
-│   ├── web/                  # Next.js — Dockerfile, src/, public/
-│   └── worker/               # BullMQ — Dockerfile, src/
+│   ├── web/                  # Next.js — src/, public/ (no Dockerfile yet)
+│   └── worker/               # BullMQ — src/ (no Dockerfile yet)
 ├── services/
-│   ├── model-router/         # Dockerfile, src/
-│   └── registry-proxy/       # Dockerfile, src/
+│   ├── model-router/         # src/ (no Dockerfile yet)
+│   └── registry-proxy/       # src/ (no Dockerfile yet)
 ├── packages/
 │   ├── db/prisma/            # schema.prisma + schema_project_template.prisma
 │   ├── queue/ crypto/ ai-roles/ ui/
