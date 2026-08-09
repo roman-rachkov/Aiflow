@@ -7,9 +7,10 @@
  * itself a `ChatProvider` (its props extend `ChatProviderProps`), so we pass our
  * REST thread storage (`createThreadStorage`) and the AG-UI streaming `ChatLLM`
  * (`createProjectChatLLm`) straight to it. The AgentInterface owns the heavy
- * surface — thread list, markdown + code rendering, conversation starters,
- * stop/delete — and we layer the per-message actions (copy/edit/regenerate/
- * delete) via the `components` slot (`AguiAssistantMessage` / `AguiUserMessage`).
+ * surface — markdown + code rendering, conversation starters, stop — and we
+ * layer: per-message actions (copy/edit/regenerate/delete) via the `components`
+ * slot, and thread management (rename/fork/delete) via a custom Sidebar
+ * (`AguiThreadList` replacing the default ThreadList).
  */
 
 import { AgentInterface } from '@openuidev/react-ui/AgentInterface';
@@ -17,6 +18,7 @@ import { AgentInterface } from '@openuidev/react-ui/AgentInterface';
 import { AguiAssistantMessage } from './messages/AguiAssistantMessage';
 import { AguiUserMessage } from './messages/AguiUserMessage';
 import { ProjectIdContext } from './messages/project-context';
+import { AguiThreadList } from './threads/AguiThreadList';
 import { createProjectChatLLm } from './llm';
 import { createThreadStorage } from './storage';
 import { CHAT_LABELS, STARTERS } from './labels';
@@ -38,6 +40,13 @@ export function AguiChatPanel({ projectId }: AguiChatPanelProps) {
         llm={createProjectChatLLm(projectId)}
         components={{ AssistantMessage: AguiAssistantMessage, UserMessage: AguiUserMessage }}
       >
+        <AgentInterface.Sidebar>
+          <AgentInterface.SidebarHeader agentName="Аналитик" />
+          <AgentInterface.SidebarContent>
+            <AgentInterface.NewChatButton />
+            <AguiThreadList />
+          </AgentInterface.SidebarContent>
+        </AgentInterface.Sidebar>
         <AgentInterface.Welcome
           title="Опишите идею проекта"
           description="Я — Аналитик. Задаю уточняющие вопросы, помогаю оформить идею в спецификацию SPEC.md, запускаю планировщик и кодогенерацию."

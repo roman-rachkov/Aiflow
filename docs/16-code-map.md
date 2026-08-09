@@ -58,6 +58,11 @@ apps/
 │     │                             (markdown + copy/regenerate), AguiUserMessage (edit/delete),
 │     │                             MessageActions bar, MessageEditor, icons (inline SVG),
 │     │                             api.ts (PATCH/DELETE persistence), project-context (projectId)
+│     │                           threads/ — custom sidebar thread list (Stage B): AguiThreadList
+│     │                             (replaces default ThreadList, loads on mount), ThreadRow +
+│     │                             ThreadRowMenu (Radix DropdownMenu: rename/fork/delete) +
+│     │                             ThreadRenameForm (inline), useThreadActions (rename/fork
+│     │                             handlers), api.ts (forkThreadRest → /fork)
 │     │                         ui/ChatPanel.tsx — legacy @assistant-ui/react panel (kept
 │     │                           for /research until Phase 2 shell rework removes it)
 │     ├── files/          Upload, RAG indexing + retrieval (Task 2.1)
@@ -170,6 +175,8 @@ apps/
 │       RUN_STARTED → TEXT_MESSAGE_* → RUN_FINISHED/ERROR, Phase 1)
 │     /api/projects/[id]/threads/[tid]/messages/[mid] (PATCH edit content,
 │       DELETE soft-delete — per-message actions persistence, Stage A)
+│     /api/projects/[id]/threads/[tid]/fork (POST — copy thread + messages into
+│       a forkedFromId-linked branch; Stage B)
 │     /api/projects/[id]/files (GET list, POST upload — Task 2.1)
 │     /api/projects/[id]/files/[fid]/index (POST — synchronous RAG indexing, 2.1)
 │     /api/projects/[id]/specifications (GET list, POST generate — Task 2.1)
