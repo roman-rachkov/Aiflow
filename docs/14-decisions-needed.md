@@ -202,6 +202,38 @@ pre-existing `project_{uuid}` schemas (idempotent).
 Editor into `AgentInterface.SidebarItem`/`Route`, removing `ResearchWorkspace`) is Phase 2.
 AG-UI tool-calling (run agents / edit files / deploy from chat) is Phase 3.
 
+### D0c. SPEC as an AG-UI tool-call artifact + tool-calling scaffold — RESOLVED 2026-08-10
+
+Phase 3 (tool-calling) starts here, scoped to one tool (`spec:generate`) plus the
+shared scaffold later tools (Stage E) build on.
+
+**Tool-call path, not imperative registration.** The OpenUI artifact system is
+optimised for the tool-call path: a `ToolActivityRenderer` atomically registers
+the artifact in the workspace rail, renders the inline `preview`, and mounts the
+`actual` view into the resizable detailed-view panel — all from a renderer's
+`parser` matching a tool name. The imperative path (`useThreadContextStore
+.registerArtifact`) only adds the rail entry; the detailed view would have to
+be hand-mounted. So SPEC generation routes through a real model tool call:
+the Analyst emits `spec:generate`, the `/run` executor runs `generateSpecification`,
+emits the result as `TOOL_CALL_RESULT`, and `specArtifactRenderer` (shared, type
+`spec`) renders it. No `ArtifactStorage` needed — the rail reads the in-memory
+thread context; cross-thread artifact browsing is out of scope.
+
+**Provider + `/run` tool-calling scaffold.** `@aiflow/ai-roles` gained
+`ChatConfig.tools`, `chatWithTools` (a `LiveChatEvent` stream: text +
+`tool_call_delta` + `tool_calls_done`), and `mapChunk` mapping OpenAI
+`delta.tool_calls` / `finish_reason: tool_calls`. The live SSE plumbing moved to
+`live-chat.ts` (file-cap). The `/run` route advertises `TOOL_DEFINITIONS`, emits
+AG-UI `TOOL_CALL_START/ARGS/END/RESULT`, and runs server-side executors
+(`run-tools.ts` `executeTool`). `run-stream.ts` owns the AG-UI translation; the
+route file stays thin. Multi-turn tool loops are Stage E — Stage C is
+single-tool per turn.
+
+**`ProjectIdContext` moved to `shared`.** Both the chat message components and
+the SPEC renderer need `projectId`; the boundaries policy forbids feature→feature
+imports, so the context lives in `shared/chat-project-context.ts` and both
+slices import from there.
+
 ---
 
 ---

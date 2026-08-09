@@ -12,23 +12,29 @@ import {
 } from '@/features/chat';
 import { retrieveContext } from '@/features/files/rag';
 import { resolveAnalystProvider } from '@/features/model-config';
-import type { ResolvedAnalystProvider } from '@/features/model-config';
 import { resolveProjectSchema } from '@/features/projects';
 
+import { TOOL_DEFINITIONS } from './run-tools';
+import { streamToolAwareRun } from './run-stream';
+
 /**
- * AG-UI streaming run for one thread.
+ * AG-UI streaming run for one thread (tool-aware since Stage C).
  *
  * `POST /api/projects/{id}/threads/{tid}/run` is what our client-side `ChatLLM`
- * adapter calls. It receives the AG-UI `messages` for the thread (the latest
- * user turn is the last entry) and streams back AG-UI events that
- * `agUIAdapter.parse` consumes:
+ * adapter calls. It receives the AG-UI `messages` for the thread and streams
+ * back AG-UI events that `agUIAdapter.parse` consumes:
  *
- *   RUN_STARTED → TEXT_MESSAGE_START → TEXT_MESSAGE_CONTENT* →
+ *   RUN_STARTED → TEXT_MESSAGE_START → (TEXT_MESSAGE_CONTENT* and/or
+ *   TOOL_CALL_START → TOOL_CALL_ARGS* → TOOL_CALL_END → TOOL_CALL_RESULT)* →
  *   TEXT_MESSAGE_END → RUN_FINISHED   (or RUN_ERROR on failure)
  *
- * Persistence mirrors the legacy `/chat` route: the USER row is saved before
- * the stream opens, the ASSISTANT row after the stream drains (with token
- * counts). RAG context + the Analyst system prompt are injected server-side.
+ * The model is offered server-side tools (`TOOL_DEFINITIONS`, currently
+ * `spec:generate`). When the model emits a tool call, the route's
+ * `run-stream.ts` runs the matching executor and emits the result. The
+ * streaming + AG-UI translation lives in `run-stream.ts`; tool definitions +
+ * executors in `run-tools.ts`. The USER row is saved before the stream opens;
+ * the ASSISTANT text turn (if any) after it drains. RAG context + the Analyst
+ * system prompt are injected server-side.
  */
 
 const SSE_HEADERS = {
@@ -36,12 +42,6 @@ const SSE_HEADERS = {
   'Cache-Control': 'no-cache, no-transform',
   Connection: 'keep-alive',
 } as const;
-
-/** Encode one AG-UI event as an SSE `data:` frame. */
-function encodeSse(payload: unknown): Uint8Array {
-  const encoder = new TextEncoder();
-  return encoder.encode(`data: ${JSON.stringify(payload)}\n\n`);
-}
 
 /** Map persisted views onto the provider's ChatRole union for the LLM call. */
 function toProviderMessages(
@@ -81,65 +81,6 @@ function extractContent(entry: unknown): string {
   return '';
 }
 
-interface RunContext {
-  schemaName: string;
-  threadId: string;
-  history: ChatMessage[];
-  config: ChatConfig;
-  provider: ResolvedAnalystProvider['provider'];
-  runId: string;
-}
-
-/** Stream tokens, returning the accumulated text + the usage promise. */
-async function drainStream(
-  ctx: RunContext,
-  messageId: string,
-  controller: ReadableStreamDefaultController<Uint8Array>,
-): Promise<{
-  fullText: string;
-  usage: Promise<{ tokensIn: number | null; tokensOut: number | null }>;
-}> {
-  const { stream, usage } = await ctx.provider.chatWithUsage(ctx.history, ctx.config);
-  let fullText = '';
-  for await (const chunk of stream) {
-    fullText += chunk;
-    controller.enqueue(encodeSse({ type: 'TEXT_MESSAGE_CONTENT', messageId, delta: chunk }));
-  }
-  return { fullText, usage };
-}
-
-/** Stream the assistant reply as AG-UI events, persisting the ASSISTANT row at the end. */
-function streamAssistantReply(ctx: RunContext): ReadableStream<Uint8Array> {
-  const { threadId, runId } = ctx;
-  const messageId = crypto.randomUUID();
-
-  return new ReadableStream({
-    async start(controller) {
-      controller.enqueue(encodeSse({ type: 'RUN_STARTED', threadId, runId }));
-      controller.enqueue(encodeSse({ type: 'TEXT_MESSAGE_START', messageId, role: 'assistant' }));
-
-      try {
-        const { fullText, usage } = await drainStream(ctx, messageId, controller);
-        controller.enqueue(encodeSse({ type: 'TEXT_MESSAGE_END', messageId }));
-        const { tokensIn, tokensOut } = await usage;
-        await saveMessage(ctx.schemaName, {
-          role: 'ASSISTANT',
-          content: fullText,
-          threadId,
-          tokensIn,
-          tokensOut,
-        });
-        controller.enqueue(encodeSse({ type: 'RUN_FINISHED', threadId, runId }));
-      } catch (error) {
-        const message = error instanceof Error ? error.message : 'Ошибка стриминга';
-        controller.enqueue(encodeSse({ type: 'RUN_ERROR', message, threadId, runId }));
-      } finally {
-        controller.close();
-      }
-    },
-  });
-}
-
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string; tid: string }> },
@@ -173,14 +114,16 @@ export async function POST(
     model: resolved.chatConfig.model,
     apiKey: resolved.chatConfig.apiKey,
     systemPrompt,
+    // Advertise server-side tools so the Analyst can call them (e.g. spec:generate).
+    tools: TOOL_DEFINITIONS,
   };
   const runId = crypto.randomUUID();
-  const body = streamAssistantReply({
+  const body = streamToolAwareRun({
     schemaName,
     threadId: tid,
     history,
     config,
-    provider: resolved.provider,
+    resolved,
     runId,
   });
 

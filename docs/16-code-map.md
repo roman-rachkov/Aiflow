@@ -65,6 +65,13 @@ apps/
 │     │                             handlers), api.ts (forkThreadRest → /fork)
 │     │                         ui/ChatPanel.tsx — legacy @assistant-ui/react panel (kept
 │     │                           for /research until Phase 2 shell rework removes it)
+│   shared/spec-artifact-renderer.tsx — OpenUI artifact renderer for SPEC.md
+│     (Stage C): defineArtifactRenderer type:spec, toolName:spec:generate; parser
+│     reads tool result {id,version,content}; preview = card, actual = markdown +
+│     Approve button → /specifications/{v}/approve
+│   shared/chat-project-context.ts — ProjectIdContext (projectId to message
+│     components + spec renderer; shared so chat & specifications slices both
+│     consume without a feature→feature import)
 │     ├── files/          Upload, RAG indexing + retrieval (Task 2.1)
 │     │                     └── public: `index.ts` (CRUD), `client.ts` (FilePanel),
 │     │                         `rag.ts` (retrieve/extract/chunk — kept off index so
@@ -171,8 +178,10 @@ apps/
 │       ModelConfig → env provider resolve since Task 2.3; legacy, used by /research)
 │     /api/projects/[id]/threads (GET list, POST create — AG-UI restStorage, chat Phase 1)
 │     /api/projects/[id]/threads/[tid] (GET messages, PATCH rename, DELETE — Phase 1)
-│     /api/projects/[id]/threads/[tid]/run (POST — AG-UI event stream:
-│       RUN_STARTED → TEXT_MESSAGE_* → RUN_FINISHED/ERROR, Phase 1)
+│     /api/projects/[id]/threads/[tid]/run (POST — AG-UI event stream, tool-aware
+│       since Stage C: RUN_STARTED → TEXT_MESSAGE_* and/or TOOL_CALL_START/ARGS/
+│       END/RESULT → RUN_FINISHED/ERROR; server-side executor runs spec:generate)
+│       run-tools.ts (TOOL_DEFINITIONS + executeTool), run-stream.ts (AG-UI emit)
 │     /api/projects/[id]/threads/[tid]/messages/[mid] (PATCH edit content,
 │       DELETE soft-delete — per-message actions persistence, Stage A)
 │     /api/projects/[id]/threads/[tid]/fork (POST — copy thread + messages into

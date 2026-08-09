@@ -100,11 +100,85 @@ describe('createOpenAICompatibleProvider.embed (live path, mocked fetch)', () =>
   });
 });
 
+describe('createOpenAICompatibleProvider.chatWithTools (live path, tool deltas)', () => {
+  it('maps text + tool_call deltas and tool_calls_done finish into events', async () => {
+    const chunks = [
+      // First a text delta.
+      { choices: [{ delta: { content: 'Planni' } }] },
+      { choices: [{ delta: { content: 'ng…' } }] },
+      // Then a tool-call: first delta carries id+name, second appends args.
+      {
+        choices: [
+          {
+            delta: {
+              tool_calls: [
+                { index: 0, id: 'tc1', function: { name: 'spec:generate', arguments: '{}' } },
+              ],
+            },
+          },
+        ],
+      },
+      { choices: [{ delta: { tool_calls: [{ index: 0, function: { arguments: '' } }] } }] },
+      // Terminal finish_reason.
+      {
+        choices: [{ finish_reason: 'tool_calls' }],
+        usage: { prompt_tokens: 3, completion_tokens: 1 },
+      },
+    ];
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(sseResponse(chunks)));
+
+    const provider = createOpenAICompatibleProvider(liveConfig());
+    const { stream, usage } = await provider.chatWithTools(
+      [{ role: 'USER', content: 'сделай спеку' }],
+      {
+        model: 'm',
+        systemPrompt: '',
+        tools: [{ type: 'function', function: { name: 'spec:generate' } }],
+      },
+    );
+
+    const events: { type: string; text?: string; name?: string; args?: string }[] = [];
+    for await (const evt of stream) {
+      if (evt.type === 'text') events.push({ type: 'text', text: evt.text });
+      else if (evt.type === 'tool_call_delta')
+        events.push({ type: 'tool_call_delta', name: evt.delta.name, args: evt.delta.arguments });
+      else events.push({ type: evt.type });
+    }
+    const u = await usage;
+
+    expect(events).toEqual([
+      { type: 'text', text: 'Planni' },
+      { type: 'text', text: 'ng…' },
+      { type: 'tool_call_delta', name: 'spec:generate', args: '{}' },
+      { type: 'tool_call_delta', name: undefined, args: '' },
+      { type: 'tool_calls_done' },
+    ]);
+    expect(u).toEqual({ tokensIn: 3, tokensOut: 1 });
+  });
+});
+
+/** Build a fake SSE Response body from a list of JSON chunks. */
+function sseResponse(chunks: unknown[]): Response {
+  const body = chunks.map((c) => `data: ${JSON.stringify(c)}\n\n`).join('') + 'data: [DONE]\n\n';
+  const encoder = new TextEncoder();
+  return {
+    ok: true,
+    status: 200,
+    body: new ReadableStream({
+      start(controller) {
+        controller.enqueue(encoder.encode(body));
+        controller.close();
+      },
+    }),
+  } as Response;
+}
+
 describe('createOpenAICompatibleProvider chat surface', () => {
   it('exposes chat, chatWithUsage, and embed', () => {
     const provider = createOpenAICompatibleProvider(MOCK_CONFIG);
     expect(typeof provider.chat).toBe('function');
     expect(typeof provider.chatWithUsage).toBe('function');
+    expect(typeof provider.chatWithTools).toBe('function');
     expect(typeof provider.embed).toBe('function');
   });
 });

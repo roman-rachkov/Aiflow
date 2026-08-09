@@ -17,6 +17,12 @@ export const STARTERS: ConversationStarterProps[] = [
   { displayText: 'Нужно приложение для задач', prompt: 'Нужно приложение для задач' },
 ];
 
+/** Starter that prompts the Analyst to call the spec:generate tool. */
+export const SPEC_STARTER: ConversationStarterProps = {
+  displayText: 'Создать спецификацию',
+  prompt: 'Создай спецификацию SPEC.md из нашего диалога',
+};
+
 export const CHAT_LABELS: AgentInterfaceLabels = {
   defaultCategory: 'Артефакты',
   workspaceToggle: 'Рабочая область чата',

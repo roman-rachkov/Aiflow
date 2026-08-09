@@ -26,7 +26,50 @@ export interface ChatConfig {
   model: string;
   apiKey?: string;
   systemPrompt: string;
+  /** Optional function-tools; when present the model may emit tool calls. */
+  tools?: ToolDefinition[];
 }
+
+/**
+ * An OpenAI-style function-tool definition. When `ChatConfig.tools` is provided
+ * the provider forwards these to the model so it may emit tool calls; the
+ * caller (the `/run` route) is responsible for executing them. The shape is the
+ * OpenAI `tools` payload verbatim so it passes through to the chat-completions
+ * body without translation.
+ */
+export interface ToolDefinition {
+  type: 'function';
+  function: {
+    name: string;
+    description?: string;
+    parameters?: Record<string, unknown>;
+  };
+}
+
+/**
+ * One streamed tool-call delta, decoded from the OpenAI
+ * `choices[].delta.tool_calls[]` array. `index` identifies the call position
+ * (a model may emit several); `id` arrives on the first delta for a call,
+ * `name` on the first delta, and `arguments` is appended across deltas as a
+ * partial-JSON string.
+ */
+export interface ToolCallDelta {
+  index: number;
+  id?: string;
+  name?: string;
+  arguments: string;
+}
+
+/**
+ * A streaming event from a tool-aware chat call. Either a text delta, a
+ * tool-call delta, or a terminal `tool_calls` finish (the model chose to call
+ * tools instead of, or before, replying). Mirrors what `/run` re-emits as
+ * AG-UI events; the provider surfaces raw deltas, the route translates.
+ */
+export type LiveChatEvent =
+  | { type: 'text'; text: string }
+  | { type: 'tool_call_delta'; delta: ToolCallDelta }
+  | { type: 'tool_calls_done' };
 
 /**
  * Token usage for a completed chat call. Counts are nullable: a mock provider
@@ -60,6 +103,18 @@ export interface ChatWithUsageResult {
 }
 
 /**
+ * Result of a tool-aware chat call: a `LiveChatEvent` stream (text deltas +
+ * tool-call deltas + a terminal `tool_calls_done`) plus the usage side-channel.
+ * The `/run` route drains `stream`, translating events to AG-UI frames, then
+ * awaits `usage`. The plain-text `chatWithUsage` path is unchanged for callers
+ * that do not need tools (planner, SPEC generation).
+ */
+export interface ChatWithToolsResult {
+  stream: AsyncIterable<LiveChatEvent>;
+  usage: Promise<ChatResult>;
+}
+
+/**
  * A provider that, in addition to streaming text, reports token usage. The
  * `stream` is consumed first; `usage` resolves only after the stream ends, so
  * the caller can await it to read the final `ChatResult`. The OpenAI-compatible
@@ -71,6 +126,13 @@ export interface StreamingProvider extends ModelProvider {
    * `usage` resolves after `stream` is fully consumed.
    */
   chatWithUsage(messages: ChatMessage[], config: ChatConfig): Promise<ChatWithUsageResult>;
+  /**
+   * Tool-aware streaming variant. When `config.tools` is set, the model may
+   * emit tool-call deltas instead of (or before) text; the `LiveChatEvent`
+   * stream surfaces both, plus a terminal `tool_calls_done`. Callers without
+   * tools keep using `chatWithUsage`. MOCK providers emit a canned text stream.
+   */
+  chatWithTools(messages: ChatMessage[], config: ChatConfig): Promise<ChatWithToolsResult>;
 }
 
 /**
