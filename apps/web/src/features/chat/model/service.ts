@@ -102,3 +102,27 @@ export async function deleteMessage(schemaName: string, messageId: string): Prom
     data: { deletedAt: new Date() },
   });
 }
+
+/**
+ * Edit one message's content in place. Used by the in-chat edit action: the
+ * headless store updates the in-memory message, and this call persists the new
+ * text so the edit survives a thread reload. Returns the updated view, or null
+ * when the message is missing (so the route can 404). `updateMany` surfaces
+ * "not found" as a count rather than a thrown P2025.
+ */
+export async function updateMessageContent(
+  schemaName: string,
+  messageId: string,
+  content: string,
+): Promise<ChatMessageView | null> {
+  const result = await getProjectClient(schemaName).chatMessage.updateMany({
+    where: { id: messageId, deletedAt: null },
+    data: { content },
+  });
+  if (result.count === 0) return null;
+
+  const row = await getProjectClient(schemaName).chatMessage.findFirst({
+    where: { id: messageId, deletedAt: null },
+  });
+  return row ? toView(row) : null;
+}

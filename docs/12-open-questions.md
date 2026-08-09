@@ -132,6 +132,25 @@ plus a narrow E2E dogfood. Defer to **MVP-2**: LLM Reviewer (4.1), Support Bot
 
 ---
 
+## 10. AG-UI optimistic message IDs vs persisted DB IDs
+
+The grown-up chat (Stage A) renders per-message actions (edit/delete) that
+persist via `/threads/{tid}/messages/{mid}` keyed by message id. AG-UI's runtime
+assigns a **client-generated UUID** to the optimistic USER message before the
+run; the `/run` endpoint then persists a row with a **different** (DB) id. Until
+the thread is reloaded (which calls `getMessages` and returns DB ids), the
+in-memory message id ≠ the DB id, so an edit/delete on a freshly-sent message
+hits a 404 (no such row) and only the optimistic in-memory copy changes.
+
+After a thread switch (or any `getMessages` reload), ids sync to DB ids and
+edit/delete persist correctly.
+
+**Options:** (a) emit a `MESSAGES_SNAPSHOT` from `/run` right after the USER
+save so the runtime adopts DB ids; (b) return the saved USER id in a custom
+event and remap client-side; (c) key message mutations by `(threadId, role,
+createdAt)` instead of id. Not blocking for the core chat; tracked here so the
+next session resolves it deliberately rather than by accident.
+
 ## 9. Escalation of hard decisions to a stronger model
 
 **Cost per role is not uniform across a run. Should a cheap model handle the routine turns and consult a stronger one at the few decisions that determine the outcome?**
@@ -182,3 +201,4 @@ Anthropic's own `advisor` tool was evaluated for dev-time use here and rejected:
 | 7   | Reviewer role                  | **Resolved 2026-08-07** — deferred to MVP-2; gate = sandbox checks      |
 | 8   | MVP-1 timeline                 | **Resolved 2026-08-07** — slim MVP-1 (Planner+Coder); rest → MVP-2      |
 | 9   | Escalation to a stronger model | Open — scheduled at MVP-3 C3 (model-router runtime)                     |
+| 10  | AG-UI optimistic vs DB msg ids | Open — edit/delete 404 on fresh msgs until thread reload (Stage A)      |

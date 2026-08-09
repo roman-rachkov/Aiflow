@@ -12,7 +12,13 @@ export type {
   SaveMessageInput,
   UpdateThreadInput,
 } from './model/types';
-export { deleteMessage, listMessages, listMessagesByThread, saveMessage } from './model/service';
+export {
+  deleteMessage,
+  listMessages,
+  listMessagesByThread,
+  saveMessage,
+  updateMessageContent,
+} from './model/service';
 export {
   createThread,
   createThreadWithMessage,

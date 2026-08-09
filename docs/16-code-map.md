@@ -50,9 +50,14 @@ apps/
 │     │                           appends RAG context; readSpecTemplate() extracts the
 │     │                           SPEC.md template block for generation
 │     │                         ui/agui/ — grown-up chat on OpenUI AgentInterface (Phase 1):
-│     │                           AguiChatPanel (ChatProvider+AgentInterface, RU labels),
+│     │                           AguiChatPanel (ChatProvider+AgentInterface, RU labels,
+│     │                           components slot for custom message renderers),
 │     │                           llm.ts (ChatLLM bridge → /threads/{tid}/run, agUIAdapter),
 │     │                           storage.ts (custom ThreadStorage → /threads REST), labels.ts
+│     │                           messages/ — per-message actions (Stage A): AguiAssistantMessage
+│     │                             (markdown + copy/regenerate), AguiUserMessage (edit/delete),
+│     │                             MessageActions bar, MessageEditor, icons (inline SVG),
+│     │                             api.ts (PATCH/DELETE persistence), project-context (projectId)
 │     │                         ui/ChatPanel.tsx — legacy @assistant-ui/react panel (kept
 │     │                           for /research until Phase 2 shell rework removes it)
 │     ├── files/          Upload, RAG indexing + retrieval (Task 2.1)
@@ -163,6 +168,8 @@ apps/
 │     /api/projects/[id]/threads/[tid] (GET messages, PATCH rename, DELETE — Phase 1)
 │     /api/projects/[id]/threads/[tid]/run (POST — AG-UI event stream:
 │       RUN_STARTED → TEXT_MESSAGE_* → RUN_FINISHED/ERROR, Phase 1)
+│     /api/projects/[id]/threads/[tid]/messages/[mid] (PATCH edit content,
+│       DELETE soft-delete — per-message actions persistence, Stage A)
 │     /api/projects/[id]/files (GET list, POST upload — Task 2.1)
 │     /api/projects/[id]/files/[fid]/index (POST — synchronous RAG indexing, 2.1)
 │     /api/projects/[id]/specifications (GET list, POST generate — Task 2.1)

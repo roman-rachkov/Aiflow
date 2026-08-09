@@ -9,14 +9,16 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
  */
 
 const findMany = vi.fn();
+const findFirst = vi.fn();
 const create = vi.fn();
 const update = vi.fn();
+const updateMany = vi.fn();
 
 vi.mock('@aiflow/db', () => ({
-  getProjectClient: () => ({ chatMessage: { findMany, create, update } }),
+  getProjectClient: () => ({ chatMessage: { findMany, findFirst, create, update, updateMany } }),
 }));
 
-const { deleteMessage, listMessages, listMessagesByThread, saveMessage } =
+const { deleteMessage, listMessages, listMessagesByThread, saveMessage, updateMessageContent } =
   await import('./service');
 
 const ROW = {
@@ -173,5 +175,29 @@ describe('deleteMessage', () => {
       where: { id: 'm1' },
       data: { deletedAt: expect.any(Date) },
     });
+  });
+});
+
+describe('updateMessageContent', () => {
+  it('updates content in place and returns the view', async () => {
+    updateMany.mockResolvedValue({ count: 1 });
+    findFirst.mockResolvedValue({ ...ROW, content: 'edited' });
+
+    const result = await updateMessageContent('project_abc', 'm1', 'edited');
+
+    expect(updateMany).toHaveBeenCalledWith({
+      where: { id: 'm1', deletedAt: null },
+      data: { content: 'edited' },
+    });
+    expect(result?.content).toBe('edited');
+  });
+
+  it('returns null when the message is missing (count 0)', async () => {
+    updateMany.mockResolvedValue({ count: 0 });
+
+    const result = await updateMessageContent('project_abc', 'missing', 'x');
+
+    expect(result).toBeNull();
+    expect(findFirst).not.toHaveBeenCalled();
   });
 });
