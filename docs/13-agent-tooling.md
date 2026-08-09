@@ -253,7 +253,35 @@ role agents were then driven through the same bridge on a tiny hello-cli demo
 
 Anthropic's `advisor` tool (cheap primary, stronger model consulted at decision points) does not work in this setup: it requires the direct Anthropic API, while `ANTHROPIC_BASE_URL` points at a router that does not forward requests intact, and the pairing check rejects unrecognized model names. Not attempted.
 
-The _pattern_ is worth having inside AI Studio, where we own the router. Tracked as question #9 in [12-open-questions.md](12-open-questions.md).
+The _pattern_ is worth having inside AI Studio, where we own the router. Tracked
+as question #9 in [12-open-questions.md](12-open-questions.md), now **scheduled
+at MVP-3 task C3** ([04-roadmap.md](04-roadmap.md) § 5): `model-router` becomes a
+real runtime, escalation is a second routed request at worker-decided trigger
+points (before planning, on repeated failure, before marking complete), with an
+`advisor` per role in `ModelConfig.config`. The "keep the router from foreclosing
+it" stance above holds until C3 ships.
+
+---
+
+## 5a. LLM observability — Langfuse (planned, MVP-3)
+
+MVP-3 adds a single observability layer for every LLM role
+([04-roadmap.md](04-roadmap.md) § 5, tracks B1–B4; decision E2 in
+[14-decisions-needed.md](14-decisions-needed.md)).
+
+**Langfuse self-host** ships as a service in `docker-compose.yml` (Postgres-
+backed, OTLP receiver). A wrapper over `createOpenAICompatibleProvider` in
+`packages/ai-roles/src/openai-compatible.ts` — the single chokepoint of all
+roles — traces prompt/tokens/latency/cost/errors for Analyst/Planner/Coder/
+Reviewer, linked to project/task. The `traceId` propagates into `TaskLog` and
+`AuditEvent` for cross-link (so a Coder attempt is visible end-to-end, from queue
+to LLM call to commit/verdict). An `LLMCall` row in the public schema stays as a
+cold fallback/audit, not the primary path.
+
+This section is the placeholder — populate it (licence verdict, ingestion
+format, role→trace mapping) when B1 ships. Until then it does not exist in the
+tree. Evals (B3) build on Langfuse datasets; the prompt-injection red-team (B4)
+targets the Analyst `withRagContext` surface.
 
 ---
 

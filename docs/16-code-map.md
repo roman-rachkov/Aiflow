@@ -349,3 +349,28 @@ compose topology          `docker compose up` (no `--build`): postgres, redis,
   tokens** — no knowledge of this app. App **composition** (header, top nav)
   stays in `apps/web/src/shared/ui`, because it encodes this app's routes and a
   shared package must not know them.
+
+## Planned — MVP-3 (not yet in the tree)
+
+The agent-maturity phase ([04-roadmap.md](04-roadmap.md) § 5; decisions E1–E4 in
+[14-decisions-needed.md](14-decisions-needed.md)) will add these. They are
+**not** in the code yet — this section exists so the next session does not
+re-derive the integration points. Each lands in its own `task/*` branch.
+
+| Planned entity / change                                                 | Track | Where it will live                                                                                                  |
+| ----------------------------------------------------------------------- | ----- | ------------------------------------------------------------------------------------------------------------------- |
+| Idempotent `code:execute` / `deploy:run` (attempt tokens, dedup guards) | A1    | `apps/worker/src/code/handler.ts` (`CodeHandlerDeps` DI seam), `apps/worker/src/deploy/handler.ts`                  |
+| Step-encoded resumable pipeline                                         | A2    | `apps/worker/src/code/pipeline.ts`, `TaskLog` (already the checkpoint)                                              |
+| `AuditEvent` model (append-only, role/action/target/traceId)            | A3    | `packages/db/prisma/schema.prisma` (public); `recordAudit()` in worker; Pro UI event feed in `apps/web`             |
+| Role policy guard (capability set)                                      | A4    | `packages/ai-roles/src/policy.ts`; enforced inside the provider wrapper                                             |
+| Langfuse service                                                        | B1    | `docker-compose.yml` (new service, Postgres-backed)                                                                 |
+| LLM-call tracing wrapper                                                | B2    | `packages/ai-roles/src/openai-compatible.ts` (the single chokepoint); `traceId` → `TaskLog`/`AuditEvent`            |
+| Evals framework + CI job on prompt change                               | B3    | Promptfoo or Langfuse datasets; CI fires on `.claude/agents/**` change                                              |
+| Prompt-injection red-team set                                           | B4    | CI red-team (AgentDojo/InjecAgent-style) against the Analyst `withRagContext` surface                               |
+| `code:review` queue + Reviewer runtime (Self-Refine loop)               | C1    | `apps/worker/src/review/`; `packages/ai-roles/src/reviewer{,-prompt}.ts` (mirror planner); queue in `@aiflow/queue` |
+| `AgentMemory` model (task/role/lesson)                                  | C2    | `packages/db/prisma/schema_project_template.prisma`; mixed into Coder + Reviewer prompts                            |
+| `services/model-router` runtime (escalation as 2nd routed request)      | C3    | `services/model-router/src` (currently `export {};` stub); `ModelConfig.config` gains `advisor` per role            |
+| Optional Planner Tree-of-Thoughts mode                                  | C4    | `packages/ai-roles/src/planner.ts`; behind a flag                                                                   |
+| Reviewer verdict UI                                                     | D1    | `apps/web/src/features/tasks` (verdict list, issues, auto-approve threshold)                                        |
+| Support Bot (embed widget + final-compose inclusion)                    | D2    | Dify/lightweight RAG on SPEC + docs; reuses `features/files` pgvector stack                                         |
+| Automatic domain deploy (Traefik/nginx)                                 | D3    | `apps/worker/src/deploy/handler.ts`; real URL over `deploy:run`; auditable (A3), idempotent (A1)                    |

@@ -179,6 +179,62 @@ Licence verified via `npm view` + upstream `LICENSE` (MIT) — allowlisted under
 
 ---
 
+---
+
+## E. MVP-3 Agent Maturity — approach decisions (planned 2026-08-09)
+
+Decided when scoping MVP-3 (the agent-maturity phase from the Habr 1068168
+article; see [04-roadmap.md](04-roadmap.md) § 5). These fix _how_ each track is
+built before implementation, because the choice changes code that would otherwise
+be written twice. Recorded here, not in `12-open-questions.md`, because they are
+decisions, not open questions.
+
+### E1. Durable execution stays on BullMQ + DB idempotency — RESOLVED
+
+**BullMQ remains the queue orchestrator.** Durable execution is idempotent
+operations + at-least-once guards in the database, not a new engine. The source of
+truth is the `Task`/`Deployment` status machine in Postgres, not process state.
+
+Rejected: Temporal (a second runtime + SDK + service for a scale the platform does
+not reach — 5 concurrent projects); Restate (lighter, but still a new durable-JS
+runtime for the same gain). Open question #9 (escalation) stays post-MVP and is
+unaffected. See MVP-3 tasks A1, A2.
+
+### E2. Langfuse self-host is the observability layer — RESOLVED
+
+**Langfuse self-host in `docker-compose.yml`** is the single observability layer
+for all LLM roles. A wrapper over `createOpenAICompatibleProvider` in
+`packages/ai-roles` traces prompt/tokens/latency/cost for Analyst/Planner/Coder/
+Reviewer. An `LLMCall` row in the public schema stays as a cold fallback/audit,
+not the primary path.
+
+Rejected: Arize Phoenix (lighter, but Langfuse's evals/datasets fit B3 better);
+self-written logging to Postgres only (no ready UI/eval surface — re-inventing
+Langfuse). See MVP-3 tasks B1, B2.
+
+### E3. Reviewer is a Self-Refine loop, not a one-shot verdict — RESOLVED
+
+**REJECTED → the Coder retries with a refined prompt + memory of the task's past
+failures → Reviewer again.** A retry cap (≈3) then FAILED + manual intervention.
+The contract is already specified in
+[.claude/agents/reviewer.md](../.claude/agents/reviewer.md) implementation notes;
+MVP-3 implements the runtime.
+
+Rejected: a single verdict (the MVP-2 shape — no self-correction, every REJECT is
+manual); unbounded retries (cost). This enriches MVP-2 task 4.1. See MVP-3 task C1.
+
+### E4. Policy layer is a deterministic guard, not prompt parsing — RESOLVED
+
+**Tool-calling capability ≠ permission.** A capability set per role
+(`read-spec`, `read-diff`, `write-commit`, `verdict`) is enforced inside the
+provider wrapper _before_ the LLM call. A violation is an audit event + throw,
+never "the LLM decided".
+
+Rejected: parsing the model's tool choices to infer intent (brittle, injectable);
+relying on prompt wording alone. See MVP-3 task A4.
+
+---
+
 ## D. Already decided — recorded to prevent re-litigation
 
 | Decision                | Value                                                                                                                                                                                                  | Where                                                              |
@@ -232,6 +288,10 @@ Licence verified via `npm view` + upstream `LICENSE` (MIT) — allowlisted under
 | Sandbox API key         | Read-only file mount at `/run/secrets/api_key`; never `API_KEY` env                                                                                                                                    | [12](12-open-questions.md) #5 2026-08-07                           |
 | Product LLM Reviewer    | Deferred to MVP-2; product gate = sandbox checks. Dev `/orchestrate` may still use Reviewer                                                                                                            | [12](12-open-questions.md) #7 2026-08-07                           |
 | Slim MVP-1 scope        | Planner + sandbox Coder for simple CRUD; 4.1–4.3 and 5.1–5.3 → MVP-2                                                                                                                                   | [12](12-open-questions.md) #8 / [04](04-roadmap.md) § 3 2026-08-07 |
+| MVP-3 durable execution | BullMQ + DB idempotency (status machine as source of truth); Temporal/Restate rejected as overkill                                                                                                     | E1 2026-08-09                                                      |
+| LLM observability       | Langfuse self-host in compose; `ai-roles` provider wrapper traces all roles; `LLMCall` row = cold fallback                                                                                             | E2 2026-08-09                                                      |
+| Reviewer shape          | Self-Refine loop (REJECTED → Coder retry with memory → Reviewer, cap ≈3); one-shot verdict rejected                                                                                                    | E3 2026-08-09                                                      |
+| Role policy             | Capability set enforced in the provider wrapper before the LLM call; capability ≠ permission; prompt parsing rejected                                                                                  | E4 2026-08-09                                                      |
 
 ## Consequences for existing documents
 

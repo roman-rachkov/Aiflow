@@ -156,6 +156,13 @@ Sub-questions if adopted: how does escalation interact with the 1-hour Redis res
 
 **Explicitly post-MVP.** `services/model-router/src/index.ts` is still a stub, so this is recorded to keep the router from being built in a way that forecloses it — not to schedule the work.
 
+**Scheduled as MVP-3 task C3 (2026-08-09).** The agent-maturity phase
+([04-roadmap.md](04-roadmap.md) § 5) revisits this: `model-router` becomes a real
+runtime implementing escalation as a second routed request, with worker-decided
+trigger points (before planning, on repeated failure, before marking complete)
+and an `advisor` per role in `ModelConfig.config`. Open until C3 ships; the
+"keep the router from foreclosing it" stance above still applies until then.
+
 Anthropic's own `advisor` tool was evaluated for dev-time use here and rejected: it requires the direct Anthropic API, while this environment routes through a local gateway. Details in [13-agent-tooling](13-agent-tooling.md) § 5.
 
 **Affected artifacts:** [02-architecture](02-architecture.md), [03-data-model](03-data-model.md), [14-decisions-needed](14-decisions-needed.md), [13-agent-tooling](13-agent-tooling.md)
@@ -169,9 +176,9 @@ Anthropic's own `advisor` tool was evaluated for dev-time use here and rejected:
 | 1   | Project template               | **Resolved 2026-08-07** — `templates/user-nextjs/` → Gitea on bootstrap |
 | 2   | Applying migrations            | **Resolved 2026-08-07** — validate in sandbox; `db push` at deploy      |
 | 3   | code:execute concurrency       | **Resolved 2026-08-02** — premise removed by branch-per-task            |
-| 4   | docker.sock mount in prod      | Open — DEV-ONLY sock remains for MVP                                    |
+| 4   | docker.sock mount in prod      | Open — DEV-ONLY sock for MVP; revisited at MVP-3 D3 (domain deploy)     |
 | 5   | API key passing                | **Resolved 2026-08-07** — `/run/secrets/api_key` file mount             |
 | 6   | Proxy allowlist                | **Resolved 2026-08-07** — Node proxy + expandable `ALLOWED_HOSTS`       |
 | 7   | Reviewer role                  | **Resolved 2026-08-07** — deferred to MVP-2; gate = sandbox checks      |
 | 8   | MVP-1 timeline                 | **Resolved 2026-08-07** — slim MVP-1 (Planner+Coder); rest → MVP-2      |
-| 9   | Escalation to a stronger model | Open — post-MVP                                                         |
+| 9   | Escalation to a stronger model | Open — scheduled at MVP-3 C3 (model-router runtime)                     |

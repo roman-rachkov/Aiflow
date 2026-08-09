@@ -232,7 +232,195 @@ Moved out of slim MVP-1 so Planner+Coder can stabilize first
 
 ---
 
-## 4. Slim MVP-1 readiness criteria
+## 4. MVP-2 — product features (formalized from § 3.3)
+
+**Goal:** ship the product features deferred out of slim MVP-1 so the platform
+becomes usable end-to-end without a human in every loop. These tasks were already
+defined in § 3.3 (4.1–4.3, 5.1–5.3) — this section fixes their scope as a phase.
+MVP-3 (§ 5) then adds the agent-maturity layer _under_ them.
+
+- **4.1 Acceptance loop (LLM Reviewer + test generation)** — unit-test generation
+  agent; Reviewer LLM agent over diff + acceptance criteria; check-results UI.
+- **4.2 Embeddable Support Bot** — Dify or lightweight RAG equivalent on SPEC +
+  docs; embed widget/iframe; included in the final build.
+- **4.3 Automatic domain deploy** — `deploy:run` extended to a real test domain
+  (Traefik / nginx proxy); URL + logs surfaced in the project UI.
+- **5.1 Full dogfooding** — the "AI Studio" project run through the full cycle
+  (plan → codegen → deploy) inside the platform.
+- **5.2 Load testing** — ~3 concurrent projects; schema + sandbox isolation
+  verified; Bull Board monitoring.
+- **5.3 Stabilization and documentation** — critical fixes; README + first-user
+  guide; production-environment prep.
+
+**MVP-2 does not add agent maturity by itself.** Reviewer ships as a one-shot
+verdict; there is no persistent agent memory, no LLM observability, no policy
+layer. Those land in MVP-3 and retrofit onto these features (Reviewer becomes a
+Self-Refine loop in 5/C1, deploy becomes auditable in 5/A3, etc.).
+
+---
+
+## 5. MVP-3 — Agent Maturity (planned)
+
+**Goal:** turn the probabilistic LLM roles into a _managed system_ — durable,
+observable, policy-bounded, self-improving — as framed by the article "От
+болтливых LLM-агентов к управляемым системам" (Habr 1068168). MVP-3 sits _on top
+of_ MVP-2: it does not add new user-facing surfaces, it makes the existing ones
+reliable and measurable. Decisions E1–E4 in
+[14-decisions-needed.md](14-decisions-needed.md) fix the approach.
+
+The article's thesis is that a mature agent combines probabilistic LLM logic with
+strict deterministic architecture (durable execution, sandbox, memory, rights +
+audit, human-in-the-loop, observability/evals). AI Studio already covers sandbox
+isolation, AG-UI, the Redis-disposable + Postgres-checkpoint invariant, and
+Supervisor-worker (Planner→Coder). MVP-3 closes the remaining gaps.
+
+### 5.1 Tracks and tasks (skeleton)
+
+Each task is a heading + goal + integration point + readiness criterion. Micro-
+decomposition happens per task in its own brainstorm/sprint, on a `task/*` branch.
+
+#### Track A — Architectural maturity (durable + audit + policy)
+
+**A1. Idempotent workers (`code:execute`, `deploy:run`).** At-least-once without
+duplicate effect (double commit/deploy/`markInProgress`). Integration:
+`apps/worker/src/code/handler.ts` (the `CodeHandlerDeps` DI seam already exists),
+`apps/worker/src/deploy/handler.ts`. Approach: DB attempt tokens, status-machine
+transition guards (`IN_PROGRESS` only from `PENDING`/`AWAITING_REVIEW`),
+`pushBranch`/`finishDeploy` dedup by `taskId+attempt`, dead-letter for stuck jobs.
+Done when a worker killed mid-job and restarted produces exactly one commit/deploy.
+
+**A2. Status machine as source of truth + resumability.** A crashed worker resumes
+from the last checkpoint, not from zero. Integration: `TaskLog` (already the
+checkpoint), `apps/worker/src/code/pipeline.ts`. Approach: explicit step encoding
+(`CLONE→CHECKOUT→SANDBOX→PARSE→PUSH→DONE`), each step idempotent by
+`(taskId, step)`; BullMQ resume replays from the first unfinished step. Done when
+the "crashed on PUSH → restart → commit lands once" doc-test passes.
+
+**A3. Audit trails.** Every significant role action (Coder commit, Reviewer
+verdict, deploy) is an audit event. Integration: new `AuditEvent` model in the
+public schema (actor role, action, target, before/after hash, Langfuse `traceId`),
+append-only. Approach: one `recordAudit()` in the worker; a Pro-mode event feed
+in the UI. Done when a `taskId` reconstructs its full attempt + verdict history.
+
+**A4. Policy layer for roles.** A deterministic guard "what a role may do" _before_
+the LLM call; tool-calling capability ≠ permission. Integration: new
+`packages/ai-roles/src/policy.ts`; role → capability set (`read-spec`, `read-diff`,
+`write-commit`, `verdict`). Approach: guard inside the provider wrapper (E2);
+violation → audit + throw, never "the LLM decided". Done when the Reviewer
+physically cannot commit even under injection.
+
+#### Track B — Observability & Evals (Langfuse)
+
+**B1. Langfuse self-host in compose.** Service in `docker-compose.yml`,
+Postgres-backed, OTLP receiver. Done when `docker compose up` brings up the
+Langfuse UI on a dedicated port.
+
+**B2. Trace every LLM call.** Prompt/tokens/latency/cost/errors for
+Analyst/Planner/Coder/Reviewer, linked to project/task. Integration: the wrapper
+in `packages/ai-roles/src/openai-compatible.ts`
+(`createOpenAICompatibleProvider`) — the single chokepoint of all roles. Approach:
+OTel/Langfuse-SDK spans; `traceId` propagates into `TaskLog`/`AuditEvent` for
+cross-link. Done when a single Coder attempt is visible end-to-end in Langfuse.
+
+**B3. Evals framework (golden set + regression).** A SPEC→plan→code case set;
+prompt/model regression on change. Approach: Promptfoo or Langfuse datasets; a CI
+job fires when a prompt in `.claude/agents/` changes. Done when a Coder prompt
+change cannot merge without an evals run.
+
+**B4. Prompt-injection red-team.** Uploaded RAG documents must not break policy or
+exfiltrate the key. Integration: the Analyst mixes user content into its system
+prompt via `withRagContext` — the known surface. Approach: an AgentDojo/
+InjecAgent-style red-team set, auto-run in CI. Done when an injected document
+never triggers a role's write action.
+
+#### Track C — Agent intelligence (Self-Refine, memory, escalation)
+
+**C1. Reviewer runtime (Self-Refine loop)** — enriches MVP-2 task 4.1. Implement
+the `reviewer.md` contract at runtime: `code:execute` DONE → Reviewer(diff + AC +
+checks) → ACCEPTED (DONE) | REJECTED (→ Coder with feedback memory → Reviewer
+again). Integration: new `code:review` queue + worker handler; `packages/ai-roles`
+gains `reviewer.ts`/`reviewer-prompt.ts` mirroring planner. Approach: retry cap
+(e.g. 3), then FAILED + manual; memory from C2 is mixed into the retry prompt.
+Done when a REJECTED task returns to PENDING with the verdict logged and reaches
+ACCEPTED or FAILED within the cap.
+
+**C2. Persistent agent memory (Reflexion).** Coder/Reviewer remember a task's past
+failures and do not repeat them. Integration: new `AgentMemory` model in the
+project schema (taskId/role/lesson); mixed into the Coder prompt (sandbox runner)
+and Reviewer. Approach: extract a "lesson" from each Reviewer verdict, store it,
+retrieve by task similarity. Done when a repeated identical task does not fail the
+same way.
+
+**C3. Escalation to an advisor model (decision points)** — closes open question #9.
+Cheap primary + strong advisor at structural decisions (e.g. the Planner dependency
+graph). Integration: `services/model-router` (currently a stub) implements
+escalation as a second routed request; `ModelConfig.config` gains an optional
+`advisor` per role. Approach: worker-decided trigger points (before planning, on
+repeated failure, before marking complete) for predictable cost. Done when Planner
+escalation fires on repeated failure; advisor ≥ primary in capability (the
+constraint from the article / Anthropic).
+
+**C4. Tree-of-Thoughts — surgical, not blanket.** Only where it pays off (hard
+Planner decomposition). Approach: an optional Planner ToT mode (several plans →
+score → pick). Done when it is behind a flag and evals show a win over baseline.
+Not applied blindly to every role (the article's "theatre of agents" warning).
+
+#### Track D — Product features (enriching MVP-2 4.1–4.3)
+
+These tasks already sit in MVP-2; MVP-3 gives them their "mature" implementation
+through A/B/C.
+
+**D1. Reviewer UI** — verdict list, issues with file/line, an auto-approve
+threshold on `confidence`. **D2. Support Bot** (4.2) — Dify/lightweight RAG on
+SPEC + docs; embed widget; into the final compose; memory/retrieval reuses the
+existing pgvector stack. **D3. Automatic domain deploy** (4.3) — Traefik/nginx,
+real URL over `deploy:run`; deploy becomes an audit event (A3) and idempotent
+(A1). **D4. Dogfooding + load + stabilization** (5.1–5.3) — now with observability
+(B2) and evals (B3) as part of the definition of "done".
+
+### 5.2 Execution order (dependencies)
+
+```
+A1 → A2 → A3 → A4          (maturity — foundation)
+B1 → B2 → B3, B4           (observability — parallel with A)
+C1 (needs A4 policy)       (Reviewer runtime)
+C2 (needs C1)              (memory — on top of verdicts)
+D1 (needs C1)              (verdict UI)
+C3 (needs B2 tracing)      (escalation)
+C4 (needs B3 evals)        (ToT — data-driven)
+D2, D3 (need A1, A3)       (product)
+D4 (needs B2, B3)          (dogfood with metrics)
+```
+
+Recommended waves: (1) **Foundation** — A1, A2, B1, B2: idempotency +
+observability skeleton. (2) **Agent** — A3, A4, C1, D1: audit/policy + Reviewer
+loop + UI. (3) **Intelligence** — C2, C3, B3, B4: memory + escalation + evals +
+red-team. (4) **Product** — D2, D3, C4, D4: Support Bot, domain deploy, ToT,
+dogfooding.
+
+### 5.3 Explicitly out of scope for MVP-3
+
+Rejected as anti-patterns or out of current need (the article warns against
+"theatre of agents"): a full multi-agent group chat (roles with equal rights and
+context — AI Studio keeps Supervisor-worker); the A2A federation protocol (the
+product is internal, federation is post-MVP); browser automation for roles
+(Playwright/Browser Use — no autonomous web-action task; sandbox-Coder only); a
+heavy external memory stack (Mem0/Zep/Letta — own `AgentMemory` + pgvector
+suffice, revisit on C2 data).
+
+### 5.4 MVP-3 readiness criteria
+
+1. A role action replayed after a crash has exactly one real-world effect (A1, A2).
+2. Every role's LLM call is traceable in Langfuse end-to-end and linked to the
+   task/audit record (A3, B2).
+3. A role cannot exceed its capability set even under prompt injection (A4, B4).
+4. A REJECTED task self-corrects within the retry cap or fails loudly (C1, C2).
+5. MVP-2 features (Reviewer, Support Bot, domain deploy) ship _on_ this layer, not
+   beside it (D1–D3).
+
+---
+
+## 6. Slim MVP-1 readiness criteria
 
 1. A **Customer** with no technical knowledge gets a simple CRUD web app coded by the sandbox Coder from an approved SPEC (Planner → Coder); deploy may still use the MVP-0 Build path.
 2. An **Engineer** can change code manually, and subsequent generation does not overwrite those changes (file or branch locking mechanism).

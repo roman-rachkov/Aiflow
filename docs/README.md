@@ -7,7 +7,7 @@ Split out of the original `ide.md` draft. Each file is one artifact. The origina
 | [01-system-spec.md](01-system-spec.md)                         | System specification: purpose, roles, functional blocks, readiness criteria                            | Engineer, Customer (overview) |
 | [02-architecture.md](02-architecture.md)                       | High-level architecture: components, networks, isolation, codegen lifecycle                            | Engineer                      |
 | [03-data-model.md](03-data-model.md)                           | Data model: public schema, project schema template, dynamic Prisma, encryption                         | Engineer                      |
-| [04-roadmap.md](04-roadmap.md)                                 | Development plan: MVP-0 (2 weeks), MVP-1 (6 weeks), tasks, criteria, risks                             | Engineer                      |
+| [04-roadmap.md](04-roadmap.md)                                 | Development plan: MVP-0, slim MVP-1, MVP-2, MVP-3 (agent maturity), tasks, criteria, risks             | Engineer                      |
 | [05-prompt-analyst.md](05-prompt-analyst.md)                   | AI Analyst system prompt (interview, SPEC.md generation)                                               | Platform                      |
 | [06-prompt-planner.md](06-prompt-planner.md)                   | AI Planner system prompt (SPEC → task decomposition)                                                   | Platform                      |
 | [07-prompt-coder.md](07-prompt-coder.md)                       | AI Coder system prompt (Aider, isolated sandbox)                                                       | Platform                      |
