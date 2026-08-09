@@ -37,19 +37,24 @@ apps/
 │     │                           CreateProjectForm + DeleteProjectButton (the
 │     │                           delete confirm overlay lives here, not in
 │     │                           @aiflow/ui — one consumer, per D0 / § 2.3)
-│     ├── chat/           Analyst chat — SSE streaming + history (Task 1.3)
-│     │                     └── public: `index.ts` (server) + `client.ts` (ChatPanel)
-│     │                         model/service.ts — listMessages/saveMessage over
-│     │                           ChatMessage (project-scoped); model/schema.ts —
-│     │                           readSystemPrompt() reads .claude/agents/analyst.md
-│     │                           per turn (module-relative path, not cwd);
-│     │                           withRagContext(base, context) appends RAG context
-│     │                           to the system prompt (Task 2.1); readSpecTemplate()
-│     │                           extracts the SPEC.md template block for generation
-│     │                         ui/ChatPanel.tsx — @assistant-ui/react runtime +
-│     │                           primitives; ui/researcher-runtime.ts —
-│     │                           ChatModelAdapter (POST → SSE → cumulative yield);
-│     │                           ui/parse-sse-response.ts — client SSE framing
+│     ├── chat/           Analyst chat — AG-UI streaming + threads (Task 1.3 → chat Phase 1)
+│     │                     └── public: `index.ts` (server) + `client.ts` (ChatPanel legacy)
+│     │                         model/service.ts — listMessages(ByThread)/saveMessage/
+│     │                           deleteMessage over ChatMessage (project-scoped, soft-delete)
+│     │                         model/threads.ts — ChatThread CRUD + forkThread +
+│     │                           createThreadWithMessage (title from first msg)
+│     │                         model/agui-mappers.ts — ChatMessageView/ChatThreadView ↔
+│     │                           AG-UI wire (AguiMessage/AguiThread) for restStorage
+│     │                         model/schema.ts — readSystemPrompt() reads
+│     │                           .claude/agents/analyst.md per turn; withRagContext()
+│     │                           appends RAG context; readSpecTemplate() extracts the
+│     │                           SPEC.md template block for generation
+│     │                         ui/agui/ — grown-up chat on OpenUI AgentInterface (Phase 1):
+│     │                           AguiChatPanel (ChatProvider+AgentInterface, RU labels),
+│     │                           llm.ts (ChatLLM bridge → /threads/{tid}/run, agUIAdapter),
+│     │                           storage.ts (custom ThreadStorage → /threads REST), labels.ts
+│     │                         ui/ChatPanel.tsx — legacy @assistant-ui/react panel (kept
+│     │                           for /research until Phase 2 shell rework removes it)
 │     ├── files/          Upload, RAG indexing + retrieval (Task 2.1)
 │     │                     └── public: `index.ts` (CRUD), `client.ts` (FilePanel),
 │     │                         `rag.ts` (retrieve/extract/chunk — kept off index so
@@ -153,7 +158,11 @@ apps/
 │     /api/projects (GET list, POST create), /api/projects/[id] (GET, DELETE)
 │     /api/projects/[id]/chat (POST — SSE-streamed Analyst reply, Task 1.3;
 │       RAG context mixed into the system prompt since Task 2.1;
-│       ModelConfig → env provider resolve since Task 2.3)
+│       ModelConfig → env provider resolve since Task 2.3; legacy, used by /research)
+│     /api/projects/[id]/threads (GET list, POST create — AG-UI restStorage, chat Phase 1)
+│     /api/projects/[id]/threads/[tid] (GET messages, PATCH rename, DELETE — Phase 1)
+│     /api/projects/[id]/threads/[tid]/run (POST — AG-UI event stream:
+│       RUN_STARTED → TEXT_MESSAGE_* → RUN_FINISHED/ERROR, Phase 1)
 │     /api/projects/[id]/files (GET list, POST upload — Task 2.1)
 │     /api/projects/[id]/files/[fid]/index (POST — synchronous RAG indexing, 2.1)
 │     /api/projects/[id]/specifications (GET list, POST generate — Task 2.1)
@@ -215,6 +224,13 @@ packages/
 │                             template to CREATE SCHEMA + DDL + the pgvector
 │                             column and HNSW index. `yarn workspace @aiflow/db
 │                             project-sql project_x` (C2)
+│                             schema-executor.ts — createProjectSchema/dropProjectSchema
+│                             (create = from-empty DDL in a tx) + ensureThreadSchema
+│                             (idempotent backfill of ChatThread + threadId/parentId
+│                             for schemas created before chat Phase 1; also seeds a
+│                             "Главный" thread and links orphan messages)
+│                             scripts/backfill-threads.ts — one-off runner over all
+│                             project schemas. `yarn workspace @aiflow/db backfill:threads`
 │                             scripts/seed-dev-user.ts — a Credentials login for
 │                             local dev; refuses a non-local DATABASE_URL.
 │                             `yarn workspace @aiflow/db seed:dev-user`

@@ -77,3 +77,96 @@ export async function dropProjectSchema(schemaName: string): Promise<void> {
     await client.end();
   }
 }
+
+/**
+ * Idempotent backfill for schemas created before `ChatThread` / the
+ * `threadId`+`parentId` columns on `ChatMessage` existed.
+ *
+ * New projects get these via `createProjectSchema` (`migrate diff --from-empty`
+ * picks them up). But existing `project_{uuid}` schemas are never re-run — there
+ * is no per-project migration path — so any schema touched before this code
+ * shipped lacks the `ChatThread` table and the two columns. This brings them in
+ * line using `IF NOT EXISTS` so it is safe to call on every project open and is
+ * a no-op once the shape matches.
+ *
+ * The DDL mirrors exactly what Prisma would emit (`CREATE TABLE "ChatThread"`,
+ * `{Model}_pkey`, `{Model}_{col}_idx`), plus the backfill that ties legacy
+ * thread-less messages to a freshly-created "Главный" thread so the grown-up
+ * chat UI always has a thread to render.
+ *
+ * Public surface for the web layer (`ensureThreadSchema` is exported from
+ * `./index`); not part of `createProjectSchema` because the create path already
+ * produces the full shape.
+ */
+const THREAD_BACKFILL_DDL = `
+CREATE TABLE IF NOT EXISTS "ChatThread" (
+    "id" TEXT NOT NULL,
+    "title" TEXT NOT NULL DEFAULT 'Новый чат',
+    "forkedFromId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "deletedAt" TIMESTAMP(3),
+
+    CONSTRAINT "ChatThread_pkey" PRIMARY KEY ("id")
+);
+CREATE INDEX IF NOT EXISTS "ChatThread_createdAt_idx" ON "ChatThread"("createdAt");
+CREATE INDEX IF NOT EXISTS "ChatThread_forkedFromId_idx" ON "ChatThread"("forkedFromId");
+
+ALTER TABLE "ChatMessage" ADD COLUMN IF NOT EXISTS "threadId" TEXT;
+ALTER TABLE "ChatMessage" ADD COLUMN IF NOT EXISTS "parentId" TEXT;
+CREATE INDEX IF NOT EXISTS "ChatMessage_threadId_idx" ON "ChatMessage"("threadId");
+CREATE INDEX IF NOT EXISTS "ChatMessage_parentId_idx" ON "ChatMessage"("parentId");
+
+-- FK constraints: Postgres (pg16) has no ADD CONSTRAINT IF NOT EXISTS, so guard
+-- via a DO block checking pg_constraint. Idempotent across re-runs.
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ChatThread_forkedFromId_fkey') THEN
+    ALTER TABLE "ChatThread"
+      ADD CONSTRAINT "ChatThread_forkedFromId_fkey"
+      FOREIGN KEY ("forkedFromId") REFERENCES "ChatThread"("id") ON DELETE NO ACTION ON UPDATE NO ACTION;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ChatMessage_threadId_fkey') THEN
+    ALTER TABLE "ChatMessage"
+      ADD CONSTRAINT "ChatMessage_threadId_fkey"
+      FOREIGN KEY ("threadId") REFERENCES "ChatThread"("id") ON DELETE CASCADE ON UPDATE NO ACTION;
+  END IF;
+END $$;
+`;
+
+/**
+ * Apply the thread-schema backfill to one project schema.
+ *
+ * After the structural DDL it seeds a "Главный" thread per project (if none
+ * exists) and attaches any legacy `threadId IS NULL` messages to it, so the UI
+ * always opens onto a populated main thread. Idempotent: a second run finds the
+ * table/columns/indexes present and the seed thread already linked.
+ */
+export async function ensureThreadSchema(schemaName: string): Promise<void> {
+  assertValidSchemaName(schemaName);
+
+  const client = new Client({ connectionString: databaseUrl() });
+  try {
+    await client.connect();
+    await client.query('BEGIN');
+    await client.query(`SET search_path TO "${schemaName}", public;`);
+    await client.query(THREAD_BACKFILL_DDL);
+    // Seed a main thread only when none exists, then link orphan messages.
+    await client.query(`
+      INSERT INTO "ChatThread" ("id", "title", "updatedAt")
+      SELECT gen_random_uuid(), 'Главный', now()
+      WHERE NOT EXISTS (SELECT 1 FROM "ChatThread" LIMIT 1);
+    `);
+    await client.query(`
+      UPDATE "ChatMessage" m
+      SET "threadId" = (SELECT "id" FROM "ChatThread" ORDER BY "createdAt" ASC LIMIT 1)
+      WHERE m."threadId" IS NULL AND m."deletedAt" IS NULL;
+    `);
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw error;
+  } finally {
+    await client.end();
+  }
+}

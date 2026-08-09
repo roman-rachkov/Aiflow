@@ -155,23 +155,61 @@ enum LogLevel {
   ERROR
 }
 
+// A conversation thread. A project holds many threads (one per chat session);
+// the OpenUI AgentInterface ThreadList maps onto these. Forking is captured by
+// `forkedFromId` (self-relation): a fork copies the lineage then diverges.
+//
+// `title` is set on creation (first-message derived or user-named) and edited
+// in place. Soft-deleted by `deletedAt`, like every other domain model.
+model ChatThread {
+  id           String      @id @default(uuid())
+  title        String      @default("Новый чат")
+  // Self-relation for forks: null = original thread, otherwise the thread this
+  // one was branched from. Kept for lineage; active state lives on the row.
+  forkedFromId String?
+  forkedFrom   ChatThread? @relation("ChatThreadFork", fields: [forkedFromId], references: [id], onDelete: NoAction)
+  forks        ChatThread[] @relation("ChatThreadFork")
+  messages     ChatMessage[]
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  // Soft delete — see the convention on User in schema.prisma.
+  deletedAt    DateTime?
+
+  @@index([createdAt])
+  @@index([forkedFromId])
+}
+
 // Analyst interview history. The roadmap listed this model as "to be added"
 // with no fields specified.
 //
 // `tokensIn` / `tokensOut` are best-effort token counts from the provider.
 // They are nullable because both a streaming mock and a dropped connection
 // leave them absent — a NULL is an honest "we don't know", not a zero.
+//
+// `threadId` is nullable for backcompat: legacy rows (pre-thread migration)
+// belong to the implicit "main" thread. `parentId` records the predecessor of
+// an edited/regenerated message so the full version tree is recoverable.
 model ChatMessage {
   id         String      @id @default(uuid())
   role       ChatRole
   content    String      @db.Text
   tokensIn   Int?
   tokensOut  Int?
+  // Thread membership. Nullable only for rows created before threads existed;
+ // every new row carries one. The relation is optional so the backfill ALTER
+  // (add-column-nullable) does not require a default.
+  threadId   String?
+  thread     ChatThread? @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  // Predecessor of an edited/regenerated message (version-tree parent). Null on
+  // originals. Lets the UI walk message history without losing prior versions.
+  parentId   String?
   createdAt  DateTime    @default(now())
   // Soft delete — see the convention on User in schema.prisma.
   deletedAt  DateTime?
 
   @@index([createdAt])
+  @@index([threadId])
+  @@index([parentId])
 }
 
 enum ChatRole {

@@ -53,6 +53,9 @@ packages/db/prisma/generated/
 **/prisma/*.db-journal
 !**/prisma/migrations/
 
+# --- Dev screenshots (agent-browser captures) --------------------------------
+screenshots/
+
 # --- Tests and coverage ------------------------------------------------------
 coverage/
 .nyc_output/

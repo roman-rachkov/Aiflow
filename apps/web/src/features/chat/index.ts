@@ -5,8 +5,25 @@
  * eslint.config.mjs (the policy uses `capture: slice` to require a matching
  * slice name for feature→feature, so this barrel is the only seam).
  */
-export type { ChatMessageView, SaveMessageInput } from './model/types';
-export { listMessages, saveMessage } from './model/service';
+export type {
+  ChatMessageView,
+  ChatThreadView,
+  CreateThreadInput,
+  SaveMessageInput,
+  UpdateThreadInput,
+} from './model/types';
+export { deleteMessage, listMessages, listMessagesByThread, saveMessage } from './model/service';
+export {
+  createThread,
+  createThreadWithMessage,
+  deleteThread,
+  forkThread,
+  getThread,
+  listThreads,
+  updateThread,
+} from './model/threads';
+export type { AguiMessage, AguiThread } from './model/agui-mappers';
+export { aguiMessageText, toAguiMessage, toAguiMessages, toAguiThread } from './model/agui-mappers';
 export { readSystemPrompt, readSpecTemplate, withRagContext } from './model/schema';
 // ChatPanel lives in `./client` — do not re-export it here (Next.js barrel
 // contamination with server-only modules).

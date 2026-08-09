@@ -177,6 +177,31 @@ Licence verified via `npm view` + upstream `LICENSE` (MIT) — allowlisted under
 
 **What this is not:** replacing the Researcher chat shell, shipping OpenUI into Coder output, or adopting Open WebUI (different project, branding restrictions).
 
+### D0b. Chat migrates from `@assistant-ui/react` to OpenUI `AgentInterface` — RESOLVED 2026-08-09
+
+D0a deferred the chat to "a later, separate step." This **is that step.** The grown-up
+chat surface ships on the OpenUI `AgentInterface` (built on `@ag-ui/core` via
+`@openuidev/react-headless`), not the hand-rolled `@assistant-ui/react` `ChatPanel`.
+
+**Why.** `AgentInterface` supplies out of the box what MVP-0 lacked and what re-implementing
+on `@assistant-ui` would duplicate: a thread list (multiple chats / forking), per-message
+actions (copy/edit/delete/regenerate/stop), markdown + code-block rendering, conversation
+starters, and a workspace artifact rail. `@assistant-ui/react` is removed as a chat dependency.
+
+**Architecture.** Backend gains a thread model (`ChatThread` + `threadId`/`parentId` on
+`ChatMessage`) and an AG-UI event-stream run endpoint
+(`/api/projects/{id}/threads/{tid}/run`) emitting `RUN_STARTED` → `TEXT_MESSAGE_*` →
+`RUN_FINISHED/ERROR`, which `agUIAdapter` parses client-side. Thread persistence goes through
+custom REST (`/api/projects/{id}/threads`) speaking the `ThreadStorage` contract — we do not
+use the library's `restStorage()` because its `/get`/`/create`/`/update`/`/delete` paths do
+not match our REST layout. A new `ensureThreadSchema` backfills the thread shape onto
+pre-existing `project_{uuid}` schemas (idempotent).
+
+**Scope of this step (Phase 1).** The chat surface itself, mounted at the preview route
+`/projects/[id]/chat`. The shell rework (chat as the project home, folding Files/Tasks/Deploy/
+Editor into `AgentInterface.SidebarItem`/`Route`, removing `ResearchWorkspace`) is Phase 2.
+AG-UI tool-calling (run agents / edit files / deploy from chat) is Phase 3.
+
 ---
 
 ---

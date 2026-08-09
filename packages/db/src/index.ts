@@ -18,7 +18,7 @@ export { asEncryptedValue } from './config-types';
 // at runtime over `pg`. `PROJECT_SCHEMA_PATTERN` now lives in ./project-schema
 // (it guards both the name generator and the executor), imported below.
 import { PROJECT_SCHEMA_PATTERN } from './project-schema';
-export { createProjectSchema, dropProjectSchema } from './schema-executor';
+export { createProjectSchema, dropProjectSchema, ensureThreadSchema } from './schema-executor';
 export {
   generateProjectSchemaName,
   generateProjectSql,

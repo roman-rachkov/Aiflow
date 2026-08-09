@@ -121,6 +121,14 @@ semantic tokens (`text-fg-muted`, `border-border`, `bg-surface`) rather than raw
   `@aiflow/*` paths it needs.
 - `packages/db` `typecheck` runs `yarn generate` first (two Prisma generators → two output dirs,
   `generated/public` and `generated/project`).
+- **We work inside Docker, not on the bare Windows host.** The full stack runs under
+  `docker compose up` (`node:22-bookworm`, repo bind-mounted at `/workspace`). Run dev commands
+  — `yarn generate`, `yarn verify`, tests, builds — **inside the compose containers** via
+  `docker compose exec app <cmd>` (or `worker`), not on the host. Generating Prisma clients on
+  the host fails with `EPERM` because a running container holds the query-engine binary on the
+  shared bind mount, and a host-side generate would also leave the wrong (Windows) engine for
+  Linux consumers. See `packages/db/generated/public` + the `PRISMA_QUERY_ENGINE_LIBRARY` env in
+  compose. Only git/editor operations belong on the host.
 - **Prisma `binaryTargets` must include both `native` and `debian-openssl-3.0.x`.** The
   generated clients live on the Windows bind mount and are consumed by Linux compose services
   (`node:22-bookworm`). A Windows-only generate leaves the app unable to load the query engine;
