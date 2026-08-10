@@ -8,10 +8,11 @@
  * License: MIT / no new dependency — uses the platform `fetch` only. A `ws`
  * (WebSocket) client, if required later, is a separate task.
  *
- * Env (read on first use, not at module load): `GITEA_URL`, `GITEA_ADMIN_TOKEN`
- * (required for live calls), optional `GITEA_REPO_OWNER` (default `aistudio`).
- * Auth: `Authorization: token ${GITEA_ADMIN_TOKEN}`. ~15s timeout; network and
- * non-2xx failures surface as `GiteaUpstreamError` (routes map upstream to 502).
+ * Env (read on first use, not at module load): `GITEA_URL`, admin token via
+ * `GITEA_ADMIN_TOKEN_FILE` (compose gitea-init) or `GITEA_ADMIN_TOKEN`,
+ * optional `GITEA_REPO_OWNER` (default `aistudio`). Auth:
+ * `Authorization: token …`. ~15s timeout; network and non-2xx failures surface
+ * as `GiteaUpstreamError` (routes map upstream to 502).
  *
  * Deep imports from internals are blocked by `import/no-internal-modules`;
  * consumers must use this barrel.

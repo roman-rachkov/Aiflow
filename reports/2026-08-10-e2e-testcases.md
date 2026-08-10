@@ -4,10 +4,10 @@ Base URL: `http://localhost:3000`
 
 **Accounts (after clean seed):**
 
-| Role | Email | Password | uiMode |
-|------|-------|----------|--------|
-| Pro (Engineer) | `dev@example.com` | `devpassword` | PRO |
-| Customer | `customer@example.com` | `devpassword` | BASIC |
+| Role           | Email                  | Password      | uiMode |
+| -------------- | ---------------------- | ------------- | ------ |
+| Pro (Engineer) | `dev@example.com`      | `devpassword` | PRO    |
+| Customer       | `customer@example.com` | `devpassword` | BASIC  |
 
 **Priorities:** P0 blocker · P1 core path · P2 important · P3 edge
 
@@ -18,6 +18,7 @@ Base URL: `http://localhost:3000`
 ## Suite A — Auth
 
 ### A1 — Wrong password
+
 - **Priority:** P0
 - **Preconditions:** Seeded Pro user exists
 - **Steps:**
@@ -27,6 +28,7 @@ Base URL: `http://localhost:3000`
 - **Expected:** Stay on `/signin`; alert «Неверная почта или пароль»; no session cookie for app routes
 
 ### A2 — Successful Pro login
+
 - **Priority:** P0
 - **Steps:**
   1. Open `/signin`
@@ -35,6 +37,7 @@ Base URL: `http://localhost:3000`
 - **Expected:** Redirect to `/` → `/projects`; project list (or empty state) visible; UserBadge shows user
 
 ### A3 — Logout
+
 - **Priority:** P1
 - **Preconditions:** Logged in on `/projects` (app layout with header)
 - **Steps:**
@@ -42,6 +45,7 @@ Base URL: `http://localhost:3000`
 - **Expected:** Redirect to `/signin`; `/projects` redirects to `/signin` when unauthenticated
 
 ### A4 — Unauthenticated redirect
+
 - **Priority:** P0
 - **Preconditions:** Logged out / clean session
 - **Steps:**
@@ -53,6 +57,7 @@ Base URL: `http://localhost:3000`
 ## Suite B — Projects CRUD
 
 ### B1 — Empty project list
+
 - **Priority:** P1
 - **Preconditions:** Clean DB, logged in as Pro
 - **Steps:**
@@ -60,6 +65,7 @@ Base URL: `http://localhost:3000`
 - **Expected:** Empty copy («Пока нет проектов» or equivalent) + link/card to create
 
 ### B2 — Create project (happy path)
+
 - **Priority:** P0
 - **Steps:**
   1. Open `/projects/new`
@@ -68,6 +74,7 @@ Base URL: `http://localhost:3000`
 - **Expected:** Land on `/projects/{id}` (via research redirect); shell with Analyst chat; project appears in `/projects`
 
 ### B2a — Create validation (empty name)
+
 - **Priority:** P2
 - **Steps:**
   1. Open `/projects/new`
@@ -75,6 +82,7 @@ Base URL: `http://localhost:3000`
 - **Expected:** Browser/HTML5 validation or server «Введите название проекта»; no project created
 
 ### B3 — Open project shell
+
 - **Priority:** P0
 - **Preconditions:** Project exists
 - **Steps:**
@@ -82,12 +90,14 @@ Base URL: `http://localhost:3000`
 - **Expected:** `/projects/{id}` with chat + sidebar (threads, Files, Tasks, Deploy, Spec, Editor, Models for Pro)
 
 ### B4 — Project card on list
+
 - **Priority:** P1
 - **Steps:**
   1. After B2, open `/projects`
 - **Expected:** Card shows project name; click navigates to shell
 
 ### B5 — Delete project (API-only gap)
+
 - **Priority:** P2
 - **Note:** `DeleteProjectButton` is not mounted on any page — UI skip
 - **Steps (API):**
@@ -100,6 +110,7 @@ Base URL: `http://localhost:3000`
 ## Suite C — Project shell navigation
 
 ### C1 — Sidebar panels (Pro)
+
 - **Priority:** P0
 - **Preconditions:** On `/projects/{id}` as Pro
 - **Steps:**
@@ -110,6 +121,7 @@ Base URL: `http://localhost:3000`
 - **Expected:** Each panel renders without crash; content appropriate (empty states OK)
 
 ### C2 — Thread switch returns to chat
+
 - **Priority:** P2
 - **Steps:**
   1. Open Files panel
@@ -117,6 +129,7 @@ Base URL: `http://localhost:3000`
 - **Expected:** Path resets to chat (Files panel closes)
 
 ### C3 — Pro sees Editor and Models
+
 - **Priority:** P0
 - **Steps:**
   1. On project shell, look for «Редактор» and «Модели»
@@ -125,6 +138,7 @@ Base URL: `http://localhost:3000`
 - **Expected:** Both reachable; editor loads; models form loads
 
 ### C4 — BASIC hides Editor/Models + redirect
+
 - **Priority:** P0
 - **Preconditions:** Logged in as `customer@example.com` (BASIC), own project
 - **Steps:**
@@ -138,12 +152,14 @@ Base URL: `http://localhost:3000`
 ## Suite D — Chat / Analyst
 
 ### D1 — Starter prompt
+
 - **Priority:** P1
 - **Steps:**
   1. On empty/main thread, click a starter (e.g. «Хочу сделать интернет-магазин»)
 - **Expected:** Starter fills/sends into composer or starts a turn
 
 ### D2 — Send message + stream (smoke LLM)
+
 - **Priority:** P0
 - **Steps:**
   1. Type a short idea: «Нужен простой каталог товаров с корзиной»
@@ -151,6 +167,7 @@ Base URL: `http://localhost:3000`
 - **Expected:** User message appears; assistant streams reply (or clear error if LLM down — then **blocked**)
 
 ### D3 — Thread rename / fork / delete
+
 - **Priority:** P2
 - **Steps:**
   1. Open thread menu
@@ -160,12 +177,14 @@ Base URL: `http://localhost:3000`
 - **Expected:** Actions succeed; UI updates; no console crash
 
 ### D4 — Edit / delete user message
+
 - **Priority:** P2
 - **Steps:**
   1. On a user message, edit then save; or delete
 - **Expected:** Persistence via messages API; UI reflects change
 
 ### D5 — Assistant copy / regenerate
+
 - **Priority:** P3
 - **Steps:**
   1. On assistant message: copy; regenerate if available
@@ -176,6 +195,7 @@ Base URL: `http://localhost:3000`
 ## Suite E — Files / RAG upload
 
 ### E1 — Upload text/markdown
+
 - **Priority:** P1
 - **Steps:**
   1. Open Files panel
@@ -183,12 +203,14 @@ Base URL: `http://localhost:3000`
 - **Expected:** File appears in list
 
 ### E2 — Reject bad MIME (optional)
+
 - **Priority:** P3
 - **Steps:**
   1. Attempt upload of disallowed type (e.g. `.exe` / image if not allowlisted)
 - **Expected:** Error; file not indexed as allowed document
 
 ### E3 — Index button
+
 - **Priority:** P1
 - **Preconditions:** File uploaded
 - **Steps:**
@@ -200,6 +222,7 @@ Base URL: `http://localhost:3000`
 ## Suite F — SPEC
 
 ### F1 — Smoke generate via chat
+
 - **Priority:** P0
 - **Preconditions:** Some chat context (D2)
 - **Steps:**
@@ -207,6 +230,7 @@ Base URL: `http://localhost:3000`
 - **Expected:** Tool `spec:generate` runs; artifact card or version created (LLM/worker required)
 
 ### F2 — Approve artifact
+
 - **Priority:** P0
 - **Preconditions:** SPEC artifact visible
 - **Steps:**
@@ -215,6 +239,7 @@ Base URL: `http://localhost:3000`
 - **Expected:** Approval succeeds; version marked approved
 
 ### F3 — Spec panel shows latest
+
 - **Priority:** P1
 - **Steps:**
   1. Open «Спецификация» in sidebar
@@ -225,12 +250,14 @@ Base URL: `http://localhost:3000`
 ## Suite G — Tasks / Deploy (Pro UI)
 
 ### G1 — Plan button visible (Pro)
+
 - **Priority:** P1
 - **Steps:**
   1. Open Tasks panel as Pro
 - **Expected:** «Сгенерировать план» visible
 
 ### G2 — Empty state without approved SPEC
+
 - **Priority:** P1
 - **Preconditions:** No approved SPEC (or before F2)
 - **Steps:**
@@ -238,18 +265,21 @@ Base URL: `http://localhost:3000`
 - **Expected:** Empty guidance about approving SPEC; plan may fail/gate if clicked early
 
 ### G3 — Deployments list
+
 - **Priority:** P1
 - **Steps:**
   1. Open Deploy panel / `/deployments`
 - **Expected:** List or empty state; no crash
 
 ### G4 — «Собрать сейчас» (best-effort)
+
 - **Priority:** P2
 - **Steps:**
   1. Click «Собрать сейчас»
 - **Expected:** Deployment enqueued; status/log appears — or clear error. Full green build may be **manual**
 
 ### G5 — Generate plan after approve (best-effort / manual)
+
 - **Priority:** P1
 - **Preconditions:** F2 passed
 - **Steps:**
@@ -261,18 +291,21 @@ Base URL: `http://localhost:3000`
 ## Suite H — Editor / Models (Pro)
 
 ### H1 — Open Monaco editor
+
 - **Priority:** P1
 - **Steps:**
   1. Open `/projects/{id}/editor`
 - **Expected:** File tree + editor load (Gitea provisioned)
 
 ### H2 — Save file
+
 - **Priority:** P2
 - **Steps:**
   1. Edit a file; «Сохранить»
 - **Expected:** Save succeeds; content persists on reload
 
 ### H3 — Model config save
+
 - **Priority:** P1
 - **Steps:**
   1. Open Models; set provider/model (and optional key)
@@ -284,6 +317,7 @@ Base URL: `http://localhost:3000`
 ## Suite I — Negative / isolation
 
 ### I1 — Foreign projectId
+
 - **Priority:** P1
 - **Preconditions:** Customer and Pro each have a project; use Pro project id as Customer
 - **Steps:**
@@ -291,6 +325,7 @@ Base URL: `http://localhost:3000`
 - **Expected:** 404 / no existence leak / redirect — not the other user's data
 
 ### I2 — BASIC gated APIs / UI
+
 - **Priority:** P1
 - **Steps:**
   1. As Customer: Tasks — no plan button or plan returns Pro error

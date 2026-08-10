@@ -106,6 +106,11 @@ services:
   # ===========================================================================
   # Gitea — Git server (one repository per project)
   # ===========================================================================
+  # AUTHORITATIVE compose also runs `gitea-init` (see root `docker-compose.yml`
+  # + `docker/gitea/bootstrap.sh`): after a fresh volume it creates the
+  # GITEA_REPO_OWNER admin user and writes an API token to volume
+  # `gitea_bootstrap` (`GITEA_ADMIN_TOKEN_FILE=/run/gitea/token` for app/worker).
+  # The YAML below is an older sketch; prefer the root compose file.
   gitea:
     image: gitea/gitea:1.22
     environment:

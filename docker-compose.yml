@@ -54,6 +54,8 @@ x-node-service: &node-service
     - yarn_install_stamp:/var/cache/aiflow-yarn
     # Shared so sandbox-only services can run `yarn` without downloading Corepack.
     - corepack_home:/root/.cache/node/corepack
+    # Written by gitea-init; app/worker read GITEA_ADMIN_TOKEN_FILE from here.
+    - gitea_bootstrap:/run/gitea:ro
   networks:
     - internal
   restart: unless-stopped
@@ -140,12 +142,46 @@ services:
       - internal
     restart: unless-stopped
 
+  # Idempotent Gitea admin user + API token after a fresh volume wipe.
+  # Writes /run/gitea/token into the gitea_bootstrap volume for app/worker.
+  gitea-init:
+    image: gitea/gitea:1.22
+    # Root only to chown the bootstrap volume; CLI runs as git (su-exec).
+    environment:
+      GITEA_URL: http://gitea:3000
+      GITEA_REPO_OWNER: ${GITEA_REPO_OWNER:-aistudio}
+      GITEA_ADMIN_PASSWORD: ${GITEA_ADMIN_PASSWORD:-aistudio-dev-pass}
+      GITEA_ADMIN_EMAIL: ${GITEA_ADMIN_EMAIL:-aistudio@example.com}
+      # Prefer existing .env token when still valid; else mint a new one.
+      GITEA_ADMIN_TOKEN: ${GITEA_ADMIN_TOKEN:-}
+      GITEA_ADMIN_TOKEN_FILE: /run/gitea/token
+    volumes:
+      - gitea_data:/data
+      - gitea_bootstrap:/run/gitea
+      - ./docker/gitea/bootstrap.sh:/bootstrap.sh:ro
+    entrypoint:
+      [
+        'bash',
+        '-c',
+        'mkdir -p /run/gitea && chown -R git:git /run/gitea && exec su-exec git bash /bootstrap.sh',
+      ]
+    depends_on:
+      gitea:
+        condition: service_healthy
+    networks:
+      - internal
+    restart: 'no'
+
   app:
     <<: *node-service
     environment:
       <<: *node-env
       ROLE: app
       PORT: 3000
+      # Bind all interfaces — must not use Docker HOSTNAME (breaks healthcheck).
+      LISTEN_HOST: '0.0.0.0'
+      # Token file from gitea-init (falls back to GITEA_ADMIN_TOKEN in .env).
+      GITEA_ADMIN_TOKEN_FILE: /run/gitea/token
       # Override host-side .env (localhost) so migrate/app reach compose DNS.
       DATABASE_URL: postgresql://${POSTGRES_USER:-ai_studio}:${POSTGRES_PASSWORD:-ai_studio}@postgres:5432/ai_studio?schema=public
     command: ['yarn', 'workspace', '@aiflow/web', 'dev']
@@ -160,6 +196,8 @@ services:
         condition: service_healthy
       gitea:
         condition: service_healthy
+      gitea-init:
+        condition: service_completed_successfully
     healthcheck:
       # node:22-bookworm has no curl; Node 22 has global fetch.
       test:
@@ -179,6 +217,7 @@ services:
       ROLE: worker
       QUEUES: 'spec-generate,plan-generate,code-execute,deploy-run,chat-run'
       DATABASE_URL: postgresql://${POSTGRES_USER:-ai_studio}:${POSTGRES_PASSWORD:-ai_studio}@postgres:5432/ai_studio?schema=public
+      GITEA_ADMIN_TOKEN_FILE: /run/gitea/token
       # Compose names the network `{project}_sandbox` (dir name → aiflow_sandbox).
       SANDBOX_NETWORK: aiflow_sandbox
       AIDER_SANDBOX_IMAGE: aistudio/aider-sandbox:latest
@@ -199,6 +238,7 @@ services:
       - yarn_cache:/root/.yarn/berry/cache
       - yarn_install_stamp:/var/cache/aiflow-yarn
       - corepack_home:/root/.cache/node/corepack
+      - gitea_bootstrap:/run/gitea:ro
       # DEV-ONLY (open question #4): host docker.sock gives full Docker control.
       # Production must use remote Docker (TLS), a dedicated Docker host, or K8s
       # Jobs — do not mount the host socket. Vault/Swarm secrets are out of scope.
@@ -209,6 +249,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      gitea-init:
+        condition: service_completed_successfully
     networks:
       - internal
       - sandbox
@@ -265,6 +307,7 @@ volumes:
   redis_data:
   minio_data:
   gitea_data:
+  gitea_bootstrap:
   worker_temp:
   node_modules:
   web_node_modules:

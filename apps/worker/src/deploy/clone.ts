@@ -7,6 +7,8 @@ import { mkdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 
+import { readGiteaAdminToken } from '../gitea-token';
+
 const execFileAsync = promisify(execFile);
 
 export function deployWorkDir(deploymentId: string): string {
@@ -16,8 +18,8 @@ export function deployWorkDir(deploymentId: string): string {
 
 /** Build `http://oauth2:TOKEN@host/owner/repo.git` from GITEA_* env. */
 export function buildCloneUrl(owner: string, repo: string): string {
-  const token = process.env.GITEA_ADMIN_TOKEN;
-  if (!token) throw new Error('GITEA_ADMIN_TOKEN is not set');
+  const token = readGiteaAdminToken();
+  if (!token) throw new Error('GITEA_ADMIN_TOKEN (or GITEA_ADMIN_TOKEN_FILE) is not set');
   const raw = (process.env.GITEA_URL ?? 'http://gitea:3000').replace(/\/$/, '');
   const withAuth = raw.replace(/^(https?:\/\/)/, `$1oauth2:${encodeURIComponent(token)}@`);
   return `${withAuth}/${owner}/${repo}.git`;

@@ -2,6 +2,8 @@
  * Low-level Gitea HTTP helpers: env, auth, timeout, JSON request.
  * Env is read on first use (not at module load).
  */
+import { readFileSync } from 'node:fs';
+
 import { GiteaUpstreamError } from './errors';
 
 const TIMEOUT_MS = 15_000;
@@ -14,12 +16,29 @@ function normalizeBaseUrl(raw: string): string {
   return raw.replace(/\/+$/, '');
 }
 
-/** Read GITEA_URL + GITEA_ADMIN_TOKEN. Throws if either is missing. */
+/**
+ * Prefer `GITEA_ADMIN_TOKEN_FILE` (compose gitea-init volume), then env.
+ * Empty / unreadable file falls through to `GITEA_ADMIN_TOKEN`.
+ */
+export function readAdminToken(): string {
+  const file = process.env.GITEA_ADMIN_TOKEN_FILE?.trim();
+  if (file) {
+    try {
+      const fromFile = readFileSync(file, 'utf8').trim();
+      if (fromFile.length > 0) return fromFile;
+    } catch {
+      // fall through
+    }
+  }
+  return process.env.GITEA_ADMIN_TOKEN?.trim() ?? '';
+}
+
+/** Read GITEA_URL + admin token. Throws if either is missing. */
 export function getConfig(): GiteaConfig {
   const baseUrl = normalizeBaseUrl(process.env.GITEA_URL ?? '');
   if (!baseUrl) throw new Error('GITEA_URL is not set');
-  const token = process.env.GITEA_ADMIN_TOKEN ?? '';
-  if (!token) throw new Error('GITEA_ADMIN_TOKEN is not set');
+  const token = readAdminToken();
+  if (!token) throw new Error('GITEA_ADMIN_TOKEN (or GITEA_ADMIN_TOKEN_FILE) is not set');
   return { baseUrl, token };
 }
 

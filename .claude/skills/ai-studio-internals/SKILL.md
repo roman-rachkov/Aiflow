@@ -15,6 +15,10 @@ Host ports: **3000** Next.js app, **3001** model-router, **3002** Gitea, 5432 Po
 
 Gitea listens on 3000 _inside_ its container (its default) and publishes to 3002 on the host. So `GITEA_URL` is `http://gitea:3000` for inter-service calls, its healthcheck targets `localhost:3000` (runs inside the container), but `GITEA__server__ROOT_URL` is `http://localhost:3002/`. Both numbers are correct in their own context — don't "fix" one to match the other.
 
+**App listen address:** `apps/web/server.ts` binds with `LISTEN_HOST` / `HOST` (default `0.0.0.0`). Never use Docker's `HOSTNAME` env (container id) — that listens only on eth0 and breaks the compose healthcheck against `127.0.0.1:3000`.
+
+**Gitea bootstrap:** compose service `gitea-init` (`docker/gitea/bootstrap.sh`) creates the `GITEA_REPO_OWNER` admin user and writes an API token to volume `gitea_bootstrap` at `/run/gitea/token`. `app` / `worker` read `GITEA_ADMIN_TOKEN_FILE` (fallback: `GITEA_ADMIN_TOKEN`). Required after `docker compose down -v`.
+
 ## Isolation, in detail
 
 Isolation runs on two axes. Both matter, and they fail differently.

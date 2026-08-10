@@ -8,12 +8,12 @@
 
 ## Summary
 
-| Status | Count |
-|--------|------:|
-| pass | 18 |
-| fail | 3 |
-| blocked | 2 |
-| skipped / manual | 12+ |
+| Status           | Count |
+| ---------------- | ----: |
+| pass             |    18 |
+| fail             |     3 |
+| blocked          |     2 |
+| skipped / manual |   12+ |
 
 **Verdict:** Core auth, project create (after Gitea bootstrap), Analyst chat, SPEC generation, plan enqueue, Pro editor/models pages, and BASIC gates work. **Shell sidebar route panels do not swap the main view** (Critical). Approve button not reachable in UI (Major). Infra: app Docker healthcheck fails because Next binds to container `HOSTNAME` IP, not `127.0.0.1`.
 
@@ -21,43 +21,43 @@
 
 ## Results by TC-ID
 
-| ID | Result | Evidence / notes |
-|----|--------|------------------|
-| A1 | **pass** | Wrong password → «Неверная почта или пароль»; `A1-wrong-password.png` |
-| A2 | **pass** | Login → `/projects`; `A2-login-projects.png` |
-| A3 | **pass** | «Выйти» present on app layout; after session end `/projects` → `/signin`; `A3-logout-final.png` / `A4-unauth-final.png` |
-| A4 | **pass** | Unauthenticated `/projects` → `/signin` |
-| B1 | **pass** | Empty list + «Создать первый проект →» |
-| B2 | **pass** | Created `E2E Shop` → `/projects/{id}`; Gitea user+token required after volume wipe (see Findings) |
-| B2a | **skipped** | HTML5 `required` on name; not separately exercised |
-| B3 | **pass** | Shell with Analyst + Pro sidebar |
-| B4 | **pass** | Customer list shows own card; Pro had project after create |
-| B5 | **skipped** | Delete UI not mounted — API only |
-| C1 | **fail** | Sidebar item highlights (Файлы/Задачи/…) but main pane stays on chat welcome. Standalone `/tasks`, `/deployments` work. `C1-*.png`, `C1-files-after-click.png` |
-| C2 | **blocked** | Depends on C1 route switching |
-| C3 | **pass** | Editor + Models visible for Pro; `/editor` and `/settings/models` load |
-| C4 | **pass** | BASIC sidebar: no Редактор/Модели; `/editor` and `/settings/models` redirect to `/projects`. `C4-*.png` |
-| D1 | **pass** | Starter created thread «Хочу сделать интернет-магазин»; `D1-starter.png` |
-| D2 | **pass** | Assistant reply streamed (clarifying questions); worker `chat-run` 200; `D2-chat-reply.png` |
-| D3 | **pass** | Thread menu: Переименовать / Ответвить / Удалить visible |
-| D4 | **pass** | Редактировать / Удалить on user message visible after SPEC turn |
-| D5 | **pass** | Копировать / Сгенерировать заново on assistant message |
-| E1 | **pass** | Upload via in-page `fetch`+FormData → `201` `e2e-note.md` (UI panel blocked by C1) |
-| E2 | **skipped** | Not run |
-| E3 | **skipped** | Index not run (embeddings / UI panel) |
-| F1 | **pass** | `spec:generate` → artifact SPEC.md v1; `F1-spec-artifact.png` |
-| F2 | **fail** | «Утвердить» not found in a11y tree / open artifact detail. Approved via `POST …/specifications/1/approve` → 200 for G5 |
-| F3 | **blocked** | Spec shell route broken by C1; content visible in chat markdown |
-| G1 | **pass** | «Сгенерировать план» on Pro `/tasks` |
-| G2 | **pass** | Empty copy before plan |
-| G3 | **pass** | Deployments page loads; Pro «Собрать сейчас» |
-| G4 | **manual** | Build not executed end-to-end |
-| G5 | **pass** | Plan queued → 15 tasks with Dry-run/Запустить; `G5-tasks-after-plan.png` |
-| H1 | **pass** | Monaco shell, README.md, Save/Build/Git; `H1-editor.png` |
-| H2 | **blocked** | Opened README; Save stayed disabled (no edit in Monaco via a11y) |
-| H3 | **pass** | Model form: provider/model/base URL/key; `H3-models.png` |
-| I1 | **pass** | Customer → Pro project URL → Next.js **404** (no data leak); URL stays on foreign id |
-| I2 | **pass** | BASIC `/tasks` without plan button; `/deployments` without «Собрать сейчас» |
+| ID  | Result      | Evidence / notes                                                                                                                                               |
+| --- | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A1  | **pass**    | Wrong password → «Неверная почта или пароль»; `A1-wrong-password.png`                                                                                          |
+| A2  | **pass**    | Login → `/projects`; `A2-login-projects.png`                                                                                                                   |
+| A3  | **pass**    | «Выйти» present on app layout; after session end `/projects` → `/signin`; `A3-logout-final.png` / `A4-unauth-final.png`                                        |
+| A4  | **pass**    | Unauthenticated `/projects` → `/signin`                                                                                                                        |
+| B1  | **pass**    | Empty list + «Создать первый проект →»                                                                                                                         |
+| B2  | **pass**    | Created `E2E Shop` → `/projects/{id}`; Gitea user+token required after volume wipe (see Findings)                                                              |
+| B2a | **skipped** | HTML5 `required` on name; not separately exercised                                                                                                             |
+| B3  | **pass**    | Shell with Analyst + Pro sidebar                                                                                                                               |
+| B4  | **pass**    | Customer list shows own card; Pro had project after create                                                                                                     |
+| B5  | **skipped** | Delete UI not mounted — API only                                                                                                                               |
+| C1  | **fail**    | Sidebar item highlights (Файлы/Задачи/…) but main pane stays on chat welcome. Standalone `/tasks`, `/deployments` work. `C1-*.png`, `C1-files-after-click.png` |
+| C2  | **blocked** | Depends on C1 route switching                                                                                                                                  |
+| C3  | **pass**    | Editor + Models visible for Pro; `/editor` and `/settings/models` load                                                                                         |
+| C4  | **pass**    | BASIC sidebar: no Редактор/Модели; `/editor` and `/settings/models` redirect to `/projects`. `C4-*.png`                                                        |
+| D1  | **pass**    | Starter created thread «Хочу сделать интернет-магазин»; `D1-starter.png`                                                                                       |
+| D2  | **pass**    | Assistant reply streamed (clarifying questions); worker `chat-run` 200; `D2-chat-reply.png`                                                                    |
+| D3  | **pass**    | Thread menu: Переименовать / Ответвить / Удалить visible                                                                                                       |
+| D4  | **pass**    | Редактировать / Удалить on user message visible after SPEC turn                                                                                                |
+| D5  | **pass**    | Копировать / Сгенерировать заново on assistant message                                                                                                         |
+| E1  | **pass**    | Upload via in-page `fetch`+FormData → `201` `e2e-note.md` (UI panel blocked by C1)                                                                             |
+| E2  | **skipped** | Not run                                                                                                                                                        |
+| E3  | **skipped** | Index not run (embeddings / UI panel)                                                                                                                          |
+| F1  | **pass**    | `spec:generate` → artifact SPEC.md v1; `F1-spec-artifact.png`                                                                                                  |
+| F2  | **fail**    | «Утвердить» not found in a11y tree / open artifact detail. Approved via `POST …/specifications/1/approve` → 200 for G5                                         |
+| F3  | **blocked** | Spec shell route broken by C1; content visible in chat markdown                                                                                                |
+| G1  | **pass**    | «Сгенерировать план» on Pro `/tasks`                                                                                                                           |
+| G2  | **pass**    | Empty copy before plan                                                                                                                                         |
+| G3  | **pass**    | Deployments page loads; Pro «Собрать сейчас»                                                                                                                   |
+| G4  | **manual**  | Build not executed end-to-end                                                                                                                                  |
+| G5  | **pass**    | Plan queued → 15 tasks with Dry-run/Запустить; `G5-tasks-after-plan.png`                                                                                       |
+| H1  | **pass**    | Monaco shell, README.md, Save/Build/Git; `H1-editor.png`                                                                                                       |
+| H2  | **blocked** | Opened README; Save stayed disabled (no edit in Monaco via a11y)                                                                                               |
+| H3  | **pass**    | Model form: provider/model/base URL/key; `H3-models.png`                                                                                                       |
+| I1  | **pass**    | Customer → Pro project URL → Next.js **404** (no data leak); URL stays on foreign id                                                                           |
+| I2  | **pass**    | BASIC `/tasks` without plan button; `/deployments` without «Собрать сейчас»                                                                                    |
 
 ---
 
@@ -68,7 +68,7 @@
 - **Repro:** Open `/projects/{id}` as Pro → click «Файлы» / «Задачи» / «Развёртывания» / «Спецификация».
 - **Observed:** Item gets selected background; main area still shows Analyst welcome / chat. Screenshots `C1-files.png`, `C1-tasks.png`, `C1-files-after-click.png`.
 - **Workaround:** Use standalone pages `/projects/{id}/tasks`, `/deployments` (work). Editor is already a separate page.
-- **Likely area:** Controlled `path`/`onNavigate` on `AgentInterface` in [`ProjectShell.tsx`](../apps/web/src/app/(shell)/projects/[id]/_shell/ProjectShell.tsx) + `AgentInterface.Route` in [`ProjectRoutes.tsx`](../apps/web/src/app/(shell)/projects/[id]/_shell/ProjectRoutes.tsx) / OpenUI version mismatch.
+- **Likely area:** Controlled `path`/`onNavigate` on `AgentInterface` in [`ProjectShell.tsx`](<../apps/web/src/app/(shell)/projects/[id]/_shell/ProjectShell.tsx>) + `AgentInterface.Route` in [`ProjectRoutes.tsx`](<../apps/web/src/app/(shell)/projects/[id]/_shell/ProjectRoutes.tsx>) / OpenUI version mismatch.
 - **Console:** `Module not found: Can't resolve 'ai'` from `@openuidev/react-headless` (may be related).
 
 ### F-2 — Major: SPEC Approve button not reachable in UI

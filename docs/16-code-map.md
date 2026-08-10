@@ -68,14 +68,17 @@ apps/
 │     │                             handlers), api.ts (forkThreadRest → /fork)
 │   (shell)/projects/[id]/_shell/ — project shell composition (Stage D, app-level):
 │     ProjectShell (AgentInterface = home: chat + sidebar threads + tool nav +
-│     Route panels), ProjectRoutes (FilePanel/TasksPanel/DeploymentsPanel/SPEC/
-│     Models as AgentInterface.Route), SidebarNav (Files/Tasks/Deploy/SPEC/
-│     Models SidebarItems + Editor link). Co-located with the home route, not a
-│     feature slice — it composes panels across slices.
+│     Route panels). `buildProjectRoutes()` returns a **flat array** of
+│     `AgentInterface.Route` as direct children (OpenUI slot extract is shallow —
+│     a wrapper component leaves routes empty). SidebarNav (Files/Tasks/Deploy/
+│     SPEC/Models + Editor link). Co-located with the home route, not a feature
+│     slice — it composes panels across slices.
+│   shared/spec-approve-button.tsx — shared «Утвердить» POST to
+│     /specifications/{v}/approve (preview card, detail panel, Spec route).
 │   shared/spec-artifact-renderer.tsx — OpenUI artifact renderer for SPEC.md
 │     (Stage C): defineArtifactRenderer type:spec, toolName:spec:generate; parser
-│     reads tool result {id,version,content}; preview = card, actual = markdown +
-│     Approve button → /specifications/{v}/approve
+│     reads tool result {id,version,content}; preview = card + Approve; actual =
+│     markdown + Approve
 │   shared/chat-project-context.ts — ProjectIdContext (projectId to message
 │     components + spec renderer; shared so chat & specifications slices both
 │     consume without a feature→feature import)
@@ -349,12 +352,15 @@ templates/                User-project scaffolds (not Yarn workspaces).
                           Gitea on bootstrap (OQ #1).
 
 compose topology          `docker compose up` (no `--build`): postgres, redis,
-                          minio, gitea + four Node services on node:22-bookworm.
-                          Bind mount `.` → `/workspace`; named volumes for each
-                          workspace `node_modules` + Yarn/Corepack cache. Stubs
-                          keep `tsx watch`; only `app` has a healthcheck
-                          (`GET /api/health`). `registry-proxy` is sandbox-only
-                          (`NO_EGRESS`, `depends_on` app healthy).
+                          minio, gitea, **gitea-init** (idempotent admin user +
+                          token → volume `gitea_bootstrap` `/run/gitea/token`) +
+                          four Node services on node:22-bookworm. Bind mount
+                          `.` → `/workspace`; named volumes for each workspace
+                          `node_modules` + Yarn/Corepack cache. App binds via
+                          `LISTEN_HOST=0.0.0.0` (not Docker `HOSTNAME`) so the
+                          `127.0.0.1` healthcheck works. `app`/`worker` read
+                          `GITEA_ADMIN_TOKEN_FILE`. `registry-proxy` is
+                          sandbox-only (`NO_EGRESS`, `depends_on` app healthy).
 ```
 
 ## Cross-cutting
@@ -374,7 +380,9 @@ compose topology          `docker compose up` (no `--build`): postgres, redis,
 | Model provider adapter (universal OpenAI-compatible, chat+embed)   | `packages/ai-roles/src` (Task 1.3; universal + embeddings in Task 2.1) |
 | App shell (header, top nav)                                        | `apps/web/src/shared/ui` (AppHeader, AppNav)                           |
 | MinIO object storage client                                        | `apps/web/src/shared/minio` (Task 2.1)                                 |
-| Gitea HTTP client (REST v1, fetch-only)                            | `apps/web/src/shared/gitea` (Task 2.2)                                 |
+| Gitea HTTP client (REST v1, fetch-only; token file or env)         | `apps/web/src/shared/gitea` (Task 2.2); worker `gitea-token.ts`        |
+| Gitea bootstrap after volume wipe                                  | `docker/gitea/bootstrap.sh` + compose `gitea-init`                     |
+| App HTTP bind (`LISTEN_HOST` / `HOST`, never Docker `HOSTNAME`)    | `apps/web/server.ts`                                                   |
 | Pro code editor (Monaco + Gitea files/git + in-memory WS hub)      | `apps/web/src/features/editor` (Task 2.2); WS via `apps/web/server.ts` |
 | UI primitives + design tokens (OpenUI-backed)                      | `packages/ui/src` (Task 1.2d; OpenUI D0a)                              |
 | OpenUI brand tokens (CSS `:root` overrides)                        | `apps/web/src/app/globals.css` (D0a; no ThemeProvider)                 |
