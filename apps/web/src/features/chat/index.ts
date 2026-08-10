@@ -31,5 +31,3 @@ export {
 export type { AguiMessage, AguiThread } from './model/agui-mappers';
 export { aguiMessageText, toAguiMessage, toAguiMessages, toAguiThread } from './model/agui-mappers';
 export { readSystemPrompt, readSpecTemplate, withRagContext } from './model/schema';
-// ChatPanel lives in `./client` — do not re-export it here (Next.js barrel
-// contamination with server-only modules).

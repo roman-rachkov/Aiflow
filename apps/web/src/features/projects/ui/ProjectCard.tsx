@@ -13,7 +13,7 @@ import type { ProjectView } from '../model/types';
  */
 export function ProjectCard({ project }: { project: ProjectView }) {
   return (
-    <Link href={`/projects/${project.id}/research`} className="block">
+    <Link href={`/projects/${project.id}`} className="block">
       <Card interactive>
         <CardTitle>{project.name}</CardTitle>
         {project.description ? (

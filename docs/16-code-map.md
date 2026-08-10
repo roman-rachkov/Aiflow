@@ -63,8 +63,12 @@ apps/
 │     │                             ThreadRowMenu (Radix DropdownMenu: rename/fork/delete) +
 │     │                             ThreadRenameForm (inline), useThreadActions (rename/fork
 │     │                             handlers), api.ts (forkThreadRest → /fork)
-│     │                         ui/ChatPanel.tsx — legacy @assistant-ui/react panel (kept
-│     │                           for /research until Phase 2 shell rework removes it)
+│   (shell)/projects/[id]/_shell/ — project shell composition (Stage D, app-level):
+│     ProjectShell (AgentInterface = home: chat + sidebar threads + tool nav +
+│     Route panels), ProjectRoutes (FilePanel/TasksPanel/DeploymentsPanel/SPEC/
+│     Models as AgentInterface.Route), SidebarNav (Files/Tasks/Deploy/SPEC/
+│     Models SidebarItems + Editor link). Co-located with the home route, not a
+│     feature slice — it composes panels across slices.
 │   shared/spec-artifact-renderer.tsx — OpenUI artifact renderer for SPEC.md
 │     (Stage C): defineArtifactRenderer type:spec, toolName:spec:generate; parser
 │     reads tool result {id,version,content}; preview = card, actual = markdown +
@@ -164,14 +168,21 @@ apps/
 │                          listCommits/getCommitDiff/getAuthenticatedUser;
 │                          fetch-only, GiteaUpstreamError → routes map to 502
 │   routes (app/):
-│     /  → redirect('/projects');  /projects, /projects/new, /projects/[id]
-│     /projects/[id]/research — three-column Researcher (artifacts | chat | SPEC
-│       preview); ResearchWorkspace owns SPEC state; Create above composer;
-│       Approve + Start generation → /tasks
-│     /projects/[id]/tasks — Roadmap + plan/code execute UI (Tasks 3.2–3.3)
-│     /projects/[id]/editor — Pro Monaco editor (Task 2.2; requireProMode)
-│     /projects/[id]/settings/models — Pro Analyst ModelConfig (Task 2.3)
-│     /projects/[id]/deployments — build history; Pro «Собрать» (Task 2.3)
+│     (app)/ — auth-guarded shell with AppHeader for non-project screens:
+│       /  → redirect('/projects');  /projects (list), /projects/new
+│     (shell)/ — full-bleed shell (no AppHeader, AgentInterface owns 100dvh)
+│       for project screens; auth-guarded. Stage D.
+│       /projects/[id] — HOME = ProjectShell (grown-up chat = app shell):
+│         sidebar = threads (AguiThreadList) + tool nav (SidebarNav: Files/
+│         Tasks/Deploy/SPEC/Models routes + Editor link); Route panels via
+│         ProjectRoutes (FilePanel/TasksPanel/DeploymentsPanel/SPEC/Models);
+│         chat = default view (path=undefined). _shell/ co-located module
+│         (app-level composition, not a feature slice — composes panels across
+│         slices, which the boundaries policy forbids feature→feature).
+│       /projects/[id]/chat — redirect → home (legacy preview)
+│       /projects/[id]/research — redirect → home (legacy three-column removed)
+│       /projects/[id]/tasks, /deployments, /editor, /settings/models — full
+│         pages (Editor is separate: Monaco+WS stay off the chat shell)
 │     /api/projects (GET list, POST create), /api/projects/[id] (GET, DELETE)
 │     /api/projects/[id]/chat (POST — SSE-streamed Analyst reply, Task 1.3;
 │       RAG context mixed into the system prompt since Task 2.1;

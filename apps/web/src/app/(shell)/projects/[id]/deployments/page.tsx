@@ -9,7 +9,8 @@ type Props = {
 };
 
 /**
- * Deployment history — owner BASIC+PRO; Build button only for Pro.
+ * Deployment history (separate page reached from the shell's Deploy route or
+ * via the editor's build-and-navigate). Owner BASIC+PRO; Build button only Pro.
  */
 export default async function DeploymentsPage({ params, searchParams }: Props) {
   const { id } = await params;

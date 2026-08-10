@@ -4,9 +4,7 @@ import { requireUser } from '@/features/auth';
 import { getProject } from '@/features/projects';
 import { TasksPanel } from '@/features/tasks/client';
 
-/**
- * Roadmap / tasks page — list + Pro «Сгенерировать план» (Task 3.2).
- */
+/** Roadmap / tasks page — list + Pro «Сгенерировать план» (reached from shell). */
 export default async function TasksPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const user = await requireUser();

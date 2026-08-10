@@ -234,6 +234,39 @@ the SPEC renderer need `projectId`; the boundaries policy forbids feature→feat
 imports, so the context lives in `shared/chat-project-context.ts` and both
 slices import from there.
 
+### D0d. Chat as the project shell (home) — RESOLVED 2026-08-10
+
+Phase 2 shell rework. `/projects/[id]` is now the grown-up chat (`AgentInterface`)
+acting as the project's app shell — not a separate "research" screen.
+
+**Full-bleed shell.** `AgentInterface` hard-uses `height:100dvh; width:100dvw`
+in its own CSS, ignoring parent height. Rather than fight it with a fragile
+CSS override, project screens live in a new `(shell)` route group whose layout
+is full-bleed (no `AppHeader`, no padded `<main>`) — the chat IS the chrome,
+and its sidebar carries both threads and project navigation. Non-project
+screens (sign-in, projects list, new-project) stay in `(app)` with the
+`AppHeader` + `<main>` chrome.
+
+**Tool routes via `AgentInterface.Route`.** Files/Tasks/Deploy/SPEC/Models are
+`Route` panels composed in `ProjectShell`; navigation is controlled
+(`path`/`onNavigate`), chat = `undefined`. The shell composition lives in
+`app/(shell)/projects/[id]/_shell/` (app-level, co-located with the route) —
+NOT in a feature slice, because it composes panels across slices and the
+boundaries policy forbids feature→feature (and shared→feature) imports.
+
+**Editor stays a separate page.** EditorShell (Monaco + WS, `100vh-4rem`,
+complex `onBuild`) is not embedded as a `Route` — the "Редактор" sidebar item
+opens `/editor` via `router.push`. Lower risk for the editor; the tradeoff is
+it's one navigation hop outside the shell.
+
+**Legacy removed.** `ResearchWorkspace` (three-column), the legacy
+`@assistant-ui/react` `ChatPanel` (+ `researcher-runtime` + `parse-sse-response`
+
+- `chat/client.ts`), and the co-located research helpers are gone. `/research`
+  and `/chat` redirect to the home. `ProjectCard` links to `/projects/[id]`
+  (was `/research`). `@assistant-ui/react` is now an unused dependency (lockfile
+  freeze prevented removing it in-session — deferred).
+
 ---
 
 ---

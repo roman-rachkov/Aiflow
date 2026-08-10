@@ -5,7 +5,8 @@ import { resolveEditorContext } from '@/features/editor';
 import { EditorPageClient } from './EditorPageClient';
 
 /**
- * Pro code editor. Wiring only: auth + ownership; UI from `@/features/editor`.
+ * Pro code editor (separate page, not a shell Route — Monaco + WS stay on a
+ * dedicated route to avoid container/resize risks inside the chat shell).
  * BASIC users are redirected by `requireProMode`.
  */
 export default async function ProjectEditorPage({ params }: { params: Promise<{ id: string }> }) {
