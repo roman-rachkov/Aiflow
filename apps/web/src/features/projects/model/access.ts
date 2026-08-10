@@ -1,10 +1,10 @@
 /**
  * Per-project access helpers shared across API routes.
  *
- * Extracted from `app/api/projects/[id]/chat/route.ts` so the Task 2.1 routes
- * (research, sources, …) reuse one implementation instead of copy-pasting the
- * same gate. Kept in the projects slice — not `app/` — because the helper is
- * project-shaped (it reads `projectMeta`) and the slice is its natural home.
+ * Shared auth+schema gate for project-scoped API routes so callers reuse one
+ * implementation instead of copy-pasting. Kept in the projects slice — not
+ * `app/` — because the helper is project-shaped (it reads `projectMeta`) and
+ * the slice is its natural home.
  *
  * This slice stays self-contained: it imports only `@aiflow/db`. The original
  * chat-route helper also called `canAccessProject` from `@/features/auth` as a

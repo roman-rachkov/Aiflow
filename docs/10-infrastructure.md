@@ -198,7 +198,7 @@ services:
       dockerfile: apps/worker/Dockerfile
     environment:
       <<: *common-env
-      QUEUES: 'spec:generate,plan:generate,code:execute,deploy:run'
+      QUEUES: 'spec-generate,plan-generate,code-execute,deploy-run'
     volumes:
       # Docker socket for sandbox management (dev only)
       - /var/run/docker.sock:/var/run/docker.sock

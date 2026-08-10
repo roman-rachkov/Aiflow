@@ -289,8 +289,42 @@ it's one navigation hop outside the shell.
 
 - `chat/client.ts`), and the co-located research helpers are gone. `/research`
   and `/chat` redirect to the home. `ProjectCard` links to `/projects/[id]`
-  (was `/research`). `@assistant-ui/react` is now an unused dependency (lockfile
-  freeze prevented removing it in-session — deferred).
+  (was `/research`). `@assistant-ui/react` removed from `apps/web` dependencies
+  in the D0f cleanup pass.
+
+### D0f. Client UI state = OpenUI + feature islands — RESOLVED 2026-08-10
+
+**No app-level Zustand / Redux / TanStack Query store.** Chat, threads, and
+streaming live inside OpenUI (`ChatProvider` / `AgentInterface`), which already
+uses zustand as a library peer — `apps/web` does not import zustand for app
+stores. Feature panels (files, tasks, deploy, editor, model-config) keep
+isolated `useState` + `fetch` islands; the only app Context is
+`ProjectIdContext` for OpenUI slot signatures.
+
+Rejected: a global client store "for a large app" — it would duplicate OpenUI's
+store and invent cross-panel coupling that does not exist today. If chat tools
+later need to refresh Tasks/Deploy panels, prefer a thin invalidation event or
+soft refetch, not a shared cache.
+
+Shared list/poll helpers (`useProjectResourceList`, `usePollWhile`) collapse
+duplicated island boilerplate without changing the ownership model.
+
+### D0g. Chat `/run` loop moves to `chat-run` worker — RESOLVED 2026-08-10
+
+**Next.js stays a thin SSE proxy.** `POST .../threads/{tid}/run` authenticates,
+persists the USER message, subscribes to Redis `chat:run:{runId}`, enqueues a
+`chat-run` BullMQ job, and bridges AG-UI JSON frames as SSE. The OpenUI client
+contract is unchanged.
+
+**Worker owns the multi-turn tool-aware LLM loop** (`apps/worker/src/chat/`):
+provider resolve (project ModelConfig via `@aiflow/crypto` or env), RAG,
+`chatWithTools` iterations, tool executors (Prisma + queue + Gitea fetch), and
+final ASSISTANT persistence. Redis pub/sub is disposable for the live stream;
+Postgres remains the durable home for messages.
+
+**Queue names use hyphens** (`chat-run`, `plan-generate`, …). BullMQ forbids
+`:` in queue names (Redis key separator); older `foo:bar` names were renamed
+in the same pass.
 
 ---
 

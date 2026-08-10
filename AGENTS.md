@@ -19,9 +19,9 @@ User-app bootstrap template: `templates/user-nextjs/`. Details: `docs/04-roadmap
 Real packages today: `apps/web` (Next.js 15 App Router), `packages/db` (Prisma, two schemas),
 `packages/ui` (design system), `packages/ai-roles` (OpenAI-compatible chat+embed),
 `packages/crypto` (AES-256-GCM ModelConfig envelope), `packages/queue` (BullMQ
-`deploy:run` / `plan:generate` / `code:execute` helpers), `apps/worker` (real consumers
-for `deploy:run`, `plan:generate`, and `code:execute`; `spec:generate` is dormant — SPEC
-generation runs synchronously in the web route, so the worker falls through to a stub-ack),
+`deploy-run` / `plan-generate` / `code-execute` / `chat-run` helpers), `apps/worker` (real consumers
+for `deploy-run`, `plan-generate`, `code-execute`, and `chat-run`; `spec-generate` is dormant — SPEC
+generation runs from the chat tool on the worker, so that queue stub-acks),
 `services/registry-proxy` (sandbox egress allowlist), `tools/session-analyzer`
 (dev-only analytics). Declared-but-empty stub (do not assume it works yet):
 `services/model-router`. The code map at `docs/16-code-map.md` tracks which is

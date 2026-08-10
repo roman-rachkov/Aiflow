@@ -1,16 +1,11 @@
 /**
- * Multi-turn tool-loop helpers for the AG-UI `/run` stream.
- *
- * Keeps `run-stream.ts` under the file-size cap: history append, usage sum,
- * and the iteration guard live here.
+ * Multi-turn tool-loop helpers for chat:run.
  */
 
 import type { ChatMessage, ChatResult, ChatToolCall } from '@aiflow/ai-roles';
 
-/** Hard cap on chatWithTools rounds per user turn (infinite-loop / cost guard). */
 export const MAX_TOOL_ITERS = 5;
 
-/** One completed tool call + its executor result, ready for history append. */
 export interface CompletedToolTurn {
   id: string;
   name: string;
@@ -18,7 +13,6 @@ export interface CompletedToolTurn {
   resultContent: unknown;
 }
 
-/** Sum nullable token counts across loop iterations. */
 export function sumUsage(a: ChatResult, b: ChatResult): ChatResult {
   return {
     tokensIn: addNullable(a.tokensIn, b.tokensIn),
@@ -31,10 +25,6 @@ function addNullable(x: number | null, y: number | null): number | null {
   return (x ?? 0) + (y ?? 0);
 }
 
-/**
- * Append the assistant tool-call turn and each TOOL result to the in-memory
- * history so the next `chatWithTools` call can continue the loop. Not persisted.
- */
 export function appendToolTurn(
   history: ChatMessage[],
   assistantText: string,

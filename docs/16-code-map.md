@@ -12,6 +12,9 @@ apps/
 │                             deps: @aiflow/{db,queue,ai-roles,ui,crypto}
 │                             layout: app/ (routing only) → features/ →
 │                                     shared/ → packages/ (§ 2.2)
+│                             client state (D0f): OpenUI owns chat store
+│                               (zustand peer only); panels are local
+│                               useState+fetch islands; ProjectIdContext only
 │                             scripts/ingest-repo.ts — `yarn workspace
 │                               @aiflow/web docs:ingest`: stable project schema
 │                               (`.local/dev-rag.json`) + index docs/state +
@@ -107,8 +110,9 @@ apps/
 │     │                           listMessages/retrieveContext/readSpecTemplate
 │     │                           injected — boundaries/dependencies capture:slice
 │     │                           forbids feature→feature imports)
-│     │                         ui/ — SpecificationPanel (version list),
-│     │                           SpecPreviewPanel (Markdown + Approve / Start)
+│     │                         ui/ — SpecRoute panels live in project shell
+│     │                           (_shell); legacy SpecificationPanel /
+│     │                           SpecPreviewPanel removed (D0f cleanup)
 │     ├── model-config/   Analyst ModelConfig encrypt/API/UI (Task 2.3)
 │     │                     └── public: `index.ts` (server) + `client.ts` (form)
 │     │                         model/service.ts — get/upsert Analyst config;
@@ -161,6 +165,7 @@ apps/
 │                                 useTabs); client fetch in ui/api.ts
 │   shared:
 │     ├── ui/             AppHeader + AppNav (horizontal top nav; Task 1.2a / UX)
+│     ├── hooks/          usePollWhile + useProjectResourceList (D0f islands)
 │     ├── minio/          MinIO client: putObject/getObject/ensureBucket, lazy
 │     │                    singleton, scheme-less S3_ENDPOINT tolerated (Task 2.1)
 │     └── gitea/          Gitea REST v1 client (Task 2.2): createRepo/deleteRepo/
@@ -184,20 +189,12 @@ apps/
 │       /projects/[id]/tasks, /deployments, /editor, /settings/models — full
 │         pages (Editor is separate: Monaco+WS stay off the chat shell)
 │     /api/projects (GET list, POST create), /api/projects/[id] (GET, DELETE)
-│     /api/projects/[id]/chat (POST — SSE-streamed Analyst reply, Task 1.3;
-│       RAG context mixed into the system prompt since Task 2.1;
-│       ModelConfig → env provider resolve since Task 2.3; legacy, used by /research)
 │     /api/projects/[id]/threads (GET list, POST create — AG-UI restStorage, chat Phase 1)
 │     /api/projects/[id]/threads/[tid] (GET messages, PATCH rename, DELETE — Phase 1)
-│     /api/projects/[id]/threads/[tid]/run (POST — AG-UI event stream, Stage E
-│       multi-turn: RUN_STARTED → TEXT_MESSAGE_* and/or TOOL_CALL_* batches
-│       (up to 5 chatWithTools rounds) → RUN_FINISHED/ERROR; persists final
-│       assistant text only; tool msgs in-memory)
-│       run-tools.ts (TOOL_DEFINITIONS + executeTool dispatcher),
-│       run-tool-handlers*.ts (spec:generate, list_tasks, task_status,
-│       run_planner, run_coder, deploy, list_files, read_file — Pro-gate via
-│       uiMode; long tools fire-and-forget), run-stream.ts + run-loop.ts
-│       (AG-UI emit + multi-turn), run-tool-exec.ts (TOOL_CALL accumulate)
+│     /api/projects/[id]/threads/[tid]/run (POST — thin bridge: save USER,
+│       enqueue `chat-run`, Redis→SSE for AG-UI events; OpenUI client unchanged.
+│       Worker owns multi-turn tool loop + tool handlers; Redis channel
+│       `chat:run:{runId}` is disposable — final ASSISTANT text is in Postgres)
 │     /api/projects/[id]/threads/[tid]/messages/[mid] (PATCH edit content,
 │       DELETE soft-delete — per-message actions persistence, Stage A)
 │     /api/projects/[id]/threads/[tid]/fork (POST — copy thread + messages into
@@ -223,12 +220,11 @@ apps/
 │       `ws`); session cookie; non-Pro → close 4403 (Task 2.2)
 │     WS /api/projects/[id]/tasks/[taskId]/logs/ws — Redis sandbox logs (3.3)
 │     /api/health (GET — compose liveness; no auth)
-└── worker/               BullMQ workers (deploy:run + plan:generate +
-    │                     code:execute real; spec:generate dormant — SPEC
-    │                     generation runs synchronously in the web route, so the
-    │                     worker falls through to a stub-ack)
+└── worker/               BullMQ workers (deploy-run + plan-generate +
+    │                     code-execute + chat-run real; spec-generate dormant
+    │                     stub-ack — SPEC generation runs inside chat-run tools)
     └── public entry: src/index.ts
-        deps: @aiflow/{db,queue,ai-roles}, bullmq, dockerode (MIT; **worker only**),
+        deps: @aiflow/{db,queue,ai-roles,crypto}, bullmq, dockerode (MIT; **worker only**),
           tar-fs. docker.sock mount in compose is **DEV-ONLY** (OQ #4).
         src/deploy/handler.ts — clone Gitea → dockerode.buildImage →
           Deployment/Meta DEPLOYED|FAILED; stub url `local://image/{tag}`
@@ -236,6 +232,8 @@ apps/
           (env provider) → soft-delete replaceable tasks → Task+deps+TaskLog
         src/code/handler.ts — code:execute: Task status/logs, dry-run →
           AWAITING_REVIEW, live → sandbox + RESULT + push branch
+        src/chat/ — chat-run multi-turn AG-UI tool loop; Redis publish
+          `chat:run:{runId}`; tools via db+queue+crypto (no apps/web imports)
         src/sandbox/ — createContainer options builder (Task 3.1 hardening,
           secret-file api_key bind, SANDBOX_NETWORK / AIDER_SANDBOX_IMAGE)
 
@@ -273,11 +271,12 @@ packages/
 │                             scripts/seed-dev-user.ts — a Credentials login for
 │                             local dev; refuses a non-local DATABASE_URL.
 │                             `yarn workspace @aiflow/db seed:dev-user`
-├── queue/                BullMQ definitions (Tasks 2.3–3.3): four queue names,
-│                         Redis connection from REDIS_URL, getDeployQueue() /
-│                         getPlanQueue() / getCodeQueue(), typed payloads +
-│                         sandboxLogsChannel(). Producer helpers only — no
-│                         dockerode, no workers here.
+├── queue/                BullMQ definitions (Tasks 2.3–3.3 + D0g): five queue
+│                         names (hyphenated; incl. chat-run), Redis connection from
+│                         REDIS_URL, getDeployQueue() / getPlanQueue() /
+│                         getCodeQueue() / getChatRunQueue(), typed payloads +
+│                         sandboxLogsChannel() / chatRunChannel(). Producer
+│                         helpers only — no dockerode, no workers here.
 ├── crypto/               AES-256-GCM leaf (Task 2.3): `encrypt` / `decrypt` /
 │                         `readEncryptionKey`. Envelope
 │                         `{"__encrypted__": base64(iv||tag||ciphertext)}`.

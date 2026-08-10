@@ -1,6 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
+
+import { usePollWhile, useProjectResourceList } from '@/shared/hooks';
 
 import type { TaskDetail, TaskSummary } from '../model/types';
 import { postCode, postPlan } from './task-api';
@@ -24,7 +26,10 @@ export type UseTasksResult = {
 
 /** List tasks + plan/code enqueue + poll while work is in flight. */
 export function useTasks(projectId: string, canPlan: boolean): UseTasksResult {
-  const list = useTaskList(projectId);
+  const list = useProjectResourceList<TaskSummary>({
+    url: `/api/projects/${projectId}/tasks`,
+    loadErrorMessage: 'Не удалось загрузить задачи',
+  });
   const plan = usePlanActions(projectId, canPlan, list.refresh);
   const code = useCodeActions(projectId, canPlan, list.refresh);
 
@@ -44,34 +49,6 @@ export function useTasks(projectId: string, canPlan: boolean): UseTasksResult {
       code.clearToast();
     },
   };
-}
-
-function useTaskList(projectId: string) {
-  const [items, setItems] = useState<TaskSummary[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const refresh = useCallback(async () => {
-    try {
-      const res = await fetch(`/api/projects/${projectId}/tasks`);
-      if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(body.error ?? 'Не удалось загрузить задачи');
-      }
-      setItems((await res.json()) as TaskSummary[]);
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Ошибка загрузки');
-    } finally {
-      setLoading(false);
-    }
-  }, [projectId]);
-
-  useEffect(() => {
-    void refresh();
-  }, [refresh]);
-
-  return { items, loading, error, refresh };
 }
 
 function usePlanActions(projectId: string, canPlan: boolean, refresh: () => Promise<void>) {
@@ -143,18 +120,6 @@ function useCodeActions(projectId: string, canPlan: boolean, refresh: () => Prom
       setToast(null);
     },
   };
-}
-
-function usePollWhile(active: boolean, refresh: () => Promise<void>): void {
-  useEffect(() => {
-    if (!active) return;
-    const t = setInterval(() => {
-      void refresh();
-    }, 3000);
-    return () => {
-      clearInterval(t);
-    };
-  }, [active, refresh]);
 }
 
 async function loadDetail(

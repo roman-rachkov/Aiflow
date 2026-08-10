@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@aiflow/ai-roles": "workspace:^",
+    "@aiflow/crypto": "workspace:^",
     "@aiflow/db": "workspace:^",
     "@aiflow/queue": "workspace:^",
     "bullmq": "^5.0.0",

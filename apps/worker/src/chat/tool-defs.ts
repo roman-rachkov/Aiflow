@@ -1,25 +1,6 @@
-/**
- * Tool definitions + dispatcher for the tool-aware chat run.
- *
- * `/run` advertises `TOOL_DEFINITIONS`; when the model emits a tool call,
- * `executeTool` runs the matching handler. Stage C shipped `spec:generate`;
- * Stage E adds tasks / planner / coder / deploy / editor tools.
- */
+/** OpenAI tool definitions for chat:run (Russian descriptions for the model). */
 
 import type { ToolDefinition } from '@aiflow/ai-roles';
-
-import type { ResolvedAnalystProvider } from '@/features/model-config';
-
-import {
-  executeDeploy,
-  executeListFiles,
-  executeListTasks,
-  executeReadFile,
-  executeRunCoder,
-  executeRunPlanner,
-  executeSpecGenerate,
-  executeTaskStatus,
-} from './run-tool-handlers';
 
 export const SPEC_GENERATE_TOOL = 'spec:generate';
 export const LIST_TASKS_TOOL = 'list_tasks';
@@ -30,25 +11,6 @@ export const DEPLOY_TOOL = 'deploy';
 export const LIST_FILES_TOOL = 'list_files';
 export const READ_FILE_TOOL = 'read_file';
 
-/** Context passed to every tool handler (no HTTP / no requireUser redirects). */
-export interface ToolExecContext {
-  schemaName: string;
-  projectId: string;
-  ownerId: string;
-  uiMode: 'BASIC' | 'PRO';
-  resolved: ResolvedAnalystProvider;
-}
-
-/** Result of a tool execution — the AG-UI `TOOL_CALL_RESULT` content. */
-export interface ToolResult {
-  id?: string;
-  version?: number;
-  heading: string;
-  content: unknown;
-  error?: boolean;
-}
-
-/** Tool definitions forwarded to the model (OpenAI `tools` payload). */
 export const TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     type: 'function',
@@ -145,35 +107,3 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
     },
   },
 ];
-
-/** Execute one tool call server-side. Returns a result for AG-UI emission. */
-export async function executeTool(
-  name: string,
-  args: unknown,
-  ctx: ToolExecContext,
-): Promise<ToolResult> {
-  switch (name) {
-    case SPEC_GENERATE_TOOL:
-      return executeSpecGenerate(ctx);
-    case LIST_TASKS_TOOL:
-      return executeListTasks(ctx);
-    case TASK_STATUS_TOOL:
-      return executeTaskStatus(ctx, args);
-    case RUN_PLANNER_TOOL:
-      return executeRunPlanner(ctx);
-    case RUN_CODER_TOOL:
-      return executeRunCoder(ctx, args);
-    case DEPLOY_TOOL:
-      return executeDeploy(ctx);
-    case LIST_FILES_TOOL:
-      return executeListFiles(ctx, args);
-    case READ_FILE_TOOL:
-      return executeReadFile(ctx, args);
-    default:
-      return {
-        heading: name,
-        content: { error: `Неизвестный инструмент: ${name}` },
-        error: true,
-      };
-  }
-}

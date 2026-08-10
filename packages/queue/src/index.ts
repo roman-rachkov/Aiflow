@@ -4,6 +4,7 @@
  */
 
 export {
+  QUEUE_CHAT_RUN,
   QUEUE_CODE_EXECUTE,
   QUEUE_DEPLOY_RUN,
   QUEUE_NAMES,
@@ -27,3 +28,11 @@ export {
   validateCodePayload,
   type CodeExecutePayload,
 } from './code';
+export {
+  CHAT_JOB_OPTIONS,
+  chatRunChannel,
+  closeChatRunQueue,
+  getChatRunQueue,
+  validateChatRunPayload,
+  type ChatRunPayload,
+} from './chat';

@@ -177,7 +177,7 @@ services:
     environment:
       <<: *node-env
       ROLE: worker
-      QUEUES: 'spec:generate,plan:generate,code:execute,deploy:run'
+      QUEUES: 'spec-generate,plan-generate,code-execute,deploy-run,chat-run'
       DATABASE_URL: postgresql://${POSTGRES_USER:-ai_studio}:${POSTGRES_PASSWORD:-ai_studio}@postgres:5432/ai_studio?schema=public
       # Compose names the network `{project}_sandbox` (dir name → aiflow_sandbox).
       SANDBOX_NETWORK: aiflow_sandbox

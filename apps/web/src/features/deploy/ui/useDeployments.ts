@@ -1,6 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
+
+import { usePollWhile, useProjectResourceList } from '@/shared/hooks';
 
 import type { DeploymentDetail, DeploymentSummary } from '../model/types';
 
@@ -28,13 +30,16 @@ export function useDeployments(
   initialHighlight: string | null,
   canBuild: boolean,
 ): UseDeploymentsResult {
-  const list = useDeploymentList(projectId);
+  const list = useProjectResourceList<DeploymentSummary>({
+    url: `/api/projects/${projectId}/deployments`,
+    loadErrorMessage: 'Не удалось загрузить сборки',
+  });
   const [starting, setStarting] = useState(false);
   const [expanded, setExpanded] = useState<DeploymentDetail | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [highlightId, setHighlightId] = useState(initialHighlight);
   const building = list.items.some((i) => i.status === 'BUILDING');
-  useBuildingPoll(building, list.refresh);
+  usePollWhile(building, list.refresh, POLL_MS);
 
   const startBuild = useStartBuild({
     canBuild,
@@ -111,46 +116,6 @@ function useOpenLog(
     },
     [projectId, setExpanded, setToast, setHighlightId],
   );
-}
-
-function useDeploymentList(projectId: string) {
-  const [items, setItems] = useState<DeploymentSummary[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const refresh = useCallback(async () => {
-    try {
-      const res = await fetch(`/api/projects/${projectId}/deployments`);
-      if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(body.error ?? 'Не удалось загрузить сборки');
-      }
-      setItems((await res.json()) as DeploymentSummary[]);
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Ошибка загрузки');
-    } finally {
-      setLoading(false);
-    }
-  }, [projectId]);
-
-  useEffect(() => {
-    void refresh();
-  }, [refresh]);
-
-  return { items, loading, error, refresh };
-}
-
-function useBuildingPoll(building: boolean, refresh: () => Promise<void>) {
-  useEffect(() => {
-    if (!building) return;
-    const t = setInterval(() => {
-      void refresh();
-    }, POLL_MS);
-    return () => {
-      clearInterval(t);
-    };
-  }, [building, refresh]);
 }
 
 async function postBuild(projectId: string): Promise<{ toast: string; deploymentId?: string }> {

@@ -46,7 +46,7 @@ describe('sandboxLogsChannel', () => {
 
 describe('code queue constants', () => {
   it('exports fail-fast job options and queue name', () => {
-    expect(QUEUE_CODE_EXECUTE).toBe('code:execute');
+    expect(QUEUE_CODE_EXECUTE).toBe('code-execute');
     expect(CODE_JOB_OPTIONS.attempts).toBe(1);
   });
 });

@@ -1,6 +1,6 @@
 /**
  * BullMQ worker entry — listens to queues listed in `QUEUES`.
- * Real handlers: `deploy:run`, `plan:generate`, `code:execute`.
+ * Real handlers: `deploy-run`, `plan-generate`, `code-execute`, `chat-run`.
  *
  * dockerode lives here only. Next.js must never import it.
  * docker.sock mount in compose is DEV-ONLY (see open question #4).
@@ -9,16 +9,19 @@
 import { Worker } from 'bullmq';
 import {
   createRedisConnection,
+  QUEUE_CHAT_RUN,
   QUEUE_CODE_EXECUTE,
   QUEUE_DEPLOY_RUN,
   QUEUE_NAMES,
   QUEUE_PLAN_GENERATE,
+  type ChatRunPayload,
   type CodeExecutePayload,
   type DeployRunPayload,
   type PlanGeneratePayload,
   type QueueName,
 } from '@aiflow/queue';
 
+import { handleChatRun } from './chat/handler';
 import { handleCodeExecute } from './code/handler';
 import { handleDeployRun } from './deploy/handler';
 import { handlePlanGenerate } from './plan/handler';
@@ -56,6 +59,10 @@ function start(): void {
       startCodeWorker(connection);
       continue;
     }
+    if (name === QUEUE_CHAT_RUN) {
+      startChatWorker(connection);
+      continue;
+    }
     startStubWorker(name, connection);
   }
 }
@@ -65,7 +72,7 @@ function startDeployWorker(connection: ReturnType<typeof createRedisConnection>)
     connection,
     concurrency: 1,
   });
-  bindWorkerLogs(worker, 'deploy:run');
+  bindWorkerLogs(worker, 'deploy-run');
 }
 
 function startPlanWorker(connection: ReturnType<typeof createRedisConnection>): void {
@@ -74,7 +81,7 @@ function startPlanWorker(connection: ReturnType<typeof createRedisConnection>): 
     (job) => handlePlanGenerate(job),
     { connection, concurrency: 1 },
   );
-  bindWorkerLogs(worker, 'plan:generate');
+  bindWorkerLogs(worker, 'plan-generate');
 }
 
 function startCodeWorker(connection: ReturnType<typeof createRedisConnection>): void {
@@ -83,7 +90,15 @@ function startCodeWorker(connection: ReturnType<typeof createRedisConnection>): 
     (job) => handleCodeExecute(job),
     { connection, concurrency: 1 },
   );
-  bindWorkerLogs(worker, 'code:execute');
+  bindWorkerLogs(worker, 'code-execute');
+}
+
+function startChatWorker(connection: ReturnType<typeof createRedisConnection>): void {
+  const worker = new Worker<ChatRunPayload>(QUEUE_CHAT_RUN, (job) => handleChatRun(job), {
+    connection,
+    concurrency: 1,
+  });
+  bindWorkerLogs(worker, 'chat-run');
 }
 
 function bindWorkerLogs(worker: Worker, label: string): void {
