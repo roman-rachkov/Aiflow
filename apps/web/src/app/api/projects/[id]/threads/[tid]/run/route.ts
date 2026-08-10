@@ -120,6 +120,9 @@ export async function POST(
   const runId = crypto.randomUUID();
   const body = streamToolAwareRun({
     schemaName,
+    projectId: id,
+    ownerId: user.id,
+    uiMode: user.uiMode,
     threadId: tid,
     history,
     config,

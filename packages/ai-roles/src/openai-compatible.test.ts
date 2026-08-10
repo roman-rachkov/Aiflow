@@ -103,10 +103,8 @@ describe('createOpenAICompatibleProvider.embed (live path, mocked fetch)', () =>
 describe('createOpenAICompatibleProvider.chatWithTools (live path, tool deltas)', () => {
   it('maps text + tool_call deltas and tool_calls_done finish into events', async () => {
     const chunks = [
-      // First a text delta.
       { choices: [{ delta: { content: 'Planni' } }] },
       { choices: [{ delta: { content: 'ng…' } }] },
-      // Then a tool-call: first delta carries id+name, second appends args.
       {
         choices: [
           {
@@ -119,7 +117,6 @@ describe('createOpenAICompatibleProvider.chatWithTools (live path, tool deltas)'
         ],
       },
       { choices: [{ delta: { tool_calls: [{ index: 0, function: { arguments: '' } }] } }] },
-      // Terminal finish_reason.
       {
         choices: [{ finish_reason: 'tool_calls' }],
         usage: { prompt_tokens: 3, completion_tokens: 1 },
@@ -144,8 +141,6 @@ describe('createOpenAICompatibleProvider.chatWithTools (live path, tool deltas)'
         events.push({ type: 'tool_call_delta', name: evt.delta.name, args: evt.delta.arguments });
       else events.push({ type: evt.type });
     }
-    const u = await usage;
-
     expect(events).toEqual([
       { type: 'text', text: 'Planni' },
       { type: 'text', text: 'ng…' },
@@ -153,7 +148,49 @@ describe('createOpenAICompatibleProvider.chatWithTools (live path, tool deltas)'
       { type: 'tool_call_delta', name: undefined, args: '' },
       { type: 'tool_calls_done' },
     ]);
-    expect(u).toEqual({ tokensIn: 3, tokensOut: 1 });
+    expect(await usage).toEqual({ tokensIn: 3, tokensOut: 1 });
+  });
+});
+
+describe('createOpenAICompatibleProvider.chatWithTools (multi-turn request body)', () => {
+  it('forwards assistant tool_calls and tool results in the request body', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(sseResponse([{ choices: [{ delta: { content: 'ok' } }] }]));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const provider = createOpenAICompatibleProvider(liveConfig());
+    const { stream } = await provider.chatWithTools(
+      [
+        { role: 'USER', content: 'go' },
+        {
+          role: 'ASSISTANT',
+          content: '',
+          toolCalls: [{ id: 'tc1', name: 'list_tasks', arguments: '{}' }],
+        },
+        { role: 'TOOL', content: '{"tasks":[]}', toolCallId: 'tc1' },
+      ],
+      { model: 'm', systemPrompt: 'sys', tools: [] },
+    );
+    for await (const evt of stream) {
+      void evt;
+    }
+
+    const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string) as {
+      messages: unknown[];
+    };
+    expect(body.messages).toEqual([
+      { role: 'system', content: 'sys' },
+      { role: 'user', content: 'go' },
+      {
+        role: 'assistant',
+        content: '',
+        tool_calls: [
+          { id: 'tc1', type: 'function', function: { name: 'list_tasks', arguments: '{}' } },
+        ],
+      },
+      { role: 'tool', content: '{"tasks":[]}', tool_call_id: 'tc1' },
+    ]);
   });
 });
 

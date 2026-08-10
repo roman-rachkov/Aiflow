@@ -25,6 +25,8 @@ const {
   chatWithTools,
   resolveAnalystProvider,
   generateSpecification,
+  listTasks,
+  getTaskDetail,
 } = vi.hoisted(() => ({
   requireUser: vi.fn(),
   resolveProjectSchema: vi.fn(),
@@ -37,6 +39,8 @@ const {
   chatWithTools: vi.fn(),
   resolveAnalystProvider: vi.fn(),
   generateSpecification: vi.fn(),
+  listTasks: vi.fn(),
+  getTaskDetail: vi.fn(),
 }));
 
 vi.mock('@/features/auth', () => ({ requireUser }));
@@ -47,10 +51,36 @@ vi.mock('@/features/chat', () => ({
   saveMessage,
   readSystemPrompt,
   withRagContext,
+  listMessages: vi.fn(),
+  readSpecTemplate: vi.fn(),
 }));
 vi.mock('@/features/files/rag', () => ({ retrieveContext }));
 vi.mock('@/features/model-config', () => ({ resolveAnalystProvider }));
 vi.mock('@/features/specifications', () => ({ generateSpecification }));
+vi.mock('@/features/tasks', () => ({
+  listTasks,
+  getTaskDetail,
+  enqueuePlan: vi.fn(),
+  enqueueExecute: vi.fn(),
+  resolveCodeContext: vi.fn(),
+  PlanSpecRequiredError: class PlanSpecRequiredError extends Error {
+    constructor() {
+      super('spec required');
+      this.name = 'PlanSpecRequiredError';
+    }
+  },
+}));
+vi.mock('@/features/deploy', () => ({
+  createDeployment: vi.fn(),
+  resolveDeployContext: vi.fn(),
+}));
+vi.mock('@/features/editor', () => ({
+  listTree: vi.fn(),
+  getFileContent: vi.fn(),
+  resolveEditorContext: vi.fn(),
+  isBinaryFileError: () => false,
+  isNotFoundError: () => false,
+}));
 
 const { POST } = await import('./route');
 
@@ -96,7 +126,7 @@ async function readStream(response: Response): Promise<string> {
 }
 
 function mockResolve(): void {
-  requireUser.mockResolvedValue({ id: 'u1' });
+  requireUser.mockResolvedValue({ id: 'u1', uiMode: 'PRO' });
   resolveProjectSchema.mockResolvedValue('project_x');
   listMessagesByThread.mockResolvedValue([]);
   readSystemPrompt.mockReturnValue('system prompt');
@@ -153,16 +183,21 @@ describe('POST /threads/{tid}/run — text-only path', () => {
 describe('POST /threads/{tid}/run — tool-call path (spec:generate)', () => {
   it('emits TOOL_CALL_START/ARGS/END/RESULT when the model calls spec:generate', async () => {
     mockResolve();
-    chatWithTools.mockResolvedValue({
-      stream: eventStreamOf([
-        {
-          type: 'tool_call_delta',
-          delta: { index: 0, id: 'tc1', name: 'spec:generate', arguments: '{}' },
-        },
-        { type: 'tool_calls_done' },
-      ]),
-      usage: Promise.resolve({ tokensIn: 1, tokensOut: 0 }),
-    });
+    chatWithTools
+      .mockResolvedValueOnce({
+        stream: eventStreamOf([
+          {
+            type: 'tool_call_delta',
+            delta: { index: 0, id: 'tc1', name: 'spec:generate', arguments: '{}' },
+          },
+          { type: 'tool_calls_done' },
+        ]),
+        usage: Promise.resolve({ tokensIn: 1, tokensOut: 0 }),
+      })
+      .mockResolvedValueOnce({
+        stream: eventStreamOf([{ type: 'text', text: 'Спецификация готова.' }]),
+        usage: Promise.resolve({ tokensIn: 2, tokensOut: 1 }),
+      });
     generateSpecification.mockResolvedValue({
       id: 'spec1',
       version: 1,
@@ -185,11 +220,102 @@ describe('POST /threads/{tid}/run — tool-call path (spec:generate)', () => {
     expect(raw).toContain('"type":"TOOL_CALL_ARGS"');
     expect(raw).toContain('"type":"TOOL_CALL_END"');
     expect(raw).toContain('"type":"TOOL_CALL_RESULT"');
+    expect(raw).toContain('"delta":"Спецификация готова."');
     expect(raw).toContain('"type":"RUN_FINISHED"');
-    // No assistant text emitted → only the USER row persists.
-    expect(saveMessage).toHaveBeenCalledTimes(1);
+    expect(chatWithTools).toHaveBeenCalledTimes(2);
+    // USER + final assistant text.
+    expect(saveMessage).toHaveBeenCalledTimes(2);
   });
 });
+
+describe('POST /threads/{tid}/run — multi-turn chaining', () => {
+  it('chains tool → result → another tool → final text', async () => {
+    mockResolve();
+    stubTaskReads();
+    mockThreeToolTurns();
+
+    const response = await POST(
+      makeRequest({
+        threadId: 't1',
+        messages: [{ id: 'm0', role: 'user', content: 'покажи задачи и статус' }],
+      }),
+      ctx(),
+    );
+    const raw = await readStream(response);
+    expect(raw).toContain('"toolCallName":"list_tasks"');
+    expect(raw).toContain('"toolCallName":"task_status"');
+    expect(raw).toContain('"delta":"Одна задача в PENDING."');
+    expect(chatWithTools).toHaveBeenCalledTimes(3);
+    const secondHistory = chatWithTools.mock.calls[1][0] as Array<{ role: string }>;
+    expect(secondHistory.some((m) => m.role === 'TOOL')).toBe(true);
+  });
+});
+
+describe('POST /threads/{tid}/run — multi-turn iteration guard', () => {
+  it('stops after MAX_TOOL_ITERS when the model keeps calling tools', async () => {
+    mockResolve();
+    listTasks.mockResolvedValue([]);
+    chatWithTools.mockResolvedValue({
+      stream: eventStreamOf([
+        {
+          type: 'tool_call_delta',
+          delta: { index: 0, id: 'tc', name: 'list_tasks', arguments: '{}' },
+        },
+        { type: 'tool_calls_done' },
+      ]),
+      usage: Promise.resolve({ tokensIn: 1, tokensOut: 0 }),
+    });
+
+    const response = await POST(
+      makeRequest({
+        threadId: 't1',
+        messages: [{ id: 'm0', role: 'user', content: 'loop' }],
+      }),
+      ctx(),
+    );
+    const raw = await readStream(response);
+    expect(raw).toContain('"type":"RUN_FINISHED"');
+    expect(chatWithTools).toHaveBeenCalledTimes(5);
+  });
+});
+
+function stubTaskReads(): void {
+  listTasks.mockResolvedValue([{ id: 't1', title: 'A', status: 'PENDING' }]);
+  getTaskDetail.mockResolvedValue({
+    id: 't1',
+    title: 'A',
+    status: 'PENDING',
+    logs: [],
+  });
+}
+
+function mockThreeToolTurns(): void {
+  chatWithTools
+    .mockResolvedValueOnce({
+      stream: eventStreamOf([
+        {
+          type: 'tool_call_delta',
+          delta: { index: 0, id: 'tc1', name: 'list_tasks', arguments: '{}' },
+        },
+        { type: 'tool_calls_done' },
+      ]),
+      usage: Promise.resolve({ tokensIn: 1, tokensOut: 0 }),
+    })
+    .mockResolvedValueOnce({
+      stream: eventStreamOf([
+        {
+          type: 'tool_call_delta',
+          delta: { index: 0, id: 'tc2', name: 'task_status', arguments: '{"taskId":"t1"}' },
+        },
+        { type: 'tool_calls_done' },
+      ]),
+      usage: Promise.resolve({ tokensIn: 2, tokensOut: 0 }),
+    })
+    .mockResolvedValueOnce({
+      stream: eventStreamOf([{ type: 'text', text: 'Одна задача в PENDING.' }]),
+      usage: Promise.resolve({ tokensIn: 3, tokensOut: 2 }),
+    });
+}
 
 describe('POST /threads/{tid}/run — validation & auth', () => {
   it('answers 400 on empty message', async () => {

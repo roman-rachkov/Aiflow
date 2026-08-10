@@ -1,22 +1,52 @@
 /**
- * Tool definitions + server-side executors for the tool-aware chat run.
+ * Tool definitions + dispatcher for the tool-aware chat run.
  *
- * The `/run` route hands `TOOL_DEFINITIONS` to the model; when the model emits
- * a tool call, `executeTool` runs the matching server-side action and returns a
- * result object that is emitted as the AG-UI `TOOL_CALL_RESULT`. For Stage C
- * the only tool is `spec:generate`, which produces a SPEC.md via the existing
- * `generateSpecification` service. New tools (Stage E) register here.
+ * `/run` advertises `TOOL_DEFINITIONS`; when the model emits a tool call,
+ * `executeTool` runs the matching handler. Stage C shipped `spec:generate`;
+ * Stage E adds tasks / planner / coder / deploy / editor tools.
  */
 
 import type { ToolDefinition } from '@aiflow/ai-roles';
 
-import { listMessages, readSpecTemplate } from '@/features/chat';
-import { retrieveContext } from '@/features/files/rag';
-import { generateSpecification } from '@/features/specifications';
 import type { ResolvedAnalystProvider } from '@/features/model-config';
 
-/** The tool names this run advertises to the model. Kept in sync with EXECUTORS. */
+import {
+  executeDeploy,
+  executeListFiles,
+  executeListTasks,
+  executeReadFile,
+  executeRunCoder,
+  executeRunPlanner,
+  executeSpecGenerate,
+  executeTaskStatus,
+} from './run-tool-handlers';
+
 export const SPEC_GENERATE_TOOL = 'spec:generate';
+export const LIST_TASKS_TOOL = 'list_tasks';
+export const TASK_STATUS_TOOL = 'task_status';
+export const RUN_PLANNER_TOOL = 'run_planner';
+export const RUN_CODER_TOOL = 'run_coder';
+export const DEPLOY_TOOL = 'deploy';
+export const LIST_FILES_TOOL = 'list_files';
+export const READ_FILE_TOOL = 'read_file';
+
+/** Context passed to every tool handler (no HTTP / no requireUser redirects). */
+export interface ToolExecContext {
+  schemaName: string;
+  projectId: string;
+  ownerId: string;
+  uiMode: 'BASIC' | 'PRO';
+  resolved: ResolvedAnalystProvider;
+}
+
+/** Result of a tool execution — the AG-UI `TOOL_CALL_RESULT` content. */
+export interface ToolResult {
+  id?: string;
+  version?: number;
+  heading: string;
+  content: unknown;
+  error?: boolean;
+}
 
 /** Tool definitions forwarded to the model (OpenAI `tools` payload). */
 export const TOOL_DEFINITIONS: ToolDefinition[] = [
@@ -29,65 +59,121 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       parameters: { type: 'object', properties: {}, required: [] },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: LIST_TASKS_TOOL,
+      description:
+        'Показать список задач проекта (статус, приоритет, зависимости). Вызывай, когда пользователь спрашивает про задачи или прогресс.',
+      parameters: { type: 'object', properties: {}, required: [] },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: TASK_STATUS_TOOL,
+      description: 'Статус одной задачи и её логи. Нужен taskId.',
+      parameters: {
+        type: 'object',
+        properties: { taskId: { type: 'string', description: 'UUID задачи' } },
+        required: ['taskId'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: RUN_PLANNER_TOOL,
+      description:
+        'Запустить планировщик (разбить утверждённую SPEC на задачи). Pro. Нужна утверждённая спецификация.',
+      parameters: { type: 'object', properties: {}, required: [] },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: RUN_CODER_TOOL,
+      description:
+        'Запустить кодер (dry-run) для задачи по taskId или title. Pro. Прогресс — в панели Задачи.',
+      parameters: {
+        type: 'object',
+        properties: {
+          taskId: { type: 'string', description: 'UUID задачи' },
+          title: { type: 'string', description: 'Точное или частичное название задачи' },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: DEPLOY_TOOL,
+      description:
+        'Запустить деплой проекта (сборка Docker-образа). Pro. Прогресс — в панели Деплой.',
+      parameters: { type: 'object', properties: {}, required: [] },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: LIST_FILES_TOOL,
+      description: 'Список файлов в репозитории проекта (дерево). Pro.',
+      parameters: {
+        type: 'object',
+        properties: {
+          path: { type: 'string', description: 'Каталог относительно корня (пусто = корень)' },
+          ref: { type: 'string', description: 'Ветка или коммит' },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: READ_FILE_TOOL,
+      description: 'Прочитать содержимое одного файла из репозитория. Pro.',
+      parameters: {
+        type: 'object',
+        properties: {
+          path: { type: 'string', description: 'Путь к файлу относительно корня' },
+          ref: { type: 'string', description: 'Ветка или коммит' },
+        },
+        required: ['path'],
+      },
+    },
+  },
 ];
-
-/** Result of a tool execution — the AG-UI `TOOL_CALL_RESULT` content. */
-export interface ToolResult {
-  /** Stable id for artifact registration (e.g. the SPEC id). */
-  id?: string;
-  /** Version for artifact versioning (e.g. the SPEC version number). */
-  version?: number;
-  /** Human-readable heading shown in the workspace rail. */
-  heading: string;
-  /** The tool's structured payload, fed to the artifact renderer's parser. */
-  content: unknown;
-  /** When true, the execution failed; `content` carries `{ error }`. */
-  error?: boolean;
-}
 
 /** Execute one tool call server-side. Returns a result for AG-UI emission. */
 export async function executeTool(
   name: string,
   args: unknown,
-  ctx: { schemaName: string; resolved: ResolvedAnalystProvider },
+  ctx: ToolExecContext,
 ): Promise<ToolResult> {
-  if (name === SPEC_GENERATE_TOOL) {
-    return executeSpecGenerate(ctx);
-  }
-  return { heading: name, content: { error: `Неизвестный инструмент: ${name}` }, error: true };
-}
-
-/** `spec:generate` — produce a SPEC.md version from the conversation. */
-async function executeSpecGenerate(ctx: {
-  schemaName: string;
-  resolved: ResolvedAnalystProvider;
-}): Promise<ToolResult> {
-  try {
-    const view = await generateSpecification(ctx.schemaName, {
-      listMessages,
-      retrieveContext,
-      readSpecTemplate,
-      createProvider: () => ctx.resolved.provider,
-      config: {
-        model: ctx.resolved.chatConfig.model,
-        apiKey: ctx.resolved.chatConfig.apiKey,
-        systemPrompt: '',
-      },
-    });
-    return {
-      id: view.id,
-      version: view.version,
-      heading: `SPEC.md · v${String(view.version)}`,
-      content: {
-        id: view.id,
-        version: view.version,
-        content: view.content,
-        createdAt: view.createdAt,
-      },
-    };
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'Не удалось сгенерировать спецификацию';
-    return { heading: SPEC_GENERATE_TOOL, content: { error: message }, error: true };
+  switch (name) {
+    case SPEC_GENERATE_TOOL:
+      return executeSpecGenerate(ctx);
+    case LIST_TASKS_TOOL:
+      return executeListTasks(ctx);
+    case TASK_STATUS_TOOL:
+      return executeTaskStatus(ctx, args);
+    case RUN_PLANNER_TOOL:
+      return executeRunPlanner(ctx);
+    case RUN_CODER_TOOL:
+      return executeRunCoder(ctx, args);
+    case DEPLOY_TOOL:
+      return executeDeploy(ctx);
+    case LIST_FILES_TOOL:
+      return executeListFiles(ctx, args);
+    case READ_FILE_TOOL:
+      return executeReadFile(ctx, args);
+    default:
+      return {
+        heading: name,
+        content: { error: `Неизвестный инструмент: ${name}` },
+        error: true,
+      };
   }
 }

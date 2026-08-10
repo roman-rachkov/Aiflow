@@ -13,12 +13,32 @@
  */
 
 /** Role of a participant in a chat conversation. */
-export type ChatRole = 'USER' | 'ASSISTANT' | 'SYSTEM';
+export type ChatRole = 'USER' | 'ASSISTANT' | 'SYSTEM' | 'TOOL';
 
-/** A single message in a chat conversation. */
+/**
+ * One completed tool call attached to an ASSISTANT message (multi-turn loop).
+ * Mirrors the OpenAI `tool_calls[]` entry shape used on the wire.
+ */
+export interface ChatToolCall {
+  id: string;
+  name: string;
+  arguments: string;
+}
+
+/**
+ * A single message in a chat conversation.
+ *
+ * `TOOL` messages carry `toolCallId` and are in-memory only (not persisted to
+ * the Prisma `ChatMessage` row). ASSISTANT turns that requested tools may carry
+ * `toolCalls` so the next `chatWithTools` call can continue the loop.
+ */
 export interface ChatMessage {
   role: ChatRole;
   content: string;
+  /** Present on ASSISTANT turns that requested tool execution. */
+  toolCalls?: ChatToolCall[];
+  /** Required when role is TOOL — links to the matching assistant tool call. */
+  toolCallId?: string;
 }
 
 /** Configuration handed to a provider for a single chat call. */

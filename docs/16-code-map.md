@@ -189,10 +189,15 @@ apps/
 │       ModelConfig → env provider resolve since Task 2.3; legacy, used by /research)
 │     /api/projects/[id]/threads (GET list, POST create — AG-UI restStorage, chat Phase 1)
 │     /api/projects/[id]/threads/[tid] (GET messages, PATCH rename, DELETE — Phase 1)
-│     /api/projects/[id]/threads/[tid]/run (POST — AG-UI event stream, tool-aware
-│       since Stage C: RUN_STARTED → TEXT_MESSAGE_* and/or TOOL_CALL_START/ARGS/
-│       END/RESULT → RUN_FINISHED/ERROR; server-side executor runs spec:generate)
-│       run-tools.ts (TOOL_DEFINITIONS + executeTool), run-stream.ts (AG-UI emit)
+│     /api/projects/[id]/threads/[tid]/run (POST — AG-UI event stream, Stage E
+│       multi-turn: RUN_STARTED → TEXT_MESSAGE_* and/or TOOL_CALL_* batches
+│       (up to 5 chatWithTools rounds) → RUN_FINISHED/ERROR; persists final
+│       assistant text only; tool msgs in-memory)
+│       run-tools.ts (TOOL_DEFINITIONS + executeTool dispatcher),
+│       run-tool-handlers*.ts (spec:generate, list_tasks, task_status,
+│       run_planner, run_coder, deploy, list_files, read_file — Pro-gate via
+│       uiMode; long tools fire-and-forget), run-stream.ts + run-loop.ts
+│       (AG-UI emit + multi-turn), run-tool-exec.ts (TOOL_CALL accumulate)
 │     /api/projects/[id]/threads/[tid]/messages/[mid] (PATCH edit content,
 │       DELETE soft-delete — per-message actions persistence, Stage A)
 │     /api/projects/[id]/threads/[tid]/fork (POST — copy thread + messages into
@@ -281,10 +286,13 @@ packages/
 ├── ai-roles/             Model provider adapter (Task 1.3; embeddings + universal
 │                         provider in Task 2.1). Leaf package.
 │                         └── public entry: src/index.ts
-│                             types.ts — ChatRole, ChatMessage, ChatConfig,
+│                             types.ts — ChatRole (incl. TOOL), ChatMessage
+│                               (+ toolCalls / toolCallId), ChatConfig,
 │                               ChatResult (nullable token counts), ModelProvider
-│                               (chat()), StreamingProvider (+ chatWithUsage()),
-│                               EmbeddingsProvider (embed()), OpenAICompatibleProvider
+│                               (chat()), StreamingProvider (+ chatWithUsage /
+│                               chatWithTools), EmbeddingsProvider (embed()),
+│                               OpenAICompatibleProvider; api-messages.ts —
+│                               buildApiMessages (assistant tool_calls + role tool)
 │                               (extends both), ProviderConfig
 │                             openai-compatible.ts — createOpenAICompatibleProvider:
 │                               parameterized ${baseURL}/chat/completions streaming +

@@ -234,6 +234,31 @@ the SPEC renderer need `projectId`; the boundaries policy forbids feature→feat
 imports, so the context lives in `shared/chat-project-context.ts` and both
 slices import from there.
 
+### D0e. Multi-turn tool loop + Stage E tool catalog — RESOLVED 2026-08-10
+
+Completes Phase 3 tool-calling on top of D0c.
+
+**Multi-turn loop.** After each batch of `TOOL_CALL_RESULT`, `/run` appends an
+in-memory ASSISTANT message (with `toolCalls`) plus `TOOL` result messages and
+re-calls `chatWithTools`, up to 5 iterations (`MAX_TOOL_ITERS`). Only the final
+assistant text is persisted to Prisma — intermediate tool traffic stays
+in-memory so `ChatMessage` is not polluted. `@aiflow/ai-roles` gained `TOOL`
+role + optional `toolCalls` / `toolCallId` on `ChatMessage`, and
+`buildApiMessages` maps them to OpenAI `tool_calls` / `role: tool`.
+
+**Fire-and-forget long tools.** `run_planner` / `run_coder` / `deploy` enqueue
+BullMQ jobs and return `{ status: 'queued', jobId }` (or deployment
+`BUILDING`). The chat does not wait for completion; progress stays in the
+Tasks / Deploy panels.
+
+**Tool catalog + Pro-gate in the executor.** Tools register in
+`run-tools.ts` / `run-tool-handlers*.ts` and call feature services directly
+(no HTTP — `/run` is already authenticated). Catalog: `spec:generate`,
+`list_tasks`, `task_status`, `run_planner`, `run_coder`, `deploy`,
+`list_files`, `read_file`. Pro-only tools check `ctx.uiMode === 'PRO'` and
+return `{ error: 'Требуется Pro' }` for BASIC (never `requireProMode` /
+redirect). Descriptions are Russian so the model knows when to call them.
+
 ### D0d. Chat as the project shell (home) — RESOLVED 2026-08-10
 
 Phase 2 shell rework. `/projects/[id]` is now the grown-up chat (`AgentInterface`)

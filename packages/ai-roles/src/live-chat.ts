@@ -8,6 +8,7 @@
  * SSE plumbing (`parseSseStream`) and chunk mapping (`mapChunk`).
  */
 
+import { buildApiMessages } from './api-messages';
 import type {
   ChatConfig,
   ChatMessage,
@@ -16,17 +17,11 @@ import type {
   ChatWithUsageResult,
   LiveChatEvent,
   ProviderConfig,
-  ChatRole,
   ToolCallDelta,
 } from './types';
 import { parseSseStream, type SseChunk } from './sse-parser';
 
-/** Map an internal role to the OpenAI API role string. */
-const ROLE_MAP: Record<ChatRole, string> = {
-  USER: 'user',
-  ASSISTANT: 'assistant',
-  SYSTEM: 'system',
-};
+export { buildApiMessages } from './api-messages';
 
 /** A decoded live-stream chunk: text delta, optional tool-call delta, finish, usage. */
 export interface LiveChunk {
@@ -34,17 +29,6 @@ export interface LiveChunk {
   toolCallDelta?: ToolCallDelta;
   toolCallsDone?: boolean;
   usage?: ChatResult;
-}
-
-/** Build the messages array for the request body (system prompt first). */
-function buildApiMessages(
-  messages: ChatMessage[],
-  systemPrompt: string,
-): Array<{ role: string; content: string }> {
-  return [
-    { role: 'system', content: systemPrompt },
-    ...messages.map((m) => ({ role: ROLE_MAP[m.role], content: m.content })),
-  ];
 }
 
 /** Map `chunk.usage` (when present) to a `ChatResult`. */
