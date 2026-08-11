@@ -45,3 +45,20 @@ export async function pushBranch(workDir: string, branchName: string): Promise<v
     timeout: 120_000,
   });
 }
+
+/** Max chars for review payload diffs (Redis/BullMQ payload budget). */
+export const MAX_REVIEW_DIFF_CHARS = 180_000;
+
+/**
+ * Diff of HEAD against `baseBranch` (three-dot). Truncates oversized output.
+ * After Aider commit, working-tree `git diff` is empty — this is the review input.
+ */
+export async function captureBranchDiff(workDir: string, baseBranch: string): Promise<string> {
+  const { stdout } = await execFileAsync(
+    'git',
+    ['diff', `${baseBranch}...HEAD`, '--', '.', ':!node_modules', ':!.next'],
+    { cwd: workDir, timeout: 60_000, maxBuffer: 2 * 1024 * 1024 },
+  );
+  if (stdout.length <= MAX_REVIEW_DIFF_CHARS) return stdout;
+  return `${stdout.slice(0, MAX_REVIEW_DIFF_CHARS)}\n\n… [diff truncated]\n`;
+}

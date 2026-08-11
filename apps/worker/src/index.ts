@@ -1,6 +1,6 @@
 /**
  * BullMQ worker entry — listens to queues listed in `QUEUES`.
- * Real handlers: `deploy-run`, `plan-generate`, `code-execute`, `chat-run`.
+ * Real handlers: deploy-run, plan-generate, code-execute, code-review, chat-run.
  *
  * dockerode lives here only. Next.js must never import it.
  * docker.sock mount in compose is DEV-ONLY (see open question #4).
@@ -11,11 +11,13 @@ import {
   createRedisConnection,
   QUEUE_CHAT_RUN,
   QUEUE_CODE_EXECUTE,
+  QUEUE_CODE_REVIEW,
   QUEUE_DEPLOY_RUN,
   QUEUE_NAMES,
   QUEUE_PLAN_GENERATE,
   type ChatRunPayload,
   type CodeExecutePayload,
+  type CodeReviewPayload,
   type DeployRunPayload,
   type PlanGeneratePayload,
   type QueueName,
@@ -25,6 +27,7 @@ import { handleChatRun } from './chat/handler';
 import { handleCodeExecute } from './code/handler';
 import { handleDeployRun } from './deploy/handler';
 import { handlePlanGenerate } from './plan/handler';
+import { handleCodeReview } from './review/handler';
 
 function parseQueues(): QueueName[] {
   const raw = process.env.QUEUES ?? QUEUE_DEPLOY_RUN;
@@ -59,6 +62,10 @@ function start(): void {
       startCodeWorker(connection);
       continue;
     }
+    if (name === QUEUE_CODE_REVIEW) {
+      startReviewWorker(connection);
+      continue;
+    }
     if (name === QUEUE_CHAT_RUN) {
       startChatWorker(connection);
       continue;
@@ -91,6 +98,14 @@ function startCodeWorker(connection: ReturnType<typeof createRedisConnection>): 
     { connection, concurrency: 1 },
   );
   bindWorkerLogs(worker, 'code-execute');
+}
+
+function startReviewWorker(connection: ReturnType<typeof createRedisConnection>): void {
+  const worker = new Worker<CodeReviewPayload>(QUEUE_CODE_REVIEW, (job) => handleCodeReview(job), {
+    connection,
+    concurrency: 1,
+  });
+  bindWorkerLogs(worker, 'code-review');
 }
 
 function startChatWorker(connection: ReturnType<typeof createRedisConnection>): void {

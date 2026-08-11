@@ -46,6 +46,12 @@ export interface ChatMessageView {
  * know", not a zero.
  */
 export interface SaveMessageInput {
+  /**
+   * Optional client-generated UUID (AG-UI optimistic id). When set, persisted
+   * as the row PK so edit/delete on a fresh message hit the same id without a
+   * thread reload (OQ #10).
+   */
+  id?: string;
   role: 'USER' | 'ASSISTANT';
   content: string;
   threadId?: string;

@@ -153,8 +153,8 @@ Output:
 
 ## Implementation notes (for platform developers)
 
-- Product LLM Reviewer is deferred to MVP-2 (slim MVP-1 gate = sandbox checks). This prompt is still the contract for `/orchestrate` and future `code:execute` review steps.
-- Prefer policy: **sandbox green ∧ acceptance met** for ACCEPTED. `confidence` is advisory for human gates / auto-approve thresholds (see open question #7).
-- The Reviewer runs as a queue job (or as a step after the Coder, depending on implementation). Input is a `taskId`; the description and criteria are read from the database, and the diff comes from the Gitea API (comparison against the previous commit).
-- On REJECTED the task returns to PENDING with the reviewer's log attached, and the Coder can retry with a refined prompt. After several rejections the task is marked FAILED and requires manual intervention.
+- Product LLM Reviewer ships in MVP-2 as a one-shot `code-review` job after sandbox green (Task 4.1). Self-Refine retry is MVP-3 C1. This prompt remains the contract for both.
+- Prefer policy: **sandbox green ∧ acceptance met** for ACCEPTED. `confidence` is advisory for human gates / auto-approve thresholds.
+- The Reviewer runs as a `code-review` queue job after the Coder push. Input is a `taskId`; the description and criteria are read from the database, and the diff is captured as `git diff default...HEAD` before the workdir is removed.
+- On REJECTED the task returns to PENDING with the reviewer's log attached (`=== REVIEW ===` JSON in TaskLog), and the operator re-runs from the UI. After several rejections (MVP-3 Self-Refine cap) the task is marked FAILED and requires manual intervention.
 - Model: GPT-4o or equivalent capable of code analysis. Context should include the full diff but not the entire project.

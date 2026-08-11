@@ -191,12 +191,12 @@ Aider pin and `registry-proxy` shape: C4/C5 in `docs/14-decisions-needed.md`.
 Moved out of slim MVP-1 so Planner+Coder can stabilize first
 (`docs/12-open-questions.md` #7–#8):
 
-**Task 4.1. Acceptance loop (LLM Reviewer + test generation)**
+**Task 4.1. Acceptance loop (LLM Reviewer + test generation)** — partial (2026-08-11)
 
-- Unit test generation by an agent (a separate task after the Coder).
+- Unit test generation by an agent (a separate task after the Coder). **Deferred.**
 - Running ESLint, TypeScript, Prisma validate in the sandbox (checks themselves ship in 3.1; the LLM Reviewer and generated-test loop stay here).
-- Reviewer: an LLM agent that receives the diff and acceptance criteria and issues a verdict.
-- UI for check results.
+- Reviewer: an LLM agent that receives the diff and acceptance criteria and issues a verdict. **Shipped (one-shot):** queue `code-review`, `@aiflow/ai-roles` `generateReviewVerdict`, worker handler; after sandbox green + push, code-execute enqueues review (stays `IN_PROGRESS`); ACCEPTED → `DONE`, REJECTED → `PENDING` + `=== REVIEW ===` TaskLog. Self-Refine retry loop → MVP-3 C1.
+- UI for check results. **Shipped (MVP):** `ReviewVerdictCard` parses the latest review log on the tasks panel. Full D1 verdict UI later.
 
 **Task 4.2. Embeddable Support Bot**
 

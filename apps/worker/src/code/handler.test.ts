@@ -37,6 +37,8 @@ function mockDeps(overrides: Partial<CodeHandlerDeps> = {}): CodeHandlerDeps {
     cloneRepo: vi.fn(() => Promise.resolve()),
     checkoutTaskBranch: vi.fn(() => Promise.resolve()),
     pushBranch: vi.fn(() => Promise.resolve()),
+    captureBranchDiff: vi.fn(() => Promise.resolve('diff --git a/x\n')),
+    enqueueCodeReview: vi.fn(() => Promise.resolve()),
     removeWorkDir: vi.fn(() => Promise.resolve()),
     resolveApiKey: vi.fn(() => 'sk-test'),
     writeApiKeySecret: vi.fn(() =>
@@ -96,13 +98,28 @@ describe('handleCodeExecute dry-run', () => {
     expect(deps.removeWorkDir).toHaveBeenCalled();
   });
 
-  it('live path clones and runs sandbox', async () => {
+  it('live path clones, runs sandbox, enqueues review (not DONE)', async () => {
     const deps = mockDeps();
     await handleCodeExecute(job({ ...PAYLOAD, dryRun: false }), deps);
 
     expect(deps.cloneRepo).toHaveBeenCalled();
     expect(deps.runSandboxContainer).toHaveBeenCalled();
+    expect(deps.captureBranchDiff).toHaveBeenCalled();
     expect(deps.pushBranch).toHaveBeenCalled();
-    expect(deps.setTaskStatus).toHaveBeenCalledWith(expect.objectContaining({ status: 'DONE' }));
+    expect(deps.enqueueCodeReview).toHaveBeenCalledWith(
+      expect.objectContaining({
+        taskId: PAYLOAD.taskId,
+        projectId: PAYLOAD.projectId,
+        diff: expect.any(String),
+      }),
+    );
+    expect(deps.setTaskStatus).not.toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'DONE' }),
+    );
+    expect(deps.appendTaskLog).toHaveBeenCalledWith(
+      PAYLOAD.schemaName,
+      PAYLOAD.taskId,
+      expect.stringContaining('LLM-ревью'),
+    );
   });
 });

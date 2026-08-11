@@ -167,6 +167,27 @@ describe('saveMessage', () => {
   });
 });
 
+describe('saveMessage client id (OQ #10)', () => {
+  it('persists optional client id as the row PK', async () => {
+    create.mockResolvedValue({ ...ROW, id: 'a1b2c3d4-e5f6-4789-a012-3456789abcde' });
+    const clientId = 'a1b2c3d4-e5f6-4789-a012-3456789abcde';
+
+    await saveMessage('project_abc', { role: 'USER', content: 'hello', id: clientId });
+
+    expect(create).toHaveBeenCalledWith({
+      data: {
+        id: clientId,
+        role: 'USER',
+        content: 'hello',
+        threadId: null,
+        parentId: null,
+        tokensIn: null,
+        tokensOut: null,
+      },
+    });
+  });
+});
+
 describe('deleteMessage', () => {
   it('soft-deletes by setting deletedAt (never .delete())', async () => {
     await deleteMessage('project_abc', 'm1');

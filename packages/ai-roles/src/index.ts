@@ -14,3 +14,16 @@ export {
   type PlanTaskEffort,
   type PlanTaskPriority,
 } from './planner';
+export { REVIEWER_SYSTEM_PROMPT } from './reviewer-prompt';
+export {
+  buildReviewUserPrompt,
+  extractJsonObject,
+  generateReviewVerdict,
+  parseReviewVerdict,
+  type GenerateReviewOptions,
+  type ReviewIssue,
+  type ReviewIssueSeverity,
+  type ReviewTaskInput,
+  type ReviewVerdict,
+  type ReviewVerdictKind,
+} from './reviewer';

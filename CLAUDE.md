@@ -101,10 +101,10 @@ Or as slash commands: **`/verify`** runs the gate and reports the first failure,
 
 **Real now** (Docker Compose):
 
-| Command                              | Purpose                                                                                                                                                                                                         |
-| ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `docker compose up`                  | Full dev stack (no `--build`). Copy `.env.example` → `.env` first                                                                                                                                               |
-| `docker compose up --scale worker=3` | Scale BullMQ workers (`deploy-run` / `plan-generate` / `code-execute` / `chat-run` are real; `spec-generate` is dormant — SPEC generation runs from the chat tool on the worker, so that queue still stub-acks) |
+| Command                              | Purpose                                                                                                                                                                                                                         |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `docker compose up`                  | Full dev stack (no `--build`). Copy `.env.example` → `.env` first                                                                                                                                                               |
+| `docker compose up --scale worker=3` | Scale BullMQ workers (`deploy-run` / `plan-generate` / `code-execute` / `code-review` / `chat-run` are real; `spec-generate` is dormant — SPEC generation runs from the chat tool on the worker, so that queue still stub-acks) |
 
 Still _prescribed by the docs_ rather than the primary path:
 
@@ -124,7 +124,7 @@ Four component groups, all under Docker Compose. Details in `docs/02-architectur
 
 **The Next.js app is stateless and never executes long work.** It serves the frontend, REST API, and WebSocket proxy, and it _enqueues_ — nothing more. Anything long-running belongs in a worker. This is the constraint most easily violated by accident.
 
-**Five queues** (`docs/10-infrastructure.md` plus D0g): `spec-generate`, `plan-generate`, `code-execute`, `deploy-run`, `chat-run`. Concurrency is 1 per queue. Live today: `plan-generate`, `code-execute`, `deploy-run`, `chat-run`; `spec-generate` is dormant (stub-ack) — SPEC generation runs inside the chat tool on the `chat-run` worker. BullMQ forbids `:` in queue names (Redis key separator); hyphen form is required.
+**Six queues** (`docs/10-infrastructure.md` plus D0g / MVP-2 4.1): `spec-generate`, `plan-generate`, `code-execute`, `code-review`, `deploy-run`, `chat-run`. Concurrency is 1 per queue. Live today: `plan-generate`, `code-execute`, `code-review`, `deploy-run`, `chat-run`; `spec-generate` is dormant (stub-ack) — SPEC generation runs inside the chat tool on the `chat-run` worker. BullMQ forbids `:` in queue names (Redis key separator); hyphen form is required.
 
 **Redis is disposable.** Task progress is checkpointed to `TaskLog` in Postgres, so losing Redis means workers resume from the log rather than losing work. Never make Redis the only home for state.
 

@@ -5,3 +5,5 @@
 export { TasksPanel } from './ui/TasksPanel';
 export { ExecuteControls } from './ui/ExecuteControls';
 export { TaskLogPanel } from './ui/TaskLogPanel';
+export { ReviewVerdictCard } from './ui/ReviewVerdictCard';
+export { parseLatestReview, REVIEW_LOG_MARKER } from './ui/parse-review';

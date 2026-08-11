@@ -23,7 +23,12 @@ import { openChatRunBridge } from './run-bridge';
 interface RunInput {
   message: string;
   threadId: string;
+  /** AG-UI optimistic USER id — reused as the ChatMessage PK when valid. */
+  clientMessageId?: string;
 }
+
+/** RFC 4122 UUID (any version) — AG-UI uses crypto.randomUUID(). */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 /** Parse + validate the run body. Returns the text payload or a 400 response. */
 function parseBody(body: unknown): RunInput | NextResponse {
@@ -38,7 +43,12 @@ function parseBody(body: unknown): RunInput | NextResponse {
   if (text.length === 0) {
     return NextResponse.json({ error: 'Введите сообщение' }, { status: 400 });
   }
-  return { message: text, threadId: typeof obj.threadId === 'string' ? obj.threadId : '' };
+  const clientMessageId = extractClientId(last);
+  return {
+    message: text,
+    threadId: typeof obj.threadId === 'string' ? obj.threadId : '',
+    ...(clientMessageId ? { clientMessageId } : {}),
+  };
 }
 
 function extractContent(entry: unknown): string {
@@ -47,6 +57,13 @@ function extractContent(entry: unknown): string {
     return typeof c === 'string' ? c : '';
   }
   return '';
+}
+
+function extractClientId(entry: unknown): string | undefined {
+  if (!entry || typeof entry !== 'object' || !('id' in entry)) return undefined;
+  const id = (entry as { id?: unknown }).id;
+  if (typeof id !== 'string' || !UUID_RE.test(id)) return undefined;
+  return id;
 }
 
 export async function POST(
@@ -63,9 +80,14 @@ export async function POST(
 
   const parsed = parseBody(await request.json().catch(() => null));
   if (parsed instanceof NextResponse) return parsed;
-  const { message } = parsed;
+  const { message, clientMessageId } = parsed;
 
-  await saveMessage(schemaName, { role: 'USER', content: message, threadId: tid });
+  await saveMessage(schemaName, {
+    role: 'USER',
+    content: message,
+    threadId: tid,
+    ...(clientMessageId ? { id: clientMessageId } : {}),
+  });
 
   const runId = crypto.randomUUID();
   const response = await openChatRunBridge(runId, request.signal);
