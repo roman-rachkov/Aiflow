@@ -84,6 +84,10 @@ model Task {
   updatedAt   DateTime  @updatedAt
   startedAt   DateTime?
   completedAt DateTime?
+  // Git identity for branch-per-task (conventions § 1.5). Null until sandbox starts.
+  branchName  String?
+  headCommit  String?
+  mergedAt    DateTime?
   // Soft delete — see the convention on User in schema.prisma.
   deletedAt   DateTime?
 

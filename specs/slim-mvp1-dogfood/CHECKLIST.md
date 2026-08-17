@@ -12,7 +12,7 @@ testing (5.2). Those stay in MVP-2.
    `docker build -t aistudio/aider-sandbox:latest -f docker/aider-sandbox/Dockerfile docker/aider-sandbox`
 3. Sign in (dev user), create a project, run Researcher → approve SPEC.md.
 4. Open `/projects/{id}/tasks` → **Сгенерировать план** (`plan:generate`).
-5. On a PENDING task → dry-run execute → confirm live `code:execute`.
+5. On a PENDING task → **Запустить план** (or per-task Запустить) → live `code:execute`.
 6. Watch WS logs; expect DONE + commit on task branch, or FAILED with TaskLog.
 7. Optional: Pro editor review → Deployments **Сборка** (`deploy:run`).
 
@@ -30,6 +30,13 @@ LLM Reviewer, Support Bot, Traefik/domain URL, full AI Studio self-build, 3-proj
 
 ## Status
 
-Checklist ready 2026-08-07. Live compose dogfood run is operator-driven (needs
-Docker daemon + LLM keys); automated coverage is unit tests for plan parse,
-queue payloads, dry-run handler, sandbox options, and registry allowlist.
+Checklist updated 2026-08-17: create seeds `templates/user-nextjs/`; «Запустить план»
+enqueues the unblocked DAG; ACCEPTED fast-forwards into `main`; deploy runs
+`prisma db push` into `app_{hex}` and records `docker://{tag}`.
+
+Live compose dogfood still needs an operator: Docker daemon, built
+`aistudio/aider-sandbox:latest`, and LLM keys.
+
+```bash
+docker build -t aistudio/aider-sandbox:latest -f docker/aider-sandbox/Dockerfile docker/aider-sandbox
+```

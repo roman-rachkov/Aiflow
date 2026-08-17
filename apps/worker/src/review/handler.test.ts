@@ -4,6 +4,10 @@ import type { Job } from 'bullmq';
 import type { ReviewVerdict } from '@aiflow/ai-roles';
 import type { CodeReviewPayload } from '@aiflow/queue';
 
+vi.mock('@aiflow/db', () => ({
+  ensureTaskGitColumns: vi.fn(() => Promise.resolve()),
+}));
+
 import { applyReviewVerdict, formatReviewLog, REVIEW_LOG_MARKER } from './apply-verdict';
 import { handleCodeReview, type ReviewHandlerDeps } from './handler';
 
@@ -50,13 +54,27 @@ function job(data: CodeReviewPayload): Job<CodeReviewPayload> {
 }
 
 function mockDeps(overrides: Partial<ReviewHandlerDeps> = {}): ReviewHandlerDeps {
+  const applyVerdict = {
+    appendTaskLog: vi.fn(() => Promise.resolve()),
+    setTaskStatus: vi.fn(() => Promise.resolve()),
+    now: () => new Date('2026-08-11T00:00:00.000Z'),
+  };
   return {
     loadTask: vi.fn(() => Promise.resolve(TASK)),
     generateVerdict: vi.fn(() => Promise.resolve(ACCEPTED)),
-    applyVerdict: {
-      appendTaskLog: vi.fn(() => Promise.resolve()),
-      setTaskStatus: vi.fn(() => Promise.resolve()),
-      now: () => new Date('2026-08-11T00:00:00.000Z'),
+    applyVerdict,
+    finishAccepted: {
+      mergeTaskBranch: vi.fn(() => Promise.resolve('sha-main')),
+      recordTaskGit: vi.fn(() => Promise.resolve()),
+      enqueueReadyTasks: vi.fn(() => Promise.resolve([])),
+      loadGitea: vi.fn(() =>
+        Promise.resolve({
+          giteaOwner: 'aistudio',
+          giteaRepo: 'demo',
+          giteaDefaultBranch: 'main',
+        }),
+      ),
+      applyVerdict,
     },
     ...overrides,
   };
@@ -97,10 +115,30 @@ describe('handleCodeReview', () => {
     expect(deps.applyVerdict.setTaskStatus).toHaveBeenCalledWith(
       expect.objectContaining({ status: 'DONE' }),
     );
+    expect(deps.finishAccepted.mergeTaskBranch).toHaveBeenCalled();
   });
 
   it('throws when task is missing', async () => {
     const deps = mockDeps({ loadTask: vi.fn(() => Promise.resolve(null)) });
     await expect(handleCodeReview(job(PAYLOAD), deps)).rejects.toThrow(/not found/);
+  });
+
+  it('REJECTED does not merge', async () => {
+    const deps = mockDeps({ generateVerdict: vi.fn(() => Promise.resolve(REJECTED)) });
+    const v = await handleCodeReview(job(PAYLOAD), deps);
+    expect(v.verdict).toBe('REJECTED');
+    expect(deps.finishAccepted.mergeTaskBranch).not.toHaveBeenCalled();
+    expect(deps.applyVerdict.setTaskStatus).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'PENDING' }),
+    );
+  });
+
+  it('merge failure → FAILED', async () => {
+    const deps = mockDeps();
+    vi.mocked(deps.finishAccepted.mergeTaskBranch).mockRejectedValue(new Error('not ff'));
+    await handleCodeReview(job(PAYLOAD), deps);
+    expect(deps.applyVerdict.setTaskStatus).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'FAILED' }),
+    );
   });
 });

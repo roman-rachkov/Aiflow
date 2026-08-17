@@ -15,6 +15,14 @@ export type TaskRow = {
   status: CodeTaskStatus;
 };
 
+export type RecordTaskGitInput = {
+  schemaName: string;
+  taskId: string;
+  branchName?: string | null;
+  headCommit?: string | null;
+  mergedAt?: Date | null;
+};
+
 /** Load a non-deleted Task or null. */
 export async function loadTask(schemaName: string, taskId: string): Promise<TaskRow | null> {
   const row = await getProjectClient(schemaName).task.findFirst({
@@ -59,6 +67,22 @@ export async function setTaskStatus(input: SetTaskStatusInput): Promise<void> {
   } = { status: input.status };
   if (input.startedAt !== undefined) data.startedAt = input.startedAt;
   if (input.completedAt !== undefined) data.completedAt = input.completedAt;
+  await getProjectClient(input.schemaName).task.update({
+    where: { id: input.taskId },
+    data,
+  });
+}
+
+/** Persist branch / commit / merge timestamp (soft-delete already verified). */
+export async function recordTaskGit(input: RecordTaskGitInput): Promise<void> {
+  const data: {
+    branchName?: string | null;
+    headCommit?: string | null;
+    mergedAt?: Date | null;
+  } = {};
+  if (input.branchName !== undefined) data.branchName = input.branchName;
+  if (input.headCommit !== undefined) data.headCommit = input.headCommit;
+  if (input.mergedAt !== undefined) data.mergedAt = input.mergedAt;
   await getProjectClient(input.schemaName).task.update({
     where: { id: input.taskId },
     data,

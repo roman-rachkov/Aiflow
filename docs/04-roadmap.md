@@ -178,13 +178,15 @@ Aider pin and `registry-proxy` shape: C4/C5 in `docs/14-decisions-needed.md`.
 - Integration with the `plan:generate` queue: fetch SPEC.md, call the LLM, parse, create `Task` records.
 - UI for the Roadmap (task list with order and dependencies); drag-reorder deferred.
 
-**Task 3.3. Coder** (done 2026-08-07)
+**Task 3.3. Coder** (done 2026-08-07; E2E wiring 2026-08-17)
 
 - Worker `code:execute`: takes a task, fetches current code from Gitea, starts a sandbox.
 - Result handling: commit on success (runner), worker push, log capture and FAILED marking on failure.
 - Dry-run mode: planned prompt stub → `AWAITING_REVIEW`, confirm enqueues live run.
 - WebSocket streaming of sandbox logs (`sandbox:logs:{taskId}` via custom server).
 - Slim MVP-1: no LLM Reviewer — product gate = sandbox checks only.
+- 2026-08-17: template bootstrap into Gitea; ACCEPTED fast-forwards into `main`;
+  «Запустить план» enqueues the unblocked DAG; deploy `db push` into `app_{hex}`.
 
 ### 3.3. Deferred to MVP-2
 

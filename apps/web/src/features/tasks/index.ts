@@ -25,5 +25,7 @@ export { enqueuePlan, listTasks } from './model/service';
 export type { EnqueuePlanOptions } from './model/service';
 export { enqueueConfirm, enqueueExecute, resolveCodeContext } from './model/execute';
 export type { CodeContext } from './model/execute';
+export { enqueueRunPlan, listReadyTaskIds } from './model/run-plan';
+export type { EnqueueRunPlanResult } from './model/run-plan';
 export { getTaskDetail } from './model/detail';
 export { attachTaskLogsWebSocket, WS_CLOSE_FORBIDDEN } from './model/ws-attach';

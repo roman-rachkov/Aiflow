@@ -23,6 +23,7 @@ const {
   createOrUpdateFile,
   createRepo,
   deleteRepo,
+  seedUserTemplate,
   getAuthenticatedUser,
   listGiteaCommits,
   getCommitDiff,
@@ -34,6 +35,7 @@ const {
   createOrUpdateFile: vi.fn(),
   createRepo: vi.fn(),
   deleteRepo: vi.fn(),
+  seedUserTemplate: vi.fn(),
   getAuthenticatedUser: vi.fn(),
   listGiteaCommits: vi.fn(),
   getCommitDiff: vi.fn(),
@@ -53,6 +55,7 @@ vi.mock('@/shared/gitea', async () => {
     createOrUpdateFile,
     createRepo,
     deleteRepo,
+    seedUserTemplate,
     getAuthenticatedUser,
     listCommits: listGiteaCommits,
     getCommitDiff,
@@ -101,6 +104,8 @@ async function arrangeLazyProvision(): Promise<EditorContext> {
     defaultBranch: 'main',
     owner: 'aistudio',
   });
+  seedUserTemplate.mockResolvedValue(8);
+  deleteRepo.mockResolvedValue(undefined);
   createOrUpdateFile.mockResolvedValue({
     path: 'README.md',
     content: '# Smoke\n',

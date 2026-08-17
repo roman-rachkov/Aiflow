@@ -5,7 +5,7 @@ import { useCallback, useState } from 'react';
 import { usePollWhile, useProjectResourceList } from '@/shared/hooks';
 
 import type { TaskDetail, TaskSummary } from '../model/types';
-import { postCode, postPlan } from './task-api';
+import { postCode, postPlan, postRunPlan } from './task-api';
 
 export type UseTasksResult = {
   items: TaskSummary[];
@@ -17,6 +17,7 @@ export type UseTasksResult = {
   selected: TaskDetail | null;
   refresh: () => Promise<void>;
   generatePlan: () => Promise<void>;
+  runPlan: () => Promise<void>;
   dryRun: (taskId: string) => Promise<void>;
   confirm: (taskId: string) => Promise<void>;
   runLive: (taskId: string) => Promise<void>;
@@ -40,6 +41,7 @@ export function useTasks(projectId: string, canPlan: boolean): UseTasksResult {
     toast: plan.toast ?? code.toast,
     selected: code.selected,
     generatePlan: plan.generatePlan,
+    runPlan: plan.runPlan,
     dryRun: code.dryRun,
     confirm: code.confirm,
     runLive: code.runLive,
@@ -53,8 +55,9 @@ export function useTasks(projectId: string, canPlan: boolean): UseTasksResult {
 
 function usePlanActions(projectId: string, canPlan: boolean, refresh: () => Promise<void>) {
   const [planning, setPlanning] = useState(false);
+  const [runningPlan, setRunningPlan] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
-  usePollWhile(planning, refresh);
+  usePollWhile(planning || runningPlan, refresh);
 
   const generatePlan = useCallback(async () => {
     if (!canPlan || planning) return;
@@ -68,10 +71,23 @@ function usePlanActions(projectId: string, canPlan: boolean, refresh: () => Prom
     }
   }, [canPlan, planning, projectId, refresh]);
 
+  const runPlan = useCallback(async () => {
+    if (!canPlan || runningPlan) return;
+    setRunningPlan(true);
+    try {
+      const result = await postRunPlan(projectId);
+      setToast(result.toast);
+      if (result.ok) await refresh();
+    } finally {
+      setRunningPlan(false);
+    }
+  }, [canPlan, runningPlan, projectId, refresh]);
+
   return {
-    planning,
+    planning: planning || runningPlan,
     toast,
     generatePlan,
+    runPlan,
     clearToast: () => {
       setToast(null);
     },

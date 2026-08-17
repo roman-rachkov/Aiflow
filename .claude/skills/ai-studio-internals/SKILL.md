@@ -65,9 +65,9 @@ Open question #5 (`docs/12-open-questions.md:74-85`) is unresolved and relevant 
 
 `docs/02-architecture.md` § 4:
 
-user approves `SPEC.md` → `plan:generate` → planner emits atomic tasks into `code:execute` → coder worker clones from Gitea into a volume, runs Aider, then tsc + ESLint → success commits to Gitea; failure goes to the reviewer, which either re-queues with clarification or marks FAILED → after all tasks, `deploy:run`.
+user approves `SPEC.md` → `plan:generate` → planner emits atomic tasks into `code:execute` → coder worker clones from Gitea into a volume (seeds `templates/user-nextjs/` if the repo is empty), runs Aider, then tsc + ESLint → success pushes the task branch; Reviewer ACCEPTED fast-forwards into `main` and enqueues the next unblocked tasks → `deploy:run` builds the image and `prisma db push` into `app_{hex}` (never `project_{uuid}`).
 
-Gitea holds one repo per project, with `SPEC.md` at the repo root so requirements are versioned alongside code.
+Gitea holds one repo per project. Create copies `templates/user-nextjs/` into the repo. `SPEC.md` is stored in the platform DB (authoritative) with a Gitea copy.
 
 ## Conventions for generated application code
 

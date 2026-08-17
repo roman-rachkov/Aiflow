@@ -27,8 +27,17 @@ export type CodeHandlerDeps = {
     branch: string;
     workDir: string;
   }) => Promise<void>;
+  ensureUserTemplate: (workDir: string, projectName: string) => Promise<boolean>;
   checkoutTaskBranch: (workDir: string, branchName: string) => Promise<void>;
   pushBranch: (workDir: string, branchName: string) => Promise<void>;
+  readHeadCommit: (workDir: string) => Promise<string>;
+  recordTaskGit: (input: {
+    schemaName: string;
+    taskId: string;
+    branchName?: string | null;
+    headCommit?: string | null;
+    mergedAt?: Date | null;
+  }) => Promise<void>;
   captureBranchDiff: (workDir: string, baseBranch: string) => Promise<string>;
   enqueueCodeReview: (payload: CodeReviewPayload) => Promise<void>;
   removeWorkDir: (workDir: string) => Promise<void>;

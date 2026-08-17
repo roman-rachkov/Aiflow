@@ -28,6 +28,10 @@ export {
   getCommitDiff,
   getAuthenticatedUser,
 } from './client';
+export { seedUserTemplate } from './seed-template';
+export type { SeedUserTemplateInput } from './seed-template';
+export { readUserTemplateFiles, userTemplateDir } from './template-files';
+export type { TemplateFile } from './template-files';
 export { GiteaUpstreamError, isGiteaUpstreamError } from './errors';
 export type {
   AuthenticatedUser,

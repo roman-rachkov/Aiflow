@@ -46,6 +46,15 @@ export async function pushBranch(workDir: string, branchName: string): Promise<v
   });
 }
 
+/** SHA of HEAD in workDir. */
+export async function readHeadCommit(workDir: string): Promise<string> {
+  const { stdout } = await execFileAsync('git', ['rev-parse', 'HEAD'], {
+    cwd: workDir,
+    timeout: 15_000,
+  });
+  return stdout.trim();
+}
+
 /** Max chars for review payload diffs (Redis/BullMQ payload budget). */
 export const MAX_REVIEW_DIFF_CHARS = 180_000;
 

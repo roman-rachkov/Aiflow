@@ -220,7 +220,10 @@ services:
       GITEA_ADMIN_TOKEN_FILE: /run/gitea/token
       # Compose names the network `{project}_sandbox` (dir name → aiflow_sandbox).
       SANDBOX_NETWORK: aiflow_sandbox
+      # Build once (not a compose service — stock images only):
+      # docker build -t aistudio/aider-sandbox:latest -f docker/aider-sandbox/Dockerfile docker/aider-sandbox
       AIDER_SANDBOX_IMAGE: aistudio/aider-sandbox:latest
+      USER_TEMPLATE_DIR: /workspace/templates/user-nextjs
     command: ['yarn', 'workspace', '@aiflow/worker', 'dev']
     volumes:
       - .:/workspace

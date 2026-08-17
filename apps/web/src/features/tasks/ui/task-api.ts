@@ -58,3 +58,15 @@ export async function postCode(
   };
   return { toast: labels[action], ok: true };
 }
+
+/** POST run-plan: enqueue unblocked PENDING tasks. */
+export async function postRunPlan(projectId: string): Promise<{ toast: string; ok: boolean }> {
+  const res = await fetch(`/api/projects/${projectId}/tasks/run-plan`, { method: 'POST' });
+  const data = (await res.json().catch(() => ({}))) as { error?: string; taskIds?: string[] };
+  if (!res.ok) return { toast: data.error ?? 'Не удалось запустить план', ok: false };
+  const count = data.taskIds?.length ?? 0;
+  if (count === 0) {
+    return { toast: 'Нет задач, готовых к запуску', ok: true };
+  }
+  return { toast: `В очередь: ${String(count)} задач`, ok: true };
+}

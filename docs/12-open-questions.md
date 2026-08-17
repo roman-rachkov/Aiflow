@@ -28,9 +28,10 @@ scaffold tweak); a separate Gitea template org for MVP (extra provisioner).
 **RESOLVED 2026-08-07.** Sandbox never talks to platform Postgres. The Coder may
 edit `prisma/schema.prisma` and emit SQL under `prisma/migrations/`; the runner
 runs `prisma validate` only. Schema changes are applied at **deploy time** via
-`prisma db push` (MVP) against the project's dedicated schema. A dedicated
-migration worker can replace `db push` later without changing the sandbox
-contract.
+`prisma db push` (MVP) against a **dedicated user-app schema** `app_{hex}`
+(same suffix as `project_{uuid}`). Never push the generated Prisma schema onto
+`project_{uuid}` — that would drop platform tables. A dedicated migration worker
+can replace `db push` later without changing the sandbox contract.
 
 Rejected for MVP: running `migrate dev` inside the sandbox (no DB); applying
 migrations from a separate post-commit worker before the first deploy exists.
@@ -194,15 +195,15 @@ Anthropic's own `advisor` tool was evaluated for dev-time use here and rejected:
 
 ## Question Status
 
-| #   | Question                       | Status                                                                  |
-| --- | ------------------------------ | ----------------------------------------------------------------------- |
-| 1   | Project template               | **Resolved 2026-08-07** — `templates/user-nextjs/` → Gitea on bootstrap |
-| 2   | Applying migrations            | **Resolved 2026-08-07** — validate in sandbox; `db push` at deploy      |
-| 3   | code:execute concurrency       | **Resolved 2026-08-02** — premise removed by branch-per-task            |
-| 4   | docker.sock mount in prod      | Open — DEV-ONLY sock for MVP; revisited at MVP-3 D3 (domain deploy)     |
-| 5   | API key passing                | **Resolved 2026-08-07** — `/run/secrets/api_key` file mount             |
-| 6   | Proxy allowlist                | **Resolved 2026-08-07** — Node proxy + expandable `ALLOWED_HOSTS`       |
-| 7   | Reviewer role                  | **Resolved 2026-08-07** — deferred to MVP-2; gate = sandbox checks      |
-| 8   | MVP-1 timeline                 | **Resolved 2026-08-07** — slim MVP-1 (Planner+Coder); rest → MVP-2      |
-| 9   | Escalation to a stronger model | Open — scheduled at MVP-3 C3 (model-router runtime)                     |
-| 10  | AG-UI optimistic vs DB msg ids | **Resolved 2026-08-11** — persist client UUID as ChatMessage PK         |
+| #   | Question                       | Status                                                                              |
+| --- | ------------------------------ | ----------------------------------------------------------------------------------- |
+| 1   | Project template               | **Resolved 2026-08-07** — `templates/user-nextjs/` → Gitea on bootstrap             |
+| 2   | Applying migrations            | **Resolved 2026-08-07** — validate in sandbox; `db push` at deploy into `app_{hex}` |
+| 3   | code:execute concurrency       | **Resolved 2026-08-02** — premise removed by branch-per-task                        |
+| 4   | docker.sock mount in prod      | Open — DEV-ONLY sock for MVP; revisited at MVP-3 D3 (domain deploy)                 |
+| 5   | API key passing                | **Resolved 2026-08-07** — `/run/secrets/api_key` file mount                         |
+| 6   | Proxy allowlist                | **Resolved 2026-08-07** — Node proxy + expandable `ALLOWED_HOSTS`                   |
+| 7   | Reviewer role                  | **Resolved 2026-08-07** — deferred to MVP-2; gate = sandbox checks                  |
+| 8   | MVP-1 timeline                 | **Resolved 2026-08-07** — slim MVP-1 (Planner+Coder); rest → MVP-2                  |
+| 9   | Escalation to a stronger model | Open — scheduled at MVP-3 C3 (model-router runtime)                                 |
+| 10  | AG-UI optimistic vs DB msg ids | **Resolved 2026-08-11** — persist client UUID as ChatMessage PK                     |
