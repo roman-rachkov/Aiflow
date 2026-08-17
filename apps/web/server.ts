@@ -22,7 +22,9 @@ import { WebSocketServer } from 'ws';
 import { attachEditorWebSocket } from './src/features/editor';
 import { attachTaskLogsWebSocket } from './src/features/tasks';
 
-const hostname = process.env.HOSTNAME ?? '0.0.0.0';
+// Bind address for the HTTP server. Do NOT use Docker's HOSTNAME (container
+// id) — that listens only on the eth0 IP and breaks the 127.0.0.1 healthcheck.
+const hostname = process.env.LISTEN_HOST ?? process.env.HOST ?? '0.0.0.0';
 const port = Number(process.env.PORT ?? 3000);
 // Yarn sets npm_lifecycle_event to the script name (`dev` / `start`).
 const dev = process.env.npm_lifecycle_event === 'dev' || process.env.NODE_ENV === 'development';

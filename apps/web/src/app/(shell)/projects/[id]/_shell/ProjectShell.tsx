@@ -4,12 +4,13 @@
  * Project home shell — the grown-up chat (`AgentInterface`) IS the project's app
  * shell. Combines: chat (default view, path=undefined), thread sidebar
  * (`AguiThreadList`), tool navigation (`SidebarNav`), and `Route` panels for
- * Files/Tasks/Deploy/SPEC/Models (`ProjectRoutes`). Editor opens as a separate
- * page (Monaco + WS stay out of the shell).
+ * Files/Tasks/Deploy/SPEC/Models (`buildProjectRoutes` — flat direct children).
+ * Editor opens as a separate page (Monaco + WS stay out of the shell).
  *
- * Navigation is controlled (`path`/`onNavigate`): a SidebarItem with `path`
+ * Navigation is controlled (`path`/`onNavigate`): a SidebarItem with a `path`
  * sets it; selecting a thread returns to `undefined` (chat). Pro-only items
- * (Editor, Models) are hidden for BASIC.
+ * (Editor, Models) are hidden for BASIC. Routes must stay direct children of
+ * `AgentInterface` — the library's slot extract is shallow.
  */
 
 import { useCallback, useState } from 'react';
@@ -25,9 +26,14 @@ import { AguiUserMessage } from '@/features/chat/ui/agui/messages/AguiUserMessag
 import { AguiThreadList } from '@/features/chat/ui/agui/threads/AguiThreadList';
 import { createProjectChatLLm } from '@/features/chat/ui/agui/llm';
 import { createThreadStorage } from '@/features/chat/ui/agui/storage';
-import { CHAT_LABELS, STARTERS, SPEC_STARTER } from '@/features/chat/ui/agui/labels';
+import {
+  CHAT_LABELS,
+  COMPOSER_PLACEHOLDER,
+  STARTERS,
+  SPEC_STARTER,
+} from '@/features/chat/ui/agui/labels';
 
-import { ProjectRoutes } from './ProjectRoutes';
+import { buildProjectRoutes } from './ProjectRoutes';
 import { SidebarNav } from './SidebarNav';
 
 const ARTIFACT_RENDERERS = [specArtifactRenderer];
@@ -73,18 +79,20 @@ export function ProjectShell(props: ProjectShellProps) {
             <SidebarNav isPro={isPro} onOpenEditor={onOpenEditor} />
           </AgentInterface.SidebarContent>
         </AgentInterface.Sidebar>
-        <ProjectRoutes
-          projectId={projectId}
-          projectName={projectName}
-          isPro={isPro}
-          initialFiles={initialFiles}
-          initialSpecs={initialSpecs}
-        />
+        {/* Routes must be direct AgentInterface children (shallow slot extract). */}
+        {buildProjectRoutes({
+          projectId,
+          projectName,
+          isPro,
+          initialFiles,
+          initialSpecs,
+        })}
         <AgentInterface.Welcome
           title="Опишите идею проекта"
           description="Я — Аналитик. Задаю уточняющие вопросы, помогаю оформить идею в спецификацию SPEC.md, запускаю планировщик и кодогенерацию."
           starters={[SPEC_STARTER, ...STARTERS]}
         />
+        <AgentInterface.Composer placeholder={COMPOSER_PLACEHOLDER} />
       </AgentInterface>
     </ProjectIdContext.Provider>
   );

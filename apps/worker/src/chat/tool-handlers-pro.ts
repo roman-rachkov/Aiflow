@@ -7,6 +7,8 @@ import { randomUUID } from 'node:crypto';
 import { getProjectClient, getPublicClient } from '@aiflow/db';
 import { getDeployQueue } from '@aiflow/queue';
 
+import { readGiteaAdminToken } from '../gitea-token';
+
 import type { ToolExecContext, ToolResult } from './tool-execute';
 
 const PRO_REQUIRED = 'Требуется Pro';
@@ -201,7 +203,7 @@ async function giteaFile(
 
 async function giteaJson<T>(path: string): Promise<T> {
   const baseUrl = (process.env.GITEA_URL ?? '').replace(/\/+$/, '');
-  const token = process.env.GITEA_ADMIN_TOKEN ?? '';
+  const token = readGiteaAdminToken();
   if (!baseUrl || !token) throw new Error('Gitea is not configured');
   const controller = new AbortController();
   const timer = setTimeout(() => {
