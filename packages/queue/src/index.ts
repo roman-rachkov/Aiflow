@@ -6,6 +6,7 @@
 export {
   QUEUE_CHAT_RUN,
   QUEUE_CODE_EXECUTE,
+  QUEUE_CODE_REVIEW,
   QUEUE_DEPLOY_RUN,
   QUEUE_NAMES,
   QUEUE_PLAN_GENERATE,
@@ -28,6 +29,13 @@ export {
   validateCodePayload,
   type CodeExecutePayload,
 } from './code';
+export {
+  closeReviewQueue,
+  getReviewQueue,
+  REVIEW_JOB_OPTIONS,
+  validateReviewPayload,
+  type CodeReviewPayload,
+} from './review';
 export {
   CHAT_JOB_OPTIONS,
   chatRunChannel,

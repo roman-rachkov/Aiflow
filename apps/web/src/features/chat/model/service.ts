@@ -80,6 +80,7 @@ export async function saveMessage(
 ): Promise<ChatMessageView> {
   const row = await getProjectClient(schemaName).chatMessage.create({
     data: {
+      ...(input.id ? { id: input.id } : {}),
       role: input.role,
       content: input.content,
       threadId: input.threadId ?? null,

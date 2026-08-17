@@ -2,6 +2,8 @@
  * Injectable deps for code:execute handler (unit-test seam).
  */
 
+import type { CodeReviewPayload } from '@aiflow/queue';
+
 import type { CodeTaskStatus, TaskRow } from './status';
 
 export type CodeHandlerDeps = {
@@ -27,6 +29,8 @@ export type CodeHandlerDeps = {
   }) => Promise<void>;
   checkoutTaskBranch: (workDir: string, branchName: string) => Promise<void>;
   pushBranch: (workDir: string, branchName: string) => Promise<void>;
+  captureBranchDiff: (workDir: string, baseBranch: string) => Promise<string>;
+  enqueueCodeReview: (payload: CodeReviewPayload) => Promise<void>;
   removeWorkDir: (workDir: string) => Promise<void>;
   resolveApiKey: (env?: NodeJS.ProcessEnv) => string;
   writeApiKeySecret: (

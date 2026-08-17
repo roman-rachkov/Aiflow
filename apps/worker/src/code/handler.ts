@@ -1,12 +1,19 @@
 /**
  * BullMQ handler for `code:execute` — clone, dry-run or sandbox, status/logs.
+ * On sandbox success enqueues `code-review` (MVP-2); does not mark DONE here.
  */
 
 import type { Job } from 'bullmq';
-import { validateCodePayload, type CodeExecutePayload } from '@aiflow/queue';
+import { getReviewQueue, validateCodePayload, type CodeExecutePayload } from '@aiflow/queue';
 
 import { cloneRepo, removeWorkDir } from '../deploy/clone';
-import { checkoutTaskBranch, codeWorkDir, pushBranch, resolveBranchName } from './branch';
+import {
+  captureBranchDiff,
+  checkoutTaskBranch,
+  codeWorkDir,
+  pushBranch,
+  resolveBranchName,
+} from './branch';
 import type { CodeHandlerDeps } from './deps';
 import { failTask, runDryRun, runLive } from './pipeline';
 import { runSandboxContainer } from './sandbox-run';
@@ -22,6 +29,10 @@ const defaultDeps: CodeHandlerDeps = {
   cloneRepo,
   checkoutTaskBranch,
   pushBranch,
+  captureBranchDiff,
+  enqueueCodeReview: async (payload) => {
+    await getReviewQueue().add('code:review', payload);
+  },
   removeWorkDir,
   resolveApiKey,
   writeApiKeySecret,

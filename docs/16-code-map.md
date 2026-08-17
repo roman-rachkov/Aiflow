@@ -130,7 +130,7 @@ apps/
 │     │                         model/service.ts — create Deployment+Meta (same
 │     │                           uuid), getDeployQueue().add — **no dockerode**
 │     │                         ui/DeploymentsPanel — list/poll/log; Pro Build
-│     ├── tasks/          Roadmap + plan/code enqueue (Tasks 3.2–3.3)
+│     ├── tasks/          Roadmap + plan/code enqueue (Tasks 3.2–3.3 + 4.1)
 │     │                     └── public: `index.ts` (server) + `client.ts` (panel)
 │     │                         model/service.ts — listTasks / enqueuePlan
 │     │                           (approved Specification required; getPlanQueue)
@@ -139,8 +139,8 @@ apps/
 │     │                         model/detail.ts — getTaskDetail + TaskLog
 │     │                         model/access.ts — assertProPlan / assertProCode
 │     │                         model/ws-attach.ts — Redis `sandbox:logs:{taskId}`
-│     │                         ui/TasksPanel + ExecuteControls + TaskLogPanel
-│     │                           (dry-run / confirm / live; Pro)
+│     │                         ui/TasksPanel + ExecuteControls + TaskLogPanel +
+│     │                           ReviewVerdictCard (parses `=== REVIEW ===` log)
 │     └── editor/         Pro code editor over Gitea (Task 2.2)
 │                           └── public: `index.ts` (server) + `client.ts` (EditorShell)
 │                               model/access.ts — resolveEditorContext (owner +
@@ -221,8 +221,9 @@ apps/
 │     WS /api/projects/[id]/tasks/[taskId]/logs/ws — Redis sandbox logs (3.3)
 │     /api/health (GET — compose liveness; no auth)
 └── worker/               BullMQ workers (deploy-run + plan-generate +
-    │                     code-execute + chat-run real; spec-generate dormant
-    │                     stub-ack — SPEC generation runs inside chat-run tools)
+    │                     code-execute + code-review + chat-run real;
+    │                     spec-generate dormant stub-ack — SPEC generation
+    │                     runs inside chat-run tools)
     └── public entry: src/index.ts
         deps: @aiflow/{db,queue,ai-roles,crypto}, bullmq, dockerode (MIT; **worker only**),
           tar-fs. docker.sock mount in compose is **DEV-ONLY** (OQ #4).
@@ -231,7 +232,11 @@ apps/
         src/plan/handler.ts — load approved Specification → generatePlanTasks
           (env provider) → soft-delete replaceable tasks → Task+deps+TaskLog
         src/code/handler.ts — code:execute: Task status/logs, dry-run →
-          AWAITING_REVIEW, live → sandbox + RESULT + push branch
+          AWAITING_REVIEW, live → sandbox + push + enqueue code-review
+          (does not mark DONE; Reviewer owns ACCEPTED→DONE)
+        src/review/handler.ts — code-review one-shot LLM Reviewer (MVP-2 4.1):
+          generateReviewVerdict → TaskLog `=== REVIEW ===` JSON;
+          ACCEPTED→DONE, REJECTED→PENDING (Self-Refine → MVP-3 C1)
         src/chat/ — chat-run multi-turn AG-UI tool loop; Redis publish
           `chat:run:{runId}`; tools via db+queue+crypto (no apps/web imports)
         src/sandbox/ — createContainer options builder (Task 3.1 hardening,
@@ -271,10 +276,11 @@ packages/
 │                             scripts/seed-dev-user.ts — a Credentials login for
 │                             local dev; refuses a non-local DATABASE_URL.
 │                             `yarn workspace @aiflow/db seed:dev-user`
-├── queue/                BullMQ definitions (Tasks 2.3–3.3 + D0g): five queue
-│                         names (hyphenated; incl. chat-run), Redis connection from
-│                         REDIS_URL, getDeployQueue() / getPlanQueue() /
-│                         getCodeQueue() / getChatRunQueue(), typed payloads +
+├── queue/                BullMQ definitions (Tasks 2.3–3.3 + 4.1 + D0g): six
+│                         queue names (hyphenated; incl. chat-run, code-review),
+│                         Redis connection from REDIS_URL, getDeployQueue() /
+│                         getPlanQueue() / getCodeQueue() / getReviewQueue() /
+│                         getChatRunQueue(), typed payloads +
 │                         sandboxLogsChannel() / chatRunChannel(). Producer
 │                         helpers only — no dockerode, no workers here.
 ├── crypto/               AES-256-GCM leaf (Task 2.3): `encrypt` / `decrypt` /
@@ -305,6 +311,9 @@ packages/
 │                             planner-prompt.ts / planner.ts — PLANNER_SYSTEM_PROMPT
 │                               + generatePlanTasks (JSON parse, max 2 retries,
 │                               effort S|M|L, max 24 tasks; 3.2)
+│                             reviewer-prompt.ts / reviewer.ts / reviewer-parse.ts —
+│                               REVIEWER_SYSTEM_PROMPT + generateReviewVerdict
+│                               (JSON object parse, max 2 retries; MVP-2 4.1)
 │                             sse-parser.ts — generic SSE frame reassembly
 │                               (reusable; reader released in finally)
 └── ui/                   Design system (Task 1.2d → D0a OpenUI). OpenUI-backed
@@ -414,20 +423,20 @@ The agent-maturity phase ([04-roadmap.md](04-roadmap.md) § 5; decisions E1–E4
 **not** in the code yet — this section exists so the next session does not
 re-derive the integration points. Each lands in its own `task/*` branch.
 
-| Planned entity / change                                                 | Track | Where it will live                                                                                                  |
-| ----------------------------------------------------------------------- | ----- | ------------------------------------------------------------------------------------------------------------------- |
-| Idempotent `code:execute` / `deploy:run` (attempt tokens, dedup guards) | A1    | `apps/worker/src/code/handler.ts` (`CodeHandlerDeps` DI seam), `apps/worker/src/deploy/handler.ts`                  |
-| Step-encoded resumable pipeline                                         | A2    | `apps/worker/src/code/pipeline.ts`, `TaskLog` (already the checkpoint)                                              |
-| `AuditEvent` model (append-only, role/action/target/traceId)            | A3    | `packages/db/prisma/schema.prisma` (public); `recordAudit()` in worker; Pro UI event feed in `apps/web`             |
-| Role policy guard (capability set)                                      | A4    | `packages/ai-roles/src/policy.ts`; enforced inside the provider wrapper                                             |
-| Langfuse service                                                        | B1    | `docker-compose.yml` (new service, Postgres-backed)                                                                 |
-| LLM-call tracing wrapper                                                | B2    | `packages/ai-roles/src/openai-compatible.ts` (the single chokepoint); `traceId` → `TaskLog`/`AuditEvent`            |
-| Evals framework + CI job on prompt change                               | B3    | Promptfoo or Langfuse datasets; CI fires on `.claude/agents/**` change                                              |
-| Prompt-injection red-team set                                           | B4    | CI red-team (AgentDojo/InjecAgent-style) against the Analyst `withRagContext` surface                               |
-| `code:review` queue + Reviewer runtime (Self-Refine loop)               | C1    | `apps/worker/src/review/`; `packages/ai-roles/src/reviewer{,-prompt}.ts` (mirror planner); queue in `@aiflow/queue` |
-| `AgentMemory` model (task/role/lesson)                                  | C2    | `packages/db/prisma/schema_project_template.prisma`; mixed into Coder + Reviewer prompts                            |
-| `services/model-router` runtime (escalation as 2nd routed request)      | C3    | `services/model-router/src` (currently `export {};` stub); `ModelConfig.config` gains `advisor` per role            |
-| Optional Planner Tree-of-Thoughts mode                                  | C4    | `packages/ai-roles/src/planner.ts`; behind a flag                                                                   |
-| Reviewer verdict UI                                                     | D1    | `apps/web/src/features/tasks` (verdict list, issues, auto-approve threshold)                                        |
-| Support Bot (embed widget + final-compose inclusion)                    | D2    | Dify/lightweight RAG on SPEC + docs; reuses `features/files` pgvector stack                                         |
-| Automatic domain deploy (Traefik/nginx)                                 | D3    | `apps/worker/src/deploy/handler.ts`; real URL over `deploy:run`; auditable (A3), idempotent (A1)                    |
+| Planned entity / change                                                 | Track | Where it will live                                                                                       |
+| ----------------------------------------------------------------------- | ----- | -------------------------------------------------------------------------------------------------------- |
+| Idempotent `code:execute` / `deploy:run` (attempt tokens, dedup guards) | A1    | `apps/worker/src/code/handler.ts` (`CodeHandlerDeps` DI seam), `apps/worker/src/deploy/handler.ts`       |
+| Step-encoded resumable pipeline                                         | A2    | `apps/worker/src/code/pipeline.ts`, `TaskLog` (already the checkpoint)                                   |
+| `AuditEvent` model (append-only, role/action/target/traceId)            | A3    | `packages/db/prisma/schema.prisma` (public); `recordAudit()` in worker; Pro UI event feed in `apps/web`  |
+| Role policy guard (capability set)                                      | A4    | `packages/ai-roles/src/policy.ts`; enforced inside the provider wrapper                                  |
+| Langfuse service                                                        | B1    | `docker-compose.yml` (new service, Postgres-backed)                                                      |
+| LLM-call tracing wrapper                                                | B2    | `packages/ai-roles/src/openai-compatible.ts` (the single chokepoint); `traceId` → `TaskLog`/`AuditEvent` |
+| Evals framework + CI job on prompt change                               | B3    | Promptfoo or Langfuse datasets; CI fires on `.claude/agents/**` change                                   |
+| Prompt-injection red-team set                                           | B4    | CI red-team (AgentDojo/InjecAgent-style) against the Analyst `withRagContext` surface                    |
+| `code:review` Self-Refine loop (retry cap + AgentMemory feedback)       | C1    | `apps/worker/src/review/` already one-shot (4.1); C1 adds auto re-enqueue code-execute ≤N                |
+| `AgentMemory` model (task/role/lesson)                                  | C2    | `packages/db/prisma/schema_project_template.prisma`; mixed into Coder + Reviewer prompts                 |
+| `services/model-router` runtime (escalation as 2nd routed request)      | C3    | `services/model-router/src` (currently `export {};` stub); `ModelConfig.config` gains `advisor` per role |
+| Optional Planner Tree-of-Thoughts mode                                  | C4    | `packages/ai-roles/src/planner.ts`; behind a flag                                                        |
+| Reviewer verdict UI                                                     | D1    | `apps/web/src/features/tasks` (verdict list, issues, auto-approve threshold)                             |
+| Support Bot (embed widget + final-compose inclusion)                    | D2    | Dify/lightweight RAG on SPEC + docs; reuses `features/files` pgvector stack                              |
+| Automatic domain deploy (Traefik/nginx)                                 | D3    | `apps/worker/src/deploy/handler.ts`; real URL over `deploy:run`; auditable (A3), idempotent (A1)         |

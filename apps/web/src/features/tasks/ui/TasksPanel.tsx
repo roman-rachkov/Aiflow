@@ -4,6 +4,8 @@ import { Button, Spinner } from '@aiflow/ui';
 
 import type { TaskPriority, TaskStatus, TaskSummary } from '../model/types';
 import { ExecuteControls } from './ExecuteControls';
+import { parseLatestReview } from './parse-review';
+import { ReviewVerdictCard } from './ReviewVerdictCard';
 import { TaskLogPanel } from './TaskLogPanel';
 import { useTasks } from './useTasks';
 
@@ -29,7 +31,7 @@ const PRIORITY_LABEL: Record<TaskPriority, string> = {
   LOW: 'Низкий',
 };
 
-/** Roadmap list with plan + coder execute controls (Tasks 3.2–3.3). */
+/** Roadmap list with plan + coder execute controls (Tasks 3.2–3.3 + 4.1). */
 export function TasksPanel({ projectId, projectName, canPlan }: Props) {
   const s = useTasks(projectId, canPlan);
 
@@ -117,6 +119,7 @@ function TaskRow({
   const selected = s.selected?.id === item.id;
   const seed = selected && s.selected ? s.selected.logs.map((l) => l.message).join('') : '';
   const live = item.status === 'IN_PROGRESS';
+  const review = seed ? parseLatestReview(seed) : null;
 
   return (
     <li className="flex flex-col gap-2 px-4 py-3">
@@ -141,6 +144,7 @@ function TaskRow({
         onConfirm={() => void s.confirm(item.id)}
         onRun={() => void s.runLive(item.id)}
       />
+      {review ? <ReviewVerdictCard review={review} /> : null}
       {selected || live ? (
         <TaskLogPanel projectId={projectId} taskId={item.id} active={live} seed={seed} />
       ) : null}

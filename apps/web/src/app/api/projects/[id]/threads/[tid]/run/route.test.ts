@@ -92,7 +92,42 @@ describe('POST /threads/[tid]/run — bridge', () => {
       }),
       expect.objectContaining({ jobId: expect.any(String) }),
     );
-    // Close the stream so the test process can exit.
+    await res.body?.cancel();
+  });
+});
+
+describe('POST /threads/[tid]/run — client message id (OQ #10)', () => {
+  it('reuses AG-UI client message id as ChatMessage PK', async () => {
+    requireUser.mockResolvedValue({ id: 'u1', uiMode: 'BASIC' });
+    resolveProjectSchema.mockResolvedValue('project_p1');
+    const clientId = 'a1b2c3d4-e5f6-4789-a012-3456789abcde';
+    const res = await POST(
+      makeRequest({ messages: [{ id: clientId, content: 'hi' }], threadId: 't1' }),
+      { params: Promise.resolve({ id: 'p1', tid: 't1' }) },
+    );
+    expect(res.status).toBe(200);
+    expect(saveMessage).toHaveBeenCalledWith('project_p1', {
+      role: 'USER',
+      content: 'hi',
+      threadId: 't1',
+      id: clientId,
+    });
+    await res.body?.cancel();
+  });
+
+  it('ignores non-UUID client message ids', async () => {
+    requireUser.mockResolvedValue({ id: 'u1', uiMode: 'BASIC' });
+    resolveProjectSchema.mockResolvedValue('project_p1');
+    const res = await POST(
+      makeRequest({ messages: [{ id: 'not-a-uuid', content: 'hi' }], threadId: 't1' }),
+      { params: Promise.resolve({ id: 'p1', tid: 't1' }) },
+    );
+    expect(res.status).toBe(200);
+    expect(saveMessage).toHaveBeenCalledWith('project_p1', {
+      role: 'USER',
+      content: 'hi',
+      threadId: 't1',
+    });
     await res.body?.cancel();
   });
 });

@@ -1,5 +1,6 @@
 /**
  * Dry-run and live sandbox pipelines for code:execute.
+ * Live success enqueues `code-review` (MVP-2) instead of marking DONE.
  */
 
 import type { CodeExecutePayload } from '@aiflow/queue';
@@ -93,15 +94,22 @@ async function finishFromSandbox(
     await failTask(payload, `Sandbox: ${report}\n`, deps);
     return;
   }
+  const diff = await deps.captureBranchDiff(workDir, payload.giteaDefaultBranch);
   await deps.appendTaskLog(payload.schemaName, payload.taskId, 'Пуш ветки в Gitea…\n');
   await deps.pushBranch(workDir, branch);
-  await deps.setTaskStatus({
+  await deps.enqueueCodeReview({
+    projectId: payload.projectId,
     schemaName: payload.schemaName,
     taskId: payload.taskId,
-    status: 'DONE',
-    completedAt: deps.now(),
+    branchName: branch,
+    diff,
+    checks: { typescript: true, eslint: true, tests: null },
   });
-  await deps.appendTaskLog(payload.schemaName, payload.taskId, 'Задача выполнена\n');
+  await deps.appendTaskLog(
+    payload.schemaName,
+    payload.taskId,
+    'Sandbox зелёный; отправлено на LLM-ревью…\n',
+  );
 }
 
 /** Mark FAILED and append error log. */
