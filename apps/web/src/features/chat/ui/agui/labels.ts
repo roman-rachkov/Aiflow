@@ -28,3 +28,11 @@ export const CHAT_LABELS: AgentInterfaceLabels = {
   workspaceToggle: 'Рабочая область чата',
   tabs: { all: 'Все', artifacts: 'Артефакты', apps: 'Приложения' },
 };
+
+/**
+ * Composer placeholder. OpenUI's `AgentInterfaceLabels` has no field for this
+ * (only artifact-rail copy), so the shell passes it via
+ * `<AgentInterface.Composer placeholder={…} />`. Welcome-screen composer still
+ * uses the library default until upstream adds a label.
+ */
+export const COMPOSER_PLACEHOLDER = 'Опишите идею проекта…';

@@ -29,6 +29,7 @@ function urlAsString(url: RequestInfo | URL | undefined): string {
 beforeEach(() => {
   process.env.GITEA_URL = BASE;
   process.env.GITEA_ADMIN_TOKEN = TOKEN;
+  delete process.env.GITEA_ADMIN_TOKEN_FILE;
   delete process.env.GITEA_REPO_OWNER;
   globalThis.fetch = vi.fn();
 });

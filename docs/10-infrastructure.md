@@ -106,6 +106,12 @@ services:
   # ===========================================================================
   # Gitea — Git server (one repository per project)
   # ===========================================================================
+  # AUTHORITATIVE compose also runs `gitea-init` (see root `docker-compose.yml`
+  # + `docker/gitea/bootstrap.sh`): after a fresh volume it creates the
+  # GITEA_REPO_OWNER admin user and writes an API token to volume
+  # `gitea_bootstrap` (`GITEA_ADMIN_TOKEN_FILE=/run/gitea/token` for app/worker).
+  # Leave GITEA_ADMIN_PASSWORD empty — bootstrap generates a local-only password.
+  # The YAML below is an older sketch; prefer the root compose file.
   gitea:
     image: gitea/gitea:1.22
     environment:
@@ -298,7 +304,11 @@ already exist), and `prisma migrate deploy` only for `ROLE=app`.
 `depends_on` `app` healthy so install always happens on a networked service
 first.
 
-- The Next.js app binds `0.0.0.0:3000` and hot-reloads via polling env vars.
+- The Next.js app binds `LISTEN_HOST` / `HOST` (default `0.0.0.0:3000`) and
+  hot-reloads via polling env vars. Do not use Docker `HOSTNAME` — that is the
+  container id and breaks the `127.0.0.1` healthcheck.
+- `gitea-init` creates the Gitea admin user and writes `/run/gitea/token` after
+  a volume wipe; `app` / `worker` read `GITEA_ADMIN_TOKEN_FILE`.
 - Worker / model-router / registry-proxy stay `tsx watch` stubs — no HTTP
   healthchecks on them yet.
 - The worker mounts the Docker socket for future sandbox use (Task 3.1).
