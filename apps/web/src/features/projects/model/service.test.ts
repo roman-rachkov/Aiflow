@@ -39,13 +39,13 @@ type CreateRepoInput = {
 const createRepo = vi.fn<(input: CreateRepoInput) => Promise<unknown>>();
 const deleteRepo = vi.fn();
 const getAuthenticatedUser = vi.fn();
-const createOrUpdateFile = vi.fn();
+const seedUserTemplate = vi.fn();
 
 vi.mock('@/shared/gitea', () => ({
   createRepo,
   deleteRepo,
   getAuthenticatedUser,
-  createOrUpdateFile,
+  seedUserTemplate,
 }));
 
 const { listProjects, getProject, createProject, removeProject } = await import('./service');
@@ -73,13 +73,7 @@ function stubGiteaHappyPath(): void {
     defaultBranch: 'main',
     owner: 'aistudio',
   });
-  createOrUpdateFile.mockResolvedValue({
-    path: 'README.md',
-    content: '',
-    encoding: 'utf-8',
-    sha: 'abc',
-    size: 0,
-  });
+  seedUserTemplate.mockResolvedValue(8);
 }
 
 function arrangeSchemaReady(): void {

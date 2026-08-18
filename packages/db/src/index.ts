@@ -19,6 +19,14 @@ export { asEncryptedValue } from './config-types';
 // (it guards both the name generator and the executor), imported below.
 import { PROJECT_SCHEMA_PATTERN } from './project-schema';
 export { createProjectSchema, dropProjectSchema, ensureThreadSchema } from './schema-executor';
+export { ensureTaskGitColumns } from './task-git-backfill';
+export {
+  APP_SCHEMA_PATTERN,
+  appDatabaseUrl,
+  appSchemaNameFromProjectSchema,
+  assertValidAppSchemaName,
+  ensureAppSchema,
+} from './app-schema';
 export {
   generateProjectSchemaName,
   generateProjectSql,

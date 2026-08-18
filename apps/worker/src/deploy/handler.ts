@@ -6,6 +6,7 @@
 import type { Job } from 'bullmq';
 import type { DeployRunPayload } from '@aiflow/queue';
 
+import { pushUserAppSchema } from './app-schema-push';
 import { cloneRepo, deployWorkDir, removeWorkDir } from './clone';
 import { buildDockerImage, warnIfProdSocket } from './docker';
 import { appendDeployLog, finishDeploy } from './status';
@@ -13,6 +14,7 @@ import { appendDeployLog, finishDeploy } from './status';
 export type DeployHandlerDeps = {
   cloneRepo: typeof cloneRepo;
   buildDockerImage: typeof buildDockerImage;
+  pushUserAppSchema: typeof pushUserAppSchema;
   appendDeployLog: typeof appendDeployLog;
   finishDeploy: typeof finishDeploy;
   removeWorkDir: typeof removeWorkDir;
@@ -22,6 +24,7 @@ export type DeployHandlerDeps = {
 const defaultDeps: DeployHandlerDeps = {
   cloneRepo,
   buildDockerImage,
+  pushUserAppSchema,
   appendDeployLog,
   finishDeploy,
   removeWorkDir,
@@ -107,12 +110,25 @@ async function runDeployPipeline(
     imageTag,
     onProgress: (line) => deps.appendDeployLog(payload.schemaName, payload.deploymentId, line),
   });
+  const pushed = await deps.pushUserAppSchema(workDir, payload.schemaName);
+  const url = `docker://${imageTag}`;
   await deps.finishDeploy({
     schemaName: payload.schemaName,
     deploymentId: payload.deploymentId,
     status: 'DEPLOYED',
     imageTag,
-    url: `local://image/${imageTag}`,
-    logChunk: `Образ собран: ${imageTag}\n`,
+    url,
+    logChunk: finishLog(imageTag, pushed.appSchema, pushed.skipped),
   });
+}
+
+function finishLog(imageTag: string, appSchema: string, skipped: boolean): string {
+  const schemaLine = skipped
+    ? 'prisma/schema.prisma нет — db push пропущен\n'
+    : `Схема приложения: ${appSchema} (prisma db push выполнен)\n`;
+  return (
+    `Образ собран: ${imageTag}\n` +
+    schemaLine +
+    `Запуск: docker run --rm -p 3100:3000 -e DATABASE_URL=<schema=${skipped ? 'app_…' : appSchema}> ${imageTag}\n`
+  );
 }

@@ -140,7 +140,7 @@ The specifics of all three — the URL-rewriting trick, the container hardening 
 
 **`model-router`** (Express, port 3001) unifies routerai.ru / OpenAI / Anthropic / Ollama behind an OpenAI-compatible API, with a fallback chain and a 1-hour Redis response cache. It stores no keys — they arrive encrypted, are decrypted for the call, then wiped from memory.
 
-Gitea holds one repo per project, with `SPEC.md` at the repo root so requirements are versioned alongside code. Compose `gitea-init` (`docker/gitea/bootstrap.sh`) creates the admin user after a volume wipe and writes `/run/gitea/token`; `app`/`worker` read `GITEA_ADMIN_TOKEN_FILE` (fallback `GITEA_ADMIN_TOKEN`). Do not commit a Gitea admin password. `apps/web/server.ts` binds via `LISTEN_HOST` / `HOST` (default `0.0.0.0`) — never Docker `HOSTNAME`, which breaks the `127.0.0.1` healthcheck.
+Gitea holds one repo per project, with `SPEC.md` at the repo root so requirements are versioned alongside code. Compose `gitea-init` (`docker/gitea/bootstrap.sh`) creates the admin user after a volume wipe and writes `/run/gitea/token`; `app`/`worker` read `GITEA_ADMIN_TOKEN_FILE` (fallback `GITEA_ADMIN_TOKEN`). Do not commit a Gitea admin password. `apps/web/server.ts` binds via `LISTEN_HOST` / `HOST` (default `0.0.0.0`) — never Docker `HOSTNAME`, which breaks the `127.0.0.1` healthcheck. Project create copies `templates/user-nextjs/` into Gitea; first codegen backfills README-only repos. Sandbox image is built once: `docker build -t aistudio/aider-sandbox:latest -f docker/aider-sandbox/Dockerfile docker/aider-sandbox`. Deploy `prisma db push` targets `app_{hex}`, never `project_{uuid}`.
 
 ## Conventions for generated application code → `/ai-studio-internals`
 

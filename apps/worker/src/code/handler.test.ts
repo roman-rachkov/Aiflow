@@ -3,6 +3,10 @@ import { describe, expect, it, vi } from 'vitest';
 import type { Job } from 'bullmq';
 import type { CodeExecutePayload } from '@aiflow/queue';
 
+vi.mock('@aiflow/db', () => ({
+  ensureTaskGitColumns: vi.fn(() => Promise.resolve()),
+}));
+
 import { handleCodeExecute, type CodeHandlerDeps } from './handler';
 import { resolveBranchName, slugifyTitle } from './branch';
 import { parseResultFromLogs } from './result';
@@ -35,8 +39,11 @@ function mockDeps(overrides: Partial<CodeHandlerDeps> = {}): CodeHandlerDeps {
     setTaskStatus: vi.fn(() => Promise.resolve()),
     appendTaskLog: vi.fn(() => Promise.resolve()),
     cloneRepo: vi.fn(() => Promise.resolve()),
+    ensureUserTemplate: vi.fn(() => Promise.resolve(false)),
     checkoutTaskBranch: vi.fn(() => Promise.resolve()),
     pushBranch: vi.fn(() => Promise.resolve()),
+    readHeadCommit: vi.fn(() => Promise.resolve('abc123')),
+    recordTaskGit: vi.fn(() => Promise.resolve()),
     captureBranchDiff: vi.fn(() => Promise.resolve('diff --git a/x\n')),
     enqueueCodeReview: vi.fn(() => Promise.resolve()),
     removeWorkDir: vi.fn(() => Promise.resolve()),
@@ -106,6 +113,12 @@ describe('handleCodeExecute dry-run', () => {
     expect(deps.runSandboxContainer).toHaveBeenCalled();
     expect(deps.captureBranchDiff).toHaveBeenCalled();
     expect(deps.pushBranch).toHaveBeenCalled();
+    expect(deps.recordTaskGit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        branchName: expect.stringContaining('task/'),
+        headCommit: 'abc123',
+      }),
+    );
     expect(deps.enqueueCodeReview).toHaveBeenCalledWith(
       expect.objectContaining({
         taskId: PAYLOAD.taskId,

@@ -93,9 +93,21 @@ function Header({
     <div className="flex items-center justify-between gap-3">
       <h1 className="text-xl font-semibold tracking-tight">Задачи · {projectName}</h1>
       {canPlan ? (
-        <Button type="button" disabled={s.planning} onClick={() => void s.generatePlan()}>
-          {s.planning ? 'Запуск…' : 'Сгенерировать план'}
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" disabled={s.planning} onClick={() => void s.generatePlan()}>
+            {s.planning ? 'Запуск…' : 'Сгенерировать план'}
+          </Button>
+          {s.items.length > 0 ? (
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={s.planning}
+              onClick={() => void s.runPlan()}
+            >
+              Запустить план
+            </Button>
+          ) : null}
+        </div>
       ) : null}
     </div>
   );

@@ -10,7 +10,7 @@ const updateMany = vi.fn();
 const createRepo = vi.fn();
 const deleteRepo = vi.fn();
 const getAuthenticatedUser = vi.fn();
-const createOrUpdateFile = vi.fn();
+const seedUserTemplate = vi.fn();
 
 vi.mock('@aiflow/db', () => ({
   getPublicClient: () => ({
@@ -22,7 +22,7 @@ vi.mock('@/shared/gitea', () => ({
   createRepo,
   deleteRepo,
   getAuthenticatedUser,
-  createOrUpdateFile,
+  seedUserTemplate,
 }));
 
 const { ensureGiteaProvisioned, giteaRepoNameFromProjectId } = await import('./provision');
@@ -46,14 +46,7 @@ function stubCreateHappy(): void {
     defaultBranch: 'main',
     owner: 'aistudio',
   });
-  createOrUpdateFile.mockResolvedValue({
-    path: 'README.md',
-    content: '',
-    encoding: 'utf-8',
-    sha: 'r1',
-    size: 0,
-    commitSha: 'init',
-  });
+  seedUserTemplate.mockResolvedValue(8);
 }
 
 describe('ensureGiteaProvisioned — backfill', () => {

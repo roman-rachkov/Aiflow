@@ -20,7 +20,7 @@ RUN if [ -f yarn.lock ]; then yarn install --frozen-lockfile; \\
 FROM base AS build
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN npm run build || yarn build || true
+RUN npm run build || yarn build
 
 FROM base AS runner
 ENV NODE_ENV=production
@@ -38,6 +38,7 @@ services:
       - "3000:3000"
     environment:
       NODE_ENV: production
+      # Set DATABASE_URL to the platform Postgres with schema=app_{hex}.
     restart: unless-stopped
 `;
 

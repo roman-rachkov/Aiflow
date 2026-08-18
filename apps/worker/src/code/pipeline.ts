@@ -52,6 +52,14 @@ export async function runLive(ctx: LiveCtx): Promise<void> {
     branch: payload.giteaDefaultBranch,
     workDir,
   });
+  const seeded = await deps.ensureUserTemplate(workDir, payload.giteaRepo);
+  if (seeded) {
+    await deps.appendTaskLog(
+      payload.schemaName,
+      payload.taskId,
+      'Шаблон user-nextjs записан в репозиторий\n',
+    );
+  }
   await deps.checkoutTaskBranch(workDir, branch);
   await deps.appendTaskLog(
     payload.schemaName,
@@ -97,6 +105,13 @@ async function finishFromSandbox(
   const diff = await deps.captureBranchDiff(workDir, payload.giteaDefaultBranch);
   await deps.appendTaskLog(payload.schemaName, payload.taskId, 'Пуш ветки в Gitea…\n');
   await deps.pushBranch(workDir, branch);
+  const headCommit = await deps.readHeadCommit(workDir);
+  await deps.recordTaskGit({
+    schemaName: payload.schemaName,
+    taskId: payload.taskId,
+    branchName: branch,
+    headCommit,
+  });
   await deps.enqueueCodeReview({
     projectId: payload.projectId,
     schemaName: payload.schemaName,

@@ -91,6 +91,8 @@ workspace with zero tests fails loudly instead of looking green. Pre-commit (`hu
   from generated SQL (derived from `schema_project_template.prisma`), **not** via `prisma migrate`.
 - **Gitea bootstrap + app bind.** Compose `gitea-init` writes `/run/gitea/token`; app/worker read
   `GITEA_ADMIN_TOKEN_FILE`. `apps/web/server.ts` binds via `LISTEN_HOST` (never Docker `HOSTNAME`).
+  Project create copies `templates/user-nextjs/` into Gitea. Sandbox image is built once:
+  `docker build -t aistudio/aider-sandbox:latest -f docker/aider-sandbox/Dockerfile docker/aider-sandbox`.
 - **Soft delete only.** Every domain model has `deletedAt DateTime?`. Queries must filter
   `deletedAt: null` **manually** (no Prisma extension). Delete = `update { deletedAt: now() }`,
   never `.delete()`. NextAuth/cascade models are exempt. Full rule in `CLAUDE.md`.

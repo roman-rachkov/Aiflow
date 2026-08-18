@@ -26,10 +26,10 @@ apps/
 │     │                     └── public entry: src/index.ts
 │     │                         model/service.ts — create/list/get/remove over
 │     │                           ProjectMeta; create is a compensation saga
-│     │                           (schema → Gitea repo+README → meta.create;
+│     │                           (schema → Gitea repo + user-nextjs template → meta.create;
 │     │                           deleteRepo+dropProjectSchema on failure).
 │     │                           model/gitea-provision.ts — owner resolve +
-│     │                           createRepo/README helpers (@/shared/gitea)
+│     │                           createRepo + seedUserTemplate (@/shared/gitea)
 │     │                         model/access.ts — resolveProjectSchema(id, ownerId)
 │     │                           (Task 2.1): the per-route auth+schema gate shared
 │     │                           by chat/files/specifications routes; self-contained
@@ -139,6 +139,7 @@ apps/
 │     │                           (approved Specification required; getPlanQueue)
 │     │                         model/execute.ts — enqueueExecute / enqueueConfirm
 │     │                           (getCodeQueue; Gitea context; status gates)
+│     │                         model/run-plan.ts — enqueue unblocked PENDING DAG
 │     │                         model/detail.ts — getTaskDetail + TaskLog
 │     │                         model/access.ts — assertProPlan / assertProCode
 │     │                         model/ws-attach.ts — Redis `sandbox:logs:{taskId}`
@@ -174,6 +175,7 @@ apps/
 │     └── gitea/          Gitea REST v1 client (Task 2.2): createRepo/deleteRepo/
 │                          getTree/getFile/createOrUpdateFile/deleteFile/
 │                          listCommits/getCommitDiff/getAuthenticatedUser;
+│                          seedUserTemplate (user-nextjs → Gitea, OQ #1);
 │                          fetch-only; token from GITEA_ADMIN_TOKEN_FILE or
 │                          GITEA_ADMIN_TOKEN; GiteaUpstreamError → routes map to 502
 │   routes (app/):
@@ -215,6 +217,7 @@ apps/
 │     /api/projects/[id]/deployments/[deploymentId] (GET detail+log, 2.3)
 │     /api/projects/[id]/tasks (GET list — Task 3.2)
 │     /api/projects/[id]/tasks/plan (POST enqueue plan:generate — Pro, 3.2)
+│     /api/projects/[id]/tasks/run-plan (POST live-enqueue ready PENDING — Pro)
 │     /api/projects/[id]/tasks/[taskId] (GET detail+logs — Task 3.3)
 │     /api/projects/[id]/tasks/[taskId]/execute (POST dryRun? — Pro, 3.3)
 │     /api/projects/[id]/tasks/[taskId]/confirm (POST after dry-run — Pro, 3.3)
@@ -232,16 +235,17 @@ apps/
     └── public entry: src/index.ts
         deps: @aiflow/{db,queue,ai-roles,crypto}, bullmq, dockerode (MIT; **worker only**),
           tar-fs. docker.sock mount in compose is **DEV-ONLY** (OQ #4).
-        src/deploy/handler.ts — clone Gitea → dockerode.buildImage →
-          Deployment/Meta DEPLOYED|FAILED; stub url `local://image/{tag}`
+        src/deploy/handler.ts — clone Gitea → prisma db push into `app_{hex}` →
+          dockerode.buildImage → DEPLOYED|FAILED; url `docker://{tag}` + run hint
         src/plan/handler.ts — load approved Specification → generatePlanTasks
           (env provider) → soft-delete replaceable tasks → Task+deps+TaskLog
         src/code/handler.ts — code:execute: Task status/logs, dry-run →
-          AWAITING_REVIEW, live → sandbox + push + enqueue code-review
-          (does not mark DONE; Reviewer owns ACCEPTED→DONE)
+          AWAITING_REVIEW, live → seed template if empty + sandbox + push +
+          record branch/head + enqueue code-review
         src/review/handler.ts — code-review one-shot LLM Reviewer (MVP-2 4.1):
           generateReviewVerdict → TaskLog `=== REVIEW ===` JSON;
-          ACCEPTED→DONE, REJECTED→PENDING (Self-Refine → MVP-3 C1)
+          ACCEPTED → FF into main → DONE → enqueue next ready tasks;
+          REJECTED→PENDING (Self-Refine → MVP-3 C1)
         src/chat/ — chat-run multi-turn AG-UI tool loop; Redis publish
           `chat:run:{runId}`; tools via db+queue+crypto (no apps/web imports)
         src/gitea-token.ts — GITEA_ADMIN_TOKEN_FILE then GITEA_ADMIN_TOKEN
@@ -278,6 +282,9 @@ packages/
 │                             (idempotent backfill of ChatThread + threadId/parentId
 │                             for schemas created before chat Phase 1; also seeds a
 │                             "Главный" thread and links orphan messages)
+│                             task-git-backfill.ts — ensureTaskGitColumns (branchName/
+│                             headCommit/mergedAt). app-schema.ts — `app_{hex}` schema
+│                             for generated user apps (db push at deploy; OQ #2).
 │                             scripts/backfill-threads.ts — one-off runner over all
 │                             project schemas. `yarn workspace @aiflow/db backfill:threads`
 │                             scripts/seed-dev-user.ts — a Credentials login for
@@ -362,7 +369,8 @@ docker/                   Compose helpers (not a Yarn workspace).
 
 templates/                User-project scaffolds (not Yarn workspaces).
 └── user-nextjs/          Minimal Next.js App Router + TS + Prisma. Copied to
-                          Gitea on bootstrap (OQ #1).
+                          Gitea on project create (and on first codegen if the
+                          repo is still README-only) (OQ #1).
 
 compose topology          `docker compose up` (no `--build`): postgres, redis,
                           minio, gitea, **gitea-init** (idempotent admin user +

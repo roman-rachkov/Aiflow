@@ -4,6 +4,7 @@
  */
 
 import type { Job } from 'bullmq';
+import { ensureTaskGitColumns } from '@aiflow/db';
 import { getReviewQueue, validateCodePayload, type CodeExecutePayload } from '@aiflow/queue';
 
 import { cloneRepo, removeWorkDir } from '../deploy/clone';
@@ -12,13 +13,15 @@ import {
   checkoutTaskBranch,
   codeWorkDir,
   pushBranch,
+  readHeadCommit,
   resolveBranchName,
 } from './branch';
 import type { CodeHandlerDeps } from './deps';
 import { failTask, runDryRun, runLive } from './pipeline';
 import { runSandboxContainer } from './sandbox-run';
+import { ensureUserTemplate } from './seed-template';
 import { removeSecretDir, resolveApiKey, writeApiKeySecret } from './secrets';
-import { appendTaskLog, loadTask, setTaskStatus } from './status';
+import { appendTaskLog, loadTask, recordTaskGit, setTaskStatus } from './status';
 
 export type { CodeHandlerDeps } from './deps';
 
@@ -27,8 +30,11 @@ const defaultDeps: CodeHandlerDeps = {
   setTaskStatus,
   appendTaskLog,
   cloneRepo,
+  ensureUserTemplate,
   checkoutTaskBranch,
   pushBranch,
+  readHeadCommit,
+  recordTaskGit,
   captureBranchDiff,
   enqueueCodeReview: async (payload) => {
     await getReviewQueue().add('code:review', payload);
@@ -48,6 +54,7 @@ export async function handleCodeExecute(
 ): Promise<void> {
   const payload = job.data;
   validateCodePayload(payload);
+  await ensureTaskGitColumns(payload.schemaName);
   const task = await deps.loadTask(payload.schemaName, payload.taskId);
   if (!task) throw new Error(`Task not found: ${payload.taskId}`);
 

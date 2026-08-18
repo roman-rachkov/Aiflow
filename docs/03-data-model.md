@@ -200,6 +200,9 @@ model Task {
   updatedAt   DateTime  @updatedAt
   startedAt   DateTime?
   completedAt DateTime?
+  branchName  String?   // task/{id}-{slug}, null until the sandbox starts
+  headCommit  String?   // SHA the sandbox produced
+  mergedAt    DateTime? // set when the branch fast-forwards into main
   deletedAt   DateTime?
 
   logs       TaskLog[]

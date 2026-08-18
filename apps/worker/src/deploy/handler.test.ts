@@ -23,6 +23,7 @@ function mockDeps(overrides: Partial<DeployHandlerDeps> = {}): DeployHandlerDeps
   return {
     cloneRepo: vi.fn(() => Promise.resolve()),
     buildDockerImage: vi.fn(() => Promise.resolve({ imageTag: 'aistudio/demo:tag' })),
+    pushUserAppSchema: vi.fn(() => Promise.resolve({ appSchema: 'app_aaa', skipped: false })),
     appendDeployLog: vi.fn(() => Promise.resolve()),
     finishDeploy: vi.fn(() => Promise.resolve()),
     removeWorkDir: vi.fn(() => Promise.resolve()),
@@ -58,7 +59,7 @@ describe('handleDeployRun', () => {
       expect.objectContaining({
         status: 'DEPLOYED',
         imageTag: 'aistudio/demo:20260807020000',
-        url: 'local://image/aistudio/demo:20260807020000',
+        url: 'docker://aistudio/demo:20260807020000',
       }),
     );
     expect(deps.removeWorkDir).toHaveBeenCalled();
