@@ -92,6 +92,7 @@ The quality gate is real: `--max-warnings 0` blocks lint failures, and Prettier 
 | Command                                       | Purpose                                                                                           |
 | --------------------------------------------- | ------------------------------------------------------------------------------------------------- |
 | `yarn verify`                                 | The CI gate: typecheck → lint → format:check → test. Run before marking anything done             |
+| `yarn evals`                                  | Golden SPEC→plan→code + prompt contracts (MVP-3 B3); offline default; `EVALS_LIVE=1` for live LLM |
 | `yarn typecheck` / `yarn lint` / `yarn test`  | Individual gates. `typecheck` fans out via Lerna; `lint` and `test` run once at the root          |
 | `yarn format`                                 | Fix formatting; `format:check` only reports                                                       |
 | `yarn workspace @aiflow/web docs:ingest`      | Rebuild stable dogfood RAG index (docs + filtered source → pgvector); needs Postgres + embeddings |
@@ -148,7 +149,7 @@ These rules govern code the _product_ generates, not code we write. Needed only 
 
 ## Port allocation → `/ai-studio-internals`
 
-Host ports: 3000, 3001, 3002, 5432, 6379, 9000/9001. The Gitea 3000/3002 split and all details are in [`ai-studio-internals`](.claude/skills/ai-studio-internals/SKILL.md).
+Host ports: 3000, 3001, 3002, 3100 (Langfuse), 5432, 6379, 9000/9001. The Gitea 3000/3002 split and all details are in [`ai-studio-internals`](.claude/skills/ai-studio-internals/SKILL.md).
 
 ## One thing that will waste your time
 

@@ -1,0 +1,8 @@
+{
+  "minTasks": 3,
+  "maxTasks": 12,
+  "mustIncludeTitleSubstrings": ["Todo", "Smoke"],
+  "mustNotIncludeSubstrings": ["payment", "Stripe", "OAuth provider"],
+  "requireSmokeTest": true,
+  "requiredMentions": ["User", "Prisma", "Todo"]
+}

@@ -1,0 +1,19 @@
+{
+  "name": "@aiflow/evals",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": "./src/cli.ts",
+  "scripts": {
+    "evals": "tsx src/cli.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@aiflow/ai-roles": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  }
+}
