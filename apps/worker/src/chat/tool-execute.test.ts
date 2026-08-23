@@ -1,16 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const executeDeploy = vi.fn(async () => ({ heading: 'deploy', content: { ok: true } }));
+const { executeDeploy } = vi.hoisted(() => ({
+  executeDeploy: vi.fn(() => Promise.resolve({ heading: 'deploy', content: { ok: true } })),
+}));
 
 vi.mock('./tool-handlers', () => ({
-  executeSpecGenerate: vi.fn(async () => ({ heading: 'spec', content: { ok: true } })),
-  executeListTasks: vi.fn(async () => ({ heading: 'list', content: [] })),
-  executeTaskStatus: vi.fn(async () => ({ heading: 'status', content: {} })),
-  executeRunPlanner: vi.fn(async () => ({ heading: 'plan', content: { ok: true } })),
-  executeRunCoder: vi.fn(async () => ({ heading: 'coder', content: { ok: true } })),
+  executeSpecGenerate: vi.fn(() => Promise.resolve({ heading: 'spec', content: { ok: true } })),
+  executeListTasks: vi.fn(() => Promise.resolve({ heading: 'list', content: [] })),
+  executeTaskStatus: vi.fn(() => Promise.resolve({ heading: 'status', content: {} })),
+  executeRunPlanner: vi.fn(() => Promise.resolve({ heading: 'plan', content: { ok: true } })),
+  executeRunCoder: vi.fn(() => Promise.resolve({ heading: 'coder', content: { ok: true } })),
   executeDeploy,
-  executeListFiles: vi.fn(async () => ({ heading: 'files', content: [] })),
-  executeReadFile: vi.fn(async () => ({ heading: 'file', content: '' })),
+  executeListFiles: vi.fn(() => Promise.resolve({ heading: 'files', content: [] })),
+  executeReadFile: vi.fn(() => Promise.resolve({ heading: 'file', content: '' })),
 }));
 
 import { executeTool, type ToolExecContext } from './tool-execute';

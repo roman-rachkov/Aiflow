@@ -28,14 +28,7 @@ export async function runChatJob(payload: ChatRunPayload): Promise<void> {
 async function runWithPublisher(payload: ChatRunPayload, publisher: AguiEmitter): Promise<void> {
   const { schemaName, threadId, runId, userMessage } = payload;
   const emit = publisher.emit;
-
-  let ragContext = '';
-  try {
-    ragContext = await retrieveContext(schemaName, userMessage);
-  } catch {
-    ragContext = '';
-  }
-
+  const ragContext = await safeRetrieve(schemaName, userMessage);
   const history = await listMessagesByThread(schemaName, threadId);
   const resolved = await resolveAnalystProvider(schemaName);
   const config: ChatConfig = {
@@ -44,30 +37,19 @@ async function runWithPublisher(payload: ChatRunPayload, publisher: AguiEmitter)
     systemPrompt: withRagContext(readSystemPrompt(), ragContext),
     tools: TOOL_DEFINITIONS,
   };
-
   const messageId = crypto.randomUUID();
   await emit({ type: 'RUN_STARTED', threadId, runId });
   await emit({ type: 'TEXT_MESSAGE_START', messageId, role: 'assistant' });
-
-  let fullText = '';
-  let usage: ChatResult = { tokensIn: null, tokensOut: null };
-
   try {
-    for (let iter = 0; iter < MAX_TOOL_ITERS; iter++) {
-      const turn = await drainModelTurn({
-        payload,
-        history,
-        config,
-        resolved,
-        emit,
-        messageId,
-        ragContext,
-      });
-      fullText += turn.text;
-      usage = sumUsage(usage, turn.usage);
-      if (turn.completed.length === 0) break;
-      appendToolTurn(history, turn.text, turn.completed);
-    }
+    const { fullText, usage } = await runToolLoop({
+      payload,
+      history,
+      config,
+      resolved,
+      emit,
+      messageId,
+      ragContext,
+    });
     await emit({ type: 'TEXT_MESSAGE_END', messageId });
     await saveAssistantMessage(schemaName, {
       content: fullText,
@@ -80,6 +62,27 @@ async function runWithPublisher(payload: ChatRunPayload, publisher: AguiEmitter)
     const message = error instanceof Error ? error.message : 'Ошибка стриминга';
     await emit({ type: 'RUN_ERROR', message, threadId, runId });
   }
+}
+
+async function safeRetrieve(schemaName: string, userMessage: string): Promise<string> {
+  try {
+    return await retrieveContext(schemaName, userMessage);
+  } catch {
+    return '';
+  }
+}
+
+async function runToolLoop(args: DrainArgs): Promise<{ fullText: string; usage: ChatResult }> {
+  let fullText = '';
+  let usage: ChatResult = { tokensIn: null, tokensOut: null };
+  for (let iter = 0; iter < MAX_TOOL_ITERS; iter++) {
+    const turn = await drainModelTurn(args);
+    fullText += turn.text;
+    usage = sumUsage(usage, turn.usage);
+    if (turn.completed.length === 0) break;
+    appendToolTurn(args.history, turn.text, turn.completed);
+  }
+  return { fullText, usage };
 }
 
 interface DrainArgs {

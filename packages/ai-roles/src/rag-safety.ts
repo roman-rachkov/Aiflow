@@ -53,8 +53,7 @@ export function isMutatingChatTool(toolName: string): boolean {
 export function allowMutatingTool(toolName: string, userText: string, ragContext: string): boolean {
   if (!isMutatingChatTool(toolName)) return true;
   if (!ragLooksInjected(ragContext)) return true;
-  const intent = USER_WRITE_INTENT[toolName];
-  return intent ? intent.test(userText) : false;
+  return USER_WRITE_INTENT[toolName as MutatingChatTool].test(userText);
 }
 
 /** Wrap retrieved chunks so the model treats them as untrusted DATA. */
