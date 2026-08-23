@@ -148,7 +148,7 @@ These rules govern code the _product_ generates, not code we write. Needed only 
 
 ## Port allocation → `/ai-studio-internals`
 
-Host ports: 3000, 3001, 3002, 5432, 6379, 9000/9001. The Gitea 3000/3002 split and all details are in [`ai-studio-internals`](.claude/skills/ai-studio-internals/SKILL.md).
+Host ports: 3000, 3001, 3002, 3100 (Langfuse), 5432, 6379, 9000/9001. The Gitea 3000/3002 split and all details are in [`ai-studio-internals`](.claude/skills/ai-studio-internals/SKILL.md).
 
 ## One thing that will waste your time
 
