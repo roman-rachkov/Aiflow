@@ -66,8 +66,11 @@ function checkMention(caseId: string, tasks: PlanTask[], needle: string): CheckR
 }
 
 function checkSmokeTest(caseId: string, tasks: PlanTask[]): CheckResult {
-  const last = tasks[tasks.length - 1];
-  const text = last ? `${last.title}\n${last.acceptance}`.toLowerCase() : '';
+  const last = tasks.at(-1);
+  if (!last) {
+    return { name: `${caseId}:smoke-test`, ok: false, detail: 'empty plan' };
+  }
+  const text = `${last.title}\n${last.acceptance}`.toLowerCase();
   const ok = /smoke|e2e|end-to-end|primary (user )?path/.test(text);
   return {
     name: `${caseId}:smoke-test`,
