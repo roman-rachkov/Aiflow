@@ -9,6 +9,7 @@ vi.mock('@aiflow/db', () => ({
 
 import { handleCodeExecute, type CodeHandlerDeps } from './handler';
 import { resolveBranchName, slugifyTitle } from './branch';
+import { ATTEMPT_MARKER, stepDoneMarker } from './pipeline-steps';
 import { parseResultFromLogs } from './result';
 
 const PAYLOAD: CodeExecutePayload = {
@@ -41,10 +42,13 @@ function mockDeps(overrides: Partial<CodeHandlerDeps> = {}): CodeHandlerDeps {
     claimInProgress: vi.fn(() => Promise.resolve(true)),
     setTaskStatus: vi.fn(() => Promise.resolve()),
     appendTaskLog: vi.fn(() => Promise.resolve()),
+    listTaskLogMessages: vi.fn(() => Promise.resolve([])),
     cloneRepo: vi.fn(() => Promise.resolve()),
     ensureUserTemplate: vi.fn(() => Promise.resolve(false)),
     checkoutTaskBranch: vi.fn(() => Promise.resolve()),
     pushBranch: vi.fn(() => Promise.resolve()),
+    pushCheckpointRef: vi.fn(() => Promise.resolve()),
+    restoreCheckpointCommit: vi.fn(() => Promise.resolve()),
     readHeadCommit: vi.fn(() => Promise.resolve('abc123')),
     recordTaskGit: vi.fn(() => Promise.resolve()),
     captureBranchDiff: vi.fn(() => Promise.resolve('diff --git a/x\n')),
@@ -106,12 +110,13 @@ describe('handleCodeExecute dry-run and live', () => {
     expect(deps.removeWorkDir).toHaveBeenCalled();
   });
 
-  it('live path clones, runs sandbox, checkpoints then push+review', async () => {
+  it('live path clones, sandbox, checkpoint ref, push+review', async () => {
     const deps = mockDeps();
     await handleCodeExecute(job({ ...PAYLOAD, dryRun: false }), deps);
 
     expect(deps.cloneRepo).toHaveBeenCalled();
     expect(deps.runSandboxContainer).toHaveBeenCalled();
+    expect(deps.pushCheckpointRef).toHaveBeenCalled();
     expect(deps.recordTaskGit).toHaveBeenCalledWith(
       expect.objectContaining({
         branchName: expect.stringContaining('task/'),
@@ -132,7 +137,7 @@ describe('handleCodeExecute dry-run and live', () => {
   });
 });
 
-describe('handleCodeExecute idempotency', () => {
+describe('handleCodeExecute A2 skip-done', () => {
   it('skips work when task already DONE', async () => {
     const deps = mockDeps({
       loadTask: vi.fn(() => Promise.resolve({ ...TASK, status: 'DONE' as const })),
@@ -146,8 +151,14 @@ describe('handleCodeExecute idempotency', () => {
       expect.stringContaining('DONE'),
     );
   });
+});
 
-  it('resume-after-push skips sandbox and re-enqueues review', async () => {
+describe('handleCodeExecute A2 crash-on-PUSH doc-test', () => {
+  /**
+   * Roadmap A2: crashed on PUSH → restart → commit lands once.
+   * headCommit + checkpoint ref durable; sandbox must not re-run; push once.
+   */
+  it('restores checkpoint, pushes once, skips sandbox', async () => {
     const deps = mockDeps({
       loadTask: vi.fn(() =>
         Promise.resolve({
@@ -157,11 +168,21 @@ describe('handleCodeExecute idempotency', () => {
           branchName: 'task/task-123-add-recipe-model',
         }),
       ),
+      listTaskLogMessages: vi.fn(() =>
+        Promise.resolve([`${ATTEMPT_MARKER}\n`, `${stepDoneMarker('PARSE')}\n`]),
+      ),
     });
     await handleCodeExecute(job({ ...PAYLOAD, dryRun: false }), deps);
+
     expect(deps.runSandboxContainer).not.toHaveBeenCalled();
-    expect(deps.pushBranch).toHaveBeenCalled();
-    expect(deps.enqueueCodeReview).toHaveBeenCalled();
+    expect(deps.pushCheckpointRef).not.toHaveBeenCalled();
+    expect(deps.restoreCheckpointCommit).toHaveBeenCalledWith(
+      expect.any(String),
+      PAYLOAD.taskId,
+      'abc123',
+    );
+    expect(deps.pushBranch).toHaveBeenCalledTimes(1);
+    expect(deps.enqueueCodeReview).toHaveBeenCalledTimes(1);
     expect(deps.appendTaskLog).toHaveBeenCalledWith(
       PAYLOAD.schemaName,
       PAYLOAD.taskId,

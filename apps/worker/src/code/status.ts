@@ -87,6 +87,16 @@ export async function appendTaskLog(
   });
 }
 
+/** Chronological TaskLog messages for pipeline step resume (A2). */
+export async function listTaskLogMessages(schemaName: string, taskId: string): Promise<string[]> {
+  const rows = await getProjectClient(schemaName).taskLog.findMany({
+    where: { taskId },
+    orderBy: { createdAt: 'asc' },
+    select: { message: true },
+  });
+  return rows.map((r) => r.message);
+}
+
 export type SetTaskStatusInput = {
   schemaName: string;
   taskId: string;

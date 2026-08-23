@@ -293,14 +293,19 @@ git checkpoint); stalled `IN_PROGRESS` resumes; `headCommit` recorded **before**
 push so crash mid-push → `resume-after-push` (skip sandbox, re-push + re-enqueue
 review); DONE / DEPLOYED are no-op skips; `finishDeploy` only transitions from
 `BUILDING`. BullMQ still fail-fast (`attempts: 1`); operator re-enqueues after
-FAILED. Step-encoded pipeline resume → A2.
+FAILED. Step-encoded pipeline resume shipped in A2.
 
-**A2. Status machine as source of truth + resumability.** A crashed worker resumes
-from the last checkpoint, not from zero. Integration: `TaskLog` (already the
-checkpoint), `apps/worker/src/code/pipeline.ts`. Approach: explicit step encoding
-(`CLONE→CHECKOUT→SANDBOX→PARSE→PUSH→DONE`), each step idempotent by
-`(taskId, step)`; BullMQ resume replays from the first unfinished step. Done when
-the "crashed on PUSH → restart → commit lands once" doc-test passes.
+**A2. Status machine as source of truth + resumability.** — done (2026-08-23)
+
+A crashed worker resumes from the last durable checkpoint, not from zero.
+Integration: `TaskLog` step markers + `headCommit` / git checkpoint ref,
+`apps/worker/src/code/pipeline{,-live,-steps}.ts`, `git-checkpoint.ts`.
+Steps: `CLONE→CHECKOUT→SANDBOX→PARSE→PUSH→DONE` (DONE = enqueue
+`code-review`). PARSE pushes `refs/aistudio/task/{taskId}` before recording
+`headCommit` so a mid-PUSH crash restores the commit after workDir wipe.
+Resume: no `headCommit` → restart at CLONE; with `headCommit` → PUSH or DONE
+from TaskLog; all steps done → no-op wait for review. Doc-test: crashed on
+PUSH → restart → sandbox skipped, push once.
 
 **A3. Audit trails.** Every significant role action (Coder commit, Reviewer
 verdict, deploy) is an audit event. Integration: new `AuditEvent` model in the
