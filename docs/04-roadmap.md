@@ -313,9 +313,16 @@ physically cannot commit even under injection.
 
 #### Track B — Observability & Evals (Langfuse)
 
-**B1. Langfuse self-host in compose.** Service in `docker-compose.yml`,
-Postgres-backed, OTLP receiver. Done when `docker compose up` brings up the
-Langfuse UI on a dedicated port.
+**B1. Langfuse self-host in compose.** — done (2026-08-23)
+
+`langfuse-web` + `langfuse-worker` (`langfuse/langfuse:3`) in
+`docker-compose.yml`, UI on host **3100**. Shared Postgres DB `langfuse`
+(`docker/postgres/init/02-langfuse-db.sql`), shared MinIO bucket (init script),
+dedicated `clickhouse` + `langfuse-redis` (BullMQ redis stays untouched).
+Secrets via `LANGFUSE_*` / `CLICKHOUSE_*` in `.env.example`. OTLP/SDK tracing
+of role calls → B2. Done criterion: `docker compose up` serves Langfuse UI
+at `http://localhost:3100` (verify on a host with Docker; this agent env had
+no docker daemon).
 
 **B2. Trace every LLM call.** Prompt/tokens/latency/cost/errors for
 Analyst/Planner/Coder/Reviewer, linked to project/task. Integration: the wrapper

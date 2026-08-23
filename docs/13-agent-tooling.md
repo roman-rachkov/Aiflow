@@ -263,24 +263,27 @@ it" stance above holds until C3 ships.
 
 ---
 
-## 5a. LLM observability — Langfuse (planned, MVP-3)
+## 5a. LLM observability — Langfuse (MVP-3 B1 shipped; B2 next)
 
 MVP-3 adds a single observability layer for every LLM role
 ([04-roadmap.md](04-roadmap.md) § 5, tracks B1–B4; decision E2 in
 [14-decisions-needed.md](14-decisions-needed.md)).
 
-**Langfuse self-host** ships as a service in `docker-compose.yml` (Postgres-
-backed, OTLP receiver). A wrapper over `createOpenAICompatibleProvider` in
+**B1 (2026-08-23):** Langfuse v3 self-host in `docker-compose.yml` —
+`langfuse-web` (host **3100**), `langfuse-worker`, dedicated `clickhouse` +
+`langfuse-redis`, OLTP DB `langfuse` on shared Postgres, MinIO bucket via
+`docker/minio/ensure-langfuse-bucket.sh`. Licence: Langfuse is MIT (OSS). Dev
+seed user/keys via `LANGFUSE_INIT_*` in `.env.example`. Existing Postgres
+volumes need a one-shot `CREATE DATABASE langfuse;`.
+
+**B2 (next):** wrapper over `createOpenAICompatibleProvider` in
 `packages/ai-roles/src/openai-compatible.ts` — the single chokepoint of all
 roles — traces prompt/tokens/latency/cost/errors for Analyst/Planner/Coder/
 Reviewer, linked to project/task. The `traceId` propagates into `TaskLog` and
-`AuditEvent` for cross-link (so a Coder attempt is visible end-to-end, from queue
-to LLM call to commit/verdict). An `LLMCall` row in the public schema stays as a
+`AuditEvent` for cross-link. An `LLMCall` row in the public schema stays as a
 cold fallback/audit, not the primary path.
 
-This section is the placeholder — populate it (licence verdict, ingestion
-format, role→trace mapping) when B1 ships. Until then it does not exist in the
-tree. Evals (B3) build on Langfuse datasets; the prompt-injection red-team (B4)
+Evals (B3) build on Langfuse datasets; the prompt-injection red-team (B4)
 targets the Analyst `withRagContext` surface.
 
 ---

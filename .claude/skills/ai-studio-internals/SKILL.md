@@ -11,7 +11,7 @@ Source documents remain authoritative. Where this file and a `docs/` file disagr
 
 ## Port allocation
 
-Host ports: **3000** Next.js app, **3001** model-router, **3002** Gitea, 5432 Postgres, 6379 Redis, 9000/9001 MinIO. Full explanation at `docs/10-infrastructure.md:274`.
+Host ports: **3000** Next.js app, **3001** model-router, **3002** Gitea, **3100** Langfuse UI (MVP-3 B1), 5432 Postgres, 6379 Redis, 9000/9001 MinIO. Full explanation at `docs/10-infrastructure.md:274`.
 
 Gitea listens on 3000 _inside_ its container (its default) and publishes to 3002 on the host. So `GITEA_URL` is `http://gitea:3000` for inter-service calls, its healthcheck targets `localhost:3000` (runs inside the container), but `GITEA__server__ROOT_URL` is `http://localhost:3002/`. Both numbers are correct in their own context — don't "fix" one to match the other.
 
