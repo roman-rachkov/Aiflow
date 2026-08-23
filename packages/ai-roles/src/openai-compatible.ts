@@ -19,6 +19,7 @@ import type { OpenAICompatibleProvider, ProviderConfig } from './types';
 import { liveChatWithTools, liveChatWithUsage, streamLiveChat } from './live-chat';
 import { mockChatStream, withNullUsageStream } from './mock-chat';
 import { mockEmbed } from './mock-embeddings';
+import { withPolicyGuard } from './policy-guard';
 
 /** True when `config.apiKey` is present and non-empty (=> LIVE mode). */
 function hasKey(config: ProviderConfig): boolean {
@@ -52,7 +53,7 @@ async function liveEmbed(texts: string[], provider: ProviderConfig): Promise<num
  */
 export function createOpenAICompatibleProvider(config: ProviderConfig): OpenAICompatibleProvider {
   const live = hasKey(config);
-  return {
+  const inner: OpenAICompatibleProvider = {
     async *chat(messages, cfg) {
       if (!live) {
         yield* mockChatStream(messages);
@@ -85,4 +86,5 @@ export function createOpenAICompatibleProvider(config: ProviderConfig): OpenAICo
       return live ? liveEmbed(texts, config) : mockEmbed(texts);
     },
   };
+  return withPolicyGuard(inner);
 }

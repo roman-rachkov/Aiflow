@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   auditCoderPush,
   auditDeployFinish,
+  auditPolicyViolation,
   auditReviewerVerdict,
   type RecordAuditFn,
 } from './audit';
@@ -72,5 +73,26 @@ describe('auditDeployFinish', () => {
       afterHash: 'aistudio/repo:1',
       metadata: { status: 'DEPLOYED' },
     });
+  });
+});
+
+describe('auditPolicyViolation', () => {
+  it('records policy.violation then throws', async () => {
+    const record = mockRecord();
+    await expect(
+      auditPolicyViolation(record, {
+        projectId: 'p1',
+        taskId: 't1',
+        role: 'reviewer',
+        capability: 'write-commit',
+      }),
+    ).rejects.toThrow(/write-commit/);
+    expect(record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'policy.violation',
+        actorRole: 'SYSTEM',
+        metadata: { role: 'reviewer', capability: 'write-commit' },
+      }),
+    );
   });
 });

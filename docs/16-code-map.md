@@ -336,6 +336,9 @@ packages/
 │                               parameterized ${baseURL}/chat/completions streaming +
 │                               /embeddings; mock path when no key (canned chat,
 │                               deterministic 768-dim embeddings)
+│                             policy.ts / policy-guard.ts — role capability sets +
+│                               withPolicyGuard on provider (MVP-3 A4); Reviewer
+│                               lacks write-commit
 │                             env-provider.ts — createProviderFromEnv() /
 │                               readProviderConfigFromEnv(): the app seam; one
 │                               OpenAI-compatible provider from OPENAI_* env
@@ -468,7 +471,7 @@ branch.
 | Idempotent `code:execute` / `deploy:run` (claim + headCommit/finish dedup) | A1 **done 2026-08-23** | `apps/worker/src/code/{handler,claim,status}.ts`, `apps/worker/src/deploy/{handler,claim,status}.ts`                                |
 | Step-encoded resumable pipeline (`CLONE…DONE` + checkpoint ref)            | A2 **done 2026-08-23** | `apps/worker/src/code/pipeline{,-live,-steps,}.ts`, `git-checkpoint.ts`; TaskLog step markers                                       |
 | `AuditEvent` model (append-only, role/action/target/traceId)               | A3 **done 2026-08-23** | `packages/db` (`AuditEvent` + `recordAudit`/`listAuditEvents`); worker `src/audit.ts`; Pro feed `features/audit` + `/api/.../audit` |
-| Role policy guard (capability set)                                         | A4                     | `packages/ai-roles/src/policy.ts`; enforced inside the provider wrapper                                                             |
+| Role policy guard (capability set)                                         | A4 **done 2026-08-23** | `packages/ai-roles` `policy.ts` + `policy-guard.ts`; PUSH asserts `write-commit`; violation → AuditEvent                            |
 | Langfuse service                                                           | B1                     | `docker-compose.yml` (new service, Postgres-backed)                                                                                 |
 | LLM-call tracing wrapper                                                   | B2                     | `packages/ai-roles/src/openai-compatible.ts` (the single chokepoint); `traceId` → `TaskLog`/`AuditEvent`                            |
 | Evals framework + CI job on prompt change                                  | B3                     | Promptfoo or Langfuse datasets; CI fires on `.claude/agents/**` change                                                              |

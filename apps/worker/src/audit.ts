@@ -1,8 +1,8 @@
 /**
- * Worker-side audit recording (MVP-3 A3). Thin wrapper so handlers stay
- * injectable and unit tests can noop without a DB.
+ * Worker-side audit recording (MVP-3 A3) + policy-violation audit (A4).
  */
 
+import { PolicyViolationError, type AiRole, type Capability } from '@aiflow/ai-roles';
 import { recordAudit, type RecordAuditInput } from '@aiflow/db';
 
 export type RecordAuditFn = (input: RecordAuditInput) => Promise<unknown>;
@@ -77,4 +77,26 @@ export async function auditDeployFinish(
     afterHash: args.imageTag ?? null,
     metadata: { status: args.status },
   });
+}
+
+/** Audit + rethrow a policy violation (MVP-3 A4). */
+export async function auditPolicyViolation(
+  record: RecordAuditFn,
+  args: {
+    projectId: string;
+    taskId?: string | null;
+    role: AiRole;
+    capability: Capability;
+  },
+): Promise<never> {
+  await record({
+    projectId: args.projectId,
+    taskId: args.taskId ?? null,
+    actorRole: 'SYSTEM',
+    action: 'policy.violation',
+    targetType: args.taskId ? 'Task' : 'Project',
+    targetId: args.taskId ?? args.projectId,
+    metadata: { role: args.role, capability: args.capability },
+  });
+  throw new PolicyViolationError(args.role, args.capability);
 }

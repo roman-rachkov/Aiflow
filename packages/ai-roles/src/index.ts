@@ -27,3 +27,16 @@ export {
   type ReviewVerdict,
   type ReviewVerdictKind,
 } from './reviewer';
+export {
+  assertCapability,
+  assertRoleMayCallLlm,
+  getActiveRole,
+  hasCapability,
+  PolicyViolationError,
+  ROLE_CAPABILITIES,
+  runWithRole,
+  runWithRoleAsync,
+  type AiRole,
+  type Capability,
+} from './policy';
+export { withPolicyGuard } from './policy-guard';

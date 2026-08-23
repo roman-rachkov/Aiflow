@@ -319,12 +319,16 @@ hooked at PUSH, review settle, and deploy finish; Pro-mode event feed via
 page. Stacked on A2 (pipeline step hooks). Done criterion: a `taskId`
 reconstructs its full attempt + verdict history from `AuditEvent` rows.
 
-**A4. Policy layer for roles.** A deterministic guard "what a role may do" _before_
-the LLM call; tool-calling capability ≠ permission. Integration: new
-`packages/ai-roles/src/policy.ts`; role → capability set (`read-spec`, `read-diff`,
-`write-commit`, `verdict`). Approach: guard inside the provider wrapper (E2);
-violation → audit + throw, never "the LLM decided". Done when the Reviewer
-physically cannot commit even under injection.
+**A4. Policy layer for roles.** — done (2026-08-23)
+
+A deterministic guard "what a role may do" _before_ the LLM call; tool-calling
+capability ≠ permission (E4). Integration: `packages/ai-roles/src/policy.ts`
+(role → capability set: `read-spec`, `read-diff`, `write-commit`, `verdict`,
+…); `withPolicyGuard` on `createOpenAICompatibleProvider`; Planner/Reviewer
+bind role via `runWithRoleAsync` + `assertCapability`; coder PUSH asserts
+`write-commit`. Violation → `policy.violation` AuditEvent +
+`PolicyViolationError`. Done criterion: Reviewer physically cannot
+`write-commit` even under injection (unit-tested).
 
 #### Track B — Observability & Evals (Langfuse)
 

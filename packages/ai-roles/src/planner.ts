@@ -5,6 +5,7 @@
 
 import type { ChatConfig, ChatMessage, ModelProvider } from './types';
 import { PLANNER_MAX_TASKS, PLANNER_SYSTEM_PROMPT } from './planner-prompt';
+import { assertCapability, runWithRoleAsync } from './policy';
 
 /** Priority strings allowed in planner JSON (lowercase). */
 export type PlanTaskPriority = 'critical' | 'high' | 'medium' | 'low';
@@ -110,6 +111,18 @@ export async function generatePlanTasks(
   provider: ModelProvider,
   specMarkdown: string,
   options: GeneratePlanOptions = {},
+): Promise<PlanTask[]> {
+  return runWithRoleAsync('planner', async () => {
+    assertCapability('plan-tasks');
+    assertCapability('read-spec');
+    return generatePlanTasksInner(provider, specMarkdown, options);
+  });
+}
+
+async function generatePlanTasksInner(
+  provider: ModelProvider,
+  specMarkdown: string,
+  options: GeneratePlanOptions,
 ): Promise<PlanTask[]> {
   const maxRetries = options.maxRetries ?? MAX_PARSE_RETRIES;
   const config: ChatConfig = {
