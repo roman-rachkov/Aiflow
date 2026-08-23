@@ -337,10 +337,17 @@ this wrapper — Reviewer traces cover the code-execute → review path.
 Done criterion: with Langfuse up and keys set, a Reviewer/Planner/Analyst call
 appears in the Langfuse UI; without keys, chat/embed behave as before.
 
-**B3. Evals framework (golden set + regression).** A SPEC→plan→code case set;
-prompt/model regression on change. Approach: Promptfoo or Langfuse datasets; a CI
-job fires when a prompt in `.claude/agents/` changes. Done when a Coder prompt
-change cannot merge without an evals run.
+**B3. Evals framework (golden set + regression).** — done (2026-08-23)
+
+A SPEC→plan→code golden set under `tools/evals/cases/` plus prompt-contract
+checks for Planner/Reviewer/Coder (`.claude/agents/*` + sandbox
+`CODER_CORE_PROMPT` + runtime prompts in `@aiflow/ai-roles`). Offline fixtures
+are the default CI path (`yarn evals`); `EVALS_LIVE=1` optionally calls the env
+LLM provider. Langfuse score upload via the same public ingestion API as B2 —
+noop when `LANGFUSE_*` keys unset. GitHub Actions workflow
+`.github/workflows/evals.yml` path-filters on `.claude/agents/**`,
+`docker/aider-sandbox/**`, planner/reviewer sources, and `tools/evals/**`, so a
+Coder prompt change cannot merge without an evals run.
 
 **B4. Prompt-injection red-team.** Uploaded RAG documents must not break policy or
 exfiltrate the key. Integration: the Analyst mixes user content into its system

@@ -92,6 +92,7 @@ The quality gate is real: `--max-warnings 0` blocks lint failures, and Prettier 
 | Command                                       | Purpose                                                                                           |
 | --------------------------------------------- | ------------------------------------------------------------------------------------------------- |
 | `yarn verify`                                 | The CI gate: typecheck → lint → format:check → test. Run before marking anything done             |
+| `yarn evals`                                  | Golden SPEC→plan→code + prompt contracts (MVP-3 B3); offline default; `EVALS_LIVE=1` for live LLM |
 | `yarn typecheck` / `yarn lint` / `yarn test`  | Individual gates. `typecheck` fans out via Lerna; `lint` and `test` run once at the root          |
 | `yarn format`                                 | Fix formatting; `format:check` only reports                                                       |
 | `yarn workspace @aiflow/web docs:ingest`      | Rebuild stable dogfood RAG index (docs + filtered source → pgvector); needs Postgres + embeddings |

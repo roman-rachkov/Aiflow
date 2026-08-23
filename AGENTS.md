@@ -23,7 +23,8 @@ Real packages today: `apps/web` (Next.js 15 App Router), `packages/db` (Prisma, 
 for `deploy-run`, `plan-generate`, `code-execute`, `code-review`, and `chat-run`; `spec-generate` is dormant — SPEC
 generation runs from the chat tool on the worker, so that queue stub-acks),
 `services/registry-proxy` (sandbox egress allowlist), `tools/session-analyzer`
-(dev-only analytics). Declared-but-empty stub (do not assume it works yet):
+(dev-only analytics), `tools/evals` (MVP-3 B3 golden SPEC→plan→code evals;
+`yarn evals`; CI on prompt-path changes). Declared-but-empty stub (do not assume it works yet):
 `services/model-router`. The code map at `docs/16-code-map.md` tracks which is
 which — read it first.
 
@@ -65,6 +66,7 @@ Run with `yarn`. `yarn verify` reproduces CI: typecheck → lint → format:chec
 | Command                                                                                                         | Purpose                                                                                                                                                                                               |
 | --------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `yarn verify`                                                                                                   | The CI gate — run before marking anything done                                                                                                                                                        |
+| `yarn evals`                                                                                                    | Golden SPEC→plan→code + prompt contracts (MVP-3 B3); offline by default; `EVALS_LIVE=1` for live Planner                                                                                              |
 | `yarn typecheck` / `yarn lint` / `yarn test`                                                                    | Individual gates (`typecheck` fans out via Lerna; `lint`/`test` run at root)                                                                                                                          |
 | `yarn format` / `yarn format:check`                                                                             | Prettier write / check only                                                                                                                                                                           |
 | `apps/web`: `yarn dev`, `yarn build`                                                                            | Next.js (binds `0.0.0.0:3000` for compose); production build                                                                                                                                          |
