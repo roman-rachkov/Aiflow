@@ -7,6 +7,8 @@ import type { Job } from 'bullmq';
 import {
   createProviderFromEnv,
   generateReviewVerdict,
+  getCurrentTraceId,
+  runWithTraceContext,
   type ReviewTaskInput,
   type ReviewVerdict,
 } from '@aiflow/ai-roles';
@@ -73,13 +75,34 @@ export async function handleCodeReview(
     'LLM-ревью запущено…\n',
   );
 
-  const verdict = await deps.generateVerdict({
-    title: task.title,
-    description: task.description,
-    acceptance: task.acceptance,
-    diff: payload.diff,
-    checks: payload.checks,
-  });
+  let traceId: string | undefined;
+  const verdict = await runWithTraceContext(
+    {
+      role: 'reviewer',
+      projectId: payload.projectId,
+      taskId: payload.taskId,
+      tags: ['code-review'],
+    },
+    async () => {
+      const result = await deps.generateVerdict({
+        title: task.title,
+        description: task.description,
+        acceptance: task.acceptance,
+        diff: payload.diff,
+        checks: payload.checks,
+      });
+      traceId = getCurrentTraceId();
+      return result;
+    },
+  );
+
+  if (traceId) {
+    await deps.applyVerdict.appendTaskLog(
+      payload.schemaName,
+      payload.taskId,
+      `langfuseTraceId=${traceId}\n`,
+    );
+  }
 
   await settleVerdict(payload, verdict, deps);
   return verdict;

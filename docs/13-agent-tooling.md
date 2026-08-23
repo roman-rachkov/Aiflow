@@ -263,7 +263,7 @@ it" stance above holds until C3 ships.
 
 ---
 
-## 5a. LLM observability — Langfuse (MVP-3 B1 shipped; B2 next)
+## 5a. LLM observability — Langfuse (MVP-3 B1 + B2 shipped)
 
 MVP-3 adds a single observability layer for every LLM role
 ([04-roadmap.md](04-roadmap.md) § 5, tracks B1–B4; decision E2 in
@@ -276,12 +276,14 @@ MVP-3 adds a single observability layer for every LLM role
 seed user/keys via `LANGFUSE_INIT_*` in `.env.example`. Existing Postgres
 volumes need a one-shot `CREATE DATABASE langfuse;`.
 
-**B2 (next):** wrapper over `createOpenAICompatibleProvider` in
-`packages/ai-roles/src/openai-compatible.ts` — the single chokepoint of all
-roles — traces prompt/tokens/latency/cost/errors for Analyst/Planner/Coder/
-Reviewer, linked to project/task. The `traceId` propagates into `TaskLog` and
-`AuditEvent` for cross-link. An `LLMCall` row in the public schema stays as a
-cold fallback/audit, not the primary path.
+**B2 (2026-08-23):** wrapper over `createOpenAICompatibleProvider` in
+`packages/ai-roles` — traces prompt/tokens/latency/errors for Analyst/Planner/
+Reviewer (and embeddings). Env: `LANGFUSE_PUBLIC_KEY` + `LANGFUSE_SECRET_KEY`
+(+ optional `LANGFUSE_BASE_URL`); unset → noop. Compose app/worker point
+`LANGFUSE_BASE_URL` at `http://langfuse-web:3000`. Workers set
+`runWithTraceContext({ role, projectId, taskId })`; Reviewer appends
+`langfuseTraceId=` to `TaskLog`. `AuditEvent` cross-link → A3. Sandbox Aider
+calls are out of this wrapper.
 
 Evals (B3) build on Langfuse datasets; the prompt-injection red-team (B4)
 targets the Analyst `withRagContext` surface.

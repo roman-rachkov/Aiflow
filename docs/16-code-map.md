@@ -316,7 +316,10 @@ packages/
 │                             openai-compatible.ts — createOpenAICompatibleProvider:
 │                               parameterized ${baseURL}/chat/completions streaming +
 │                               /embeddings; mock path when no key (canned chat,
-│                               deterministic 768-dim embeddings)
+│                               deterministic 768-dim embeddings); wraps with
+│                               Langfuse tracing when LANGFUSE_* keys set (B2)
+│                             traced-provider.ts / tracer.ts / langfuse-tracer.ts /
+│                               trace-context.ts — ALS context + noop/ingest tracer
 │                             env-provider.ts — createProviderFromEnv() /
 │                               readProviderConfigFromEnv(): the app seam; one
 │                               OpenAI-compatible provider from OPENAI_* env
@@ -450,7 +453,7 @@ re-derive the integration points. Each lands in its own `task/*` branch.
 | `AuditEvent` model (append-only, role/action/target/traceId)                | A3                     | `packages/db/prisma/schema.prisma` (public); `recordAudit()` in worker; Pro UI event feed in `apps/web`                                                           |
 | Role policy guard (capability set)                                          | A4                     | `packages/ai-roles/src/policy.ts`; enforced inside the provider wrapper                                                                                           |
 | Langfuse self-host (UI :3100; ClickHouse + langfuse-redis; shared PG/MinIO) | B1 **done 2026-08-23** | `docker-compose.yml` (`langfuse-web`/`worker`/`clickhouse`/`langfuse-redis`); `docker/postgres/init/02-langfuse-db.sql`; `docker/minio/ensure-langfuse-bucket.sh` |
-| LLM-call tracing wrapper                                                    | B2                     | `packages/ai-roles/src/openai-compatible.ts` (the single chokepoint); `traceId` → `TaskLog`/`AuditEvent`                                                          |
+| LLM-call tracing wrapper                                                    | B2 **done 2026-08-23** | `packages/ai-roles` (`traced-provider` + `langfuse-tracer`); `runWithTraceContext`; Reviewer `TaskLog` `langfuseTraceId=`; noop without keys                                      |
 | Evals framework + CI job on prompt change                                   | B3                     | Promptfoo or Langfuse datasets; CI fires on `.claude/agents/**` change                                                                                            |
 | Prompt-injection red-team set                                               | B4                     | CI red-team (AgentDojo/InjecAgent-style) against the Analyst `withRagContext` surface                                                                             |
 | `code:review` Self-Refine loop (retry cap + AgentMemory feedback)           | C1                     | `apps/worker/src/review/` already one-shot (4.1); C1 adds auto re-enqueue code-execute ≤N                                                                         |

@@ -184,6 +184,10 @@ services:
       GITEA_ADMIN_TOKEN_FILE: /run/gitea/token
       # Override host-side .env (localhost) so migrate/app reach compose DNS.
       DATABASE_URL: postgresql://${POSTGRES_USER:-ai_studio}:${POSTGRES_PASSWORD:-ai_studio}@postgres:5432/ai_studio?schema=public
+      # Langfuse SDK (B2): reach langfuse-web on the compose network, not host :3100.
+      LANGFUSE_BASE_URL: http://langfuse-web:3000
+      LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-pk-lf-dev}
+      LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-sk-lf-dev}
     command: ['yarn', 'workspace', '@aiflow/web', 'dev']
     ports:
       - '3000:3000'
@@ -224,6 +228,10 @@ services:
       # docker build -t aistudio/aider-sandbox:latest -f docker/aider-sandbox/Dockerfile docker/aider-sandbox
       AIDER_SANDBOX_IMAGE: aistudio/aider-sandbox:latest
       USER_TEMPLATE_DIR: /workspace/templates/user-nextjs
+      # Langfuse SDK (B2): same as app — compose DNS, not host port.
+      LANGFUSE_BASE_URL: http://langfuse-web:3000
+      LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-pk-lf-dev}
+      LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-sk-lf-dev}
     command: ['yarn', 'workspace', '@aiflow/worker', 'dev']
     volumes:
       - .:/workspace
@@ -299,7 +307,7 @@ services:
   # ---------------------------------------------------------------------------
   # Langfuse (MVP-3 B1) — LLM observability UI. Dedicated Redis + ClickHouse;
   # OLTP DB `langfuse` on shared Postgres; events/media on shared MinIO.
-  # UI: http://localhost:3100  (OTLP / SDK wiring → B2)
+  # UI: http://localhost:3100  (SDK tracing via @aiflow/ai-roles → B2)
   # ---------------------------------------------------------------------------
   clickhouse:
     image: clickhouse/clickhouse-server:24.8
