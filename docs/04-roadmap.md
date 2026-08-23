@@ -324,12 +324,18 @@ of role calls → B2. Done criterion: `docker compose up` serves Langfuse UI
 at `http://localhost:3100` (verify on a host with Docker; this agent env had
 no docker daemon).
 
-**B2. Trace every LLM call.** Prompt/tokens/latency/cost/errors for
-Analyst/Planner/Coder/Reviewer, linked to project/task. Integration: the wrapper
-in `packages/ai-roles/src/openai-compatible.ts`
-(`createOpenAICompatibleProvider`) — the single chokepoint of all roles. Approach:
-OTel/Langfuse-SDK spans; `traceId` propagates into `TaskLog`/`AuditEvent` for
-cross-link. Done when a single Coder attempt is visible end-to-end in Langfuse.
+**B2. Trace every LLM call.** — done (2026-08-23)
+
+Prompt/tokens/latency/cost/errors for Analyst/Planner/Reviewer (and any
+caller of `createOpenAICompatibleProvider`), linked to project/task via
+`runWithTraceContext`. Integration: wrapper in `packages/ai-roles` around the
+OpenAI-compatible provider (single chokepoint). Thin Langfuse public-ingestion
+client (fetch + Basic auth); noop when `LANGFUSE_PUBLIC_KEY` /
+`LANGFUSE_SECRET_KEY` unset. Reviewer jobs append `langfuseTraceId=` to
+`TaskLog` for cross-link (AuditEvent → A3). Sandbox Aider (Coder) stays outside
+this wrapper — Reviewer traces cover the code-execute → review path.
+Done criterion: with Langfuse up and keys set, a Reviewer/Planner/Analyst call
+appears in the Langfuse UI; without keys, chat/embed behave as before.
 
 **B3. Evals framework (golden set + regression).** A SPEC→plan→code case set;
 prompt/model regression on change. Approach: Promptfoo or Langfuse datasets; a CI

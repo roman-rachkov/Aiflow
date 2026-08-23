@@ -19,11 +19,18 @@ import type { OpenAICompatibleProvider, ProviderConfig } from './types';
 import { liveChatWithTools, liveChatWithUsage, streamLiveChat } from './live-chat';
 import { mockChatStream, withNullUsageStream } from './mock-chat';
 import { mockEmbed } from './mock-embeddings';
+import { withLlmTracing } from './traced-provider';
+import { getTracerFromEnv, type LlmTracer } from './tracer';
 
 /** True when `config.apiKey` is present and non-empty (=> LIVE mode). */
 function hasKey(config: ProviderConfig): boolean {
   return Boolean(config.apiKey && config.apiKey.length > 0);
 }
+
+/** Optional tracer override (tests); default = {@link getTracerFromEnv}. */
+export type CreateProviderOptions = {
+  tracer?: LlmTracer;
+};
 
 /** Live embeddings: real POST, returns one vector per input in order. */
 async function liveEmbed(texts: string[], provider: ProviderConfig): Promise<number[][]> {
@@ -49,10 +56,16 @@ async function liveEmbed(texts: string[], provider: ProviderConfig): Promise<num
  * the caller (e.g. {@link createProviderFromEnv}) resolves env into a
  * {@link ProviderConfig} so this factory stays pure and testable. MOCK mode is
  * selected when `config.apiKey` is absent/empty.
+ *
+ * When Langfuse keys are set (or `options.tracer` is enabled), chat/embed
+ * calls emit generations (MVP-3 B2). Absent keys → noop, behaviour unchanged.
  */
-export function createOpenAICompatibleProvider(config: ProviderConfig): OpenAICompatibleProvider {
+export function createOpenAICompatibleProvider(
+  config: ProviderConfig,
+  options?: CreateProviderOptions,
+): OpenAICompatibleProvider {
   const live = hasKey(config);
-  return {
+  const raw: OpenAICompatibleProvider = {
     async *chat(messages, cfg) {
       if (!live) {
         yield* mockChatStream(messages);
@@ -68,7 +81,6 @@ export function createOpenAICompatibleProvider(config: ProviderConfig): OpenAICo
     },
     chatWithTools(messages, cfg) {
       if (!live) {
-        // MOCK has no tool support; surface the canned text as text events.
         const stream = (async function* mockGen() {
           for await (const text of mockChatStream(messages)) {
             yield { type: 'text' as const, text };
@@ -85,4 +97,5 @@ export function createOpenAICompatibleProvider(config: ProviderConfig): OpenAICo
       return live ? liveEmbed(texts, config) : mockEmbed(texts);
     },
   };
+  return withLlmTracing(raw, options?.tracer ?? getTracerFromEnv());
 }
