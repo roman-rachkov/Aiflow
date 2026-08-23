@@ -7,9 +7,13 @@ import {
   type RecordAuditFn,
 } from './audit';
 
-describe('audit helpers', () => {
+function mockRecord(): ReturnType<typeof vi.fn<RecordAuditFn>> {
+  return vi.fn<RecordAuditFn>(() => Promise.resolve({}));
+}
+
+describe('auditCoderPush', () => {
   it('records coder.push with head commit as afterHash', async () => {
-    const record = vi.fn<RecordAuditFn>(() => Promise.resolve({}));
+    const record = mockRecord();
     await auditCoderPush(record, {
       projectId: 'p1',
       taskId: 't1',
@@ -27,9 +31,11 @@ describe('audit helpers', () => {
       metadata: { branchName: 'task/t1' },
     });
   });
+});
 
+describe('auditReviewerVerdict', () => {
   it('records reviewer.verdict with optional trace id', async () => {
-    const record = vi.fn<RecordAuditFn>(() => Promise.resolve({}));
+    const record = mockRecord();
     await auditReviewerVerdict(record, {
       projectId: 'p1',
       taskId: 't1',
@@ -46,9 +52,11 @@ describe('audit helpers', () => {
       }),
     );
   });
+});
 
+describe('auditDeployFinish', () => {
   it('records deploy.finish without taskId', async () => {
-    const record = vi.fn<RecordAuditFn>(() => Promise.resolve({}));
+    const record = mockRecord();
     await auditDeployFinish(record, {
       projectId: 'p1',
       deploymentId: 'd1',

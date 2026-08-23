@@ -50,7 +50,7 @@ export function AuditEventFeed({ projectId, taskId }: Props) {
 
   return (
     <div className="space-y-2">
-      <h3 className="text-xs font-medium uppercase tracking-wide text-fg-muted">Аудит</h3>
+      <h3 className="text-xs font-medium tracking-wide text-fg-muted uppercase">Аудит</h3>
       <ol className="space-y-2 border-l border-border pl-3">
         {items.map((ev) => (
           <AuditRow key={ev.id} event={ev} />
