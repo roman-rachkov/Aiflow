@@ -111,10 +111,7 @@ describe('createOpenAICompatibleProvider with Langfuse tracer', () => {
       'fetch',
       vi.fn().mockResolvedValue({ ok: false, status: 500, statusText: 'err' }),
     );
-    const provider = createOpenAICompatibleProvider(
-      { ...MOCK_CONFIG, apiKey: 'k' },
-      { tracer },
-    );
+    const provider = createOpenAICompatibleProvider({ ...MOCK_CONFIG, apiKey: 'k' }, { tracer });
     await expect(provider.embed(['x'])).rejects.toThrow(/500/);
     expect(ends).toHaveLength(1);
     expect(ends[0]?.level).toBe('ERROR');
@@ -131,22 +128,24 @@ describe('Langfuse HTTP ingest (enabled env)', () => {
     const ingestCalls: unknown[] = [];
     vi.stubGlobal(
       'fetch',
-      vi.fn(async (url: string | URL, init?: RequestInit) => {
+      vi.fn((url: string | URL, init?: RequestInit) => {
         if (String(url).includes('/api/public/ingestion')) {
-          ingestCalls.push(JSON.parse(String(init?.body)));
-          return { ok: true, status: 200 } as Response;
+          const raw = init?.body;
+          const text = typeof raw === 'string' ? raw : '';
+          ingestCalls.push(JSON.parse(text) as unknown);
+          return Promise.resolve({ ok: true, status: 200 } as Response);
         }
-        throw new Error(`unexpected fetch ${String(url)}`);
+        return Promise.reject(new Error(`unexpected fetch ${String(url)}`));
       }),
     );
 
     const provider = createOpenAICompatibleProvider(MOCK_CONFIG);
     await runWithTraceContext({ role: 'planner', projectId: 'proj' }, async () => {
-      for await (const _ of provider.chat([{ role: 'USER', content: 'plan' }], {
+      for await (const chunk of provider.chat([{ role: 'USER', content: 'plan' }], {
         model: 'm',
         systemPrompt: 's',
       })) {
-        /* drain */
+        void chunk;
       }
     });
 

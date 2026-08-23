@@ -12,7 +12,12 @@ import type {
   LiveChatEvent,
   OpenAICompatibleProvider,
 } from './types';
-import { getTracerFromEnv, startTracedGeneration, type GenerationHandle, type LlmTracer } from './tracer';
+import {
+  getTracerFromEnv,
+  startTracedGeneration,
+  type GenerationHandle,
+  type LlmTracer,
+} from './tracer';
 
 /** Serialize chat messages for Langfuse input (roles as stored). */
 function chatInput(messages: ChatMessage[], cfg: ChatConfig): unknown {

@@ -52,19 +52,13 @@ function startLangfuseGeneration(
   const traceId = start.traceId && start.traceId.length > 0 ? start.traceId : randomUUID();
   const observationId = randomUUID();
   const startTime = new Date().toISOString();
-  const tags = buildTags(ctx?.tags, ctx?.role);
-  const traceBody: Record<string, unknown> = {
-    id: traceId,
-    timestamp: startTime,
-    name: ctx?.role ? `${ctx.role}:${start.name}` : start.name,
-    metadata: start.metadata ?? {},
-    tags,
-  };
-  if (ctx?.sessionId) traceBody.sessionId = ctx.sessionId;
-  if (ctx?.userId) traceBody.userId = ctx.userId;
-
   enqueue([
-    { id: randomUUID(), type: 'trace-create', timestamp: startTime, body: traceBody },
+    {
+      id: randomUUID(),
+      type: 'trace-create',
+      timestamp: startTime,
+      body: buildTraceBody(traceId, startTime, start, ctx),
+    },
     {
       id: randomUUID(),
       type: 'generation-create',
@@ -80,13 +74,30 @@ function startLangfuseGeneration(
       },
     },
   ]);
-
   return {
     traceId,
     end(result: GenerationEnd) {
       enqueue([buildGenerationUpdate(observationId, result)]);
     },
   };
+}
+
+function buildTraceBody(
+  traceId: string,
+  startTime: string,
+  start: GenerationStart,
+  ctx: ReturnType<typeof getTraceContext>,
+): Record<string, unknown> {
+  const body: Record<string, unknown> = {
+    id: traceId,
+    timestamp: startTime,
+    name: ctx?.role ? `${ctx.role}:${start.name}` : start.name,
+    metadata: start.metadata ?? {},
+    tags: buildTags(ctx?.tags, ctx?.role),
+  };
+  if (ctx?.sessionId) body.sessionId = ctx.sessionId;
+  if (ctx?.userId) body.userId = ctx.userId;
+  return body;
 }
 
 function buildGenerationUpdate(observationId: string, result: GenerationEnd): IngestEvent {

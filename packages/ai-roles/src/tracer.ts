@@ -90,10 +90,7 @@ function buildTracerFromEnv(): LlmTracer {
  * Start a generation, merging AsyncLocalStorage context into metadata.
  * Returns a noop handle when tracing is disabled.
  */
-export function startTracedGeneration(
-  tracer: LlmTracer,
-  start: GenerationStart,
-): GenerationHandle {
+export function startTracedGeneration(tracer: LlmTracer, start: GenerationStart): GenerationHandle {
   if (!tracer.enabled) return noopHandle();
   const ctx = getTraceContext();
   const traceId = resolveTraceId();
