@@ -21,11 +21,19 @@ function job(data: DeployRunPayload): Job<DeployRunPayload> {
 
 function mockDeps(overrides: Partial<DeployHandlerDeps> = {}): DeployHandlerDeps {
   return {
+    loadDeployment: vi.fn(() =>
+      Promise.resolve({
+        id: PAYLOAD.deploymentId,
+        status: 'BUILDING' as const,
+        imageTag: null,
+        url: null,
+      }),
+    ),
     cloneRepo: vi.fn(() => Promise.resolve()),
     buildDockerImage: vi.fn(() => Promise.resolve({ imageTag: 'aistudio/demo:tag' })),
     pushUserAppSchema: vi.fn(() => Promise.resolve({ appSchema: 'app_aaa', skipped: false })),
     appendDeployLog: vi.fn(() => Promise.resolve()),
-    finishDeploy: vi.fn(() => Promise.resolve()),
+    finishDeploy: vi.fn(() => Promise.resolve(true)),
     removeWorkDir: vi.fn(() => Promise.resolve()),
     now: () => new Date('2026-08-07T02:00:00.000Z'),
     ...overrides,
@@ -48,7 +56,7 @@ describe('makeImageTag', () => {
   });
 });
 
-describe('handleDeployRun', () => {
+describe('handleDeployRun success', () => {
   it('success → DEPLOYED with imageTag and stub url', async () => {
     const deps = mockDeps();
     await handleDeployRun(job(PAYLOAD), deps);
@@ -65,6 +73,29 @@ describe('handleDeployRun', () => {
     expect(deps.removeWorkDir).toHaveBeenCalled();
   });
 
+  it('skips when already DEPLOYED', async () => {
+    const deps = mockDeps({
+      loadDeployment: vi.fn(() =>
+        Promise.resolve({
+          id: PAYLOAD.deploymentId,
+          status: 'DEPLOYED' as const,
+          imageTag: 'aistudio/demo:old',
+          url: 'docker://aistudio/demo:old',
+        }),
+      ),
+    });
+    await handleDeployRun(job(PAYLOAD), deps);
+    expect(deps.cloneRepo).not.toHaveBeenCalled();
+    expect(deps.buildDockerImage).not.toHaveBeenCalled();
+    expect(deps.appendDeployLog).toHaveBeenCalledWith(
+      PAYLOAD.schemaName,
+      PAYLOAD.deploymentId,
+      expect.stringContaining('DEPLOYED'),
+    );
+  });
+});
+
+describe('handleDeployRun failures', () => {
   it('failure → FAILED with log message; cleans temp', async () => {
     const deps = mockDeps({
       buildDockerImage: vi.fn().mockRejectedValue(new Error('build blew up')),

@@ -239,13 +239,19 @@ apps/
           dockerode.buildImage → DEPLOYED|FAILED; url `docker://{tag}` + run hint
         src/plan/handler.ts — load approved Specification → generatePlanTasks
           (env provider) → soft-delete replaceable tasks → Task+deps+TaskLog
-        src/code/handler.ts — code:execute: Task status/logs, dry-run →
-          AWAITING_REVIEW, live → seed template if empty + sandbox + push +
-          record branch/head + enqueue code-review
+        src/code/handler.ts — code:execute: claim/resume (MVP-3 A1/A2) + dry-run →
+          AWAITING_REVIEW, live → step pipeline (CLONE…DONE) + sandbox + PARSE
+          checkpoint ref then push + enqueue code-review
+        src/code/claim.ts — resolveCodeClaim (skip DONE, pipeline-complete,
+          resumeFrom from TaskLog+headCommit, fresh claim → CLONE)
+        src/code/pipeline{,-live,-steps}.ts — step encoding + live runner
+        src/code/git-checkpoint.ts — refs/aistudio/task/{id} push/restore (A2)
         src/review/handler.ts — code-review one-shot LLM Reviewer (MVP-2 4.1):
           generateReviewVerdict → TaskLog `=== REVIEW ===` JSON;
           ACCEPTED → FF into main → DONE → enqueue next ready tasks;
           REJECTED→PENDING (Self-Refine → MVP-3 C1)
+        src/deploy/claim.ts — resolveDeployClaim (skip DEPLOYED, reject FAILED)
+        src/deploy/status.ts — finishDeploy only from BUILDING (A1 dedup)
         src/chat/ — chat-run multi-turn AG-UI tool loop; Redis publish
           `chat:run:{runId}`; tools via db+queue+crypto (no apps/web imports)
         src/gitea-token.ts — GITEA_ADMIN_TOKEN_FILE then GITEA_ADMIN_TOKEN
@@ -439,24 +445,25 @@ compose topology          `docker compose up` (no `--build`): postgres, redis,
 ## Planned — MVP-3 (not yet in the tree)
 
 The agent-maturity phase ([04-roadmap.md](04-roadmap.md) § 5; decisions E1–E4 in
-[14-decisions-needed.md](14-decisions-needed.md)) will add these. They are
-**not** in the code yet — this section exists so the next session does not
-re-derive the integration points. Each lands in its own `task/*` branch.
+[14-decisions-needed.md](14-decisions-needed.md)) will add these. Rows marked
+**done** are already in the tree; the rest are not — this section exists so the
+next session does not re-derive the integration points. Each lands in its own
+branch.
 
-| Planned entity / change                                                 | Track | Where it will live                                                                                       |
-| ----------------------------------------------------------------------- | ----- | -------------------------------------------------------------------------------------------------------- |
-| Idempotent `code:execute` / `deploy:run` (attempt tokens, dedup guards) | A1    | `apps/worker/src/code/handler.ts` (`CodeHandlerDeps` DI seam), `apps/worker/src/deploy/handler.ts`       |
-| Step-encoded resumable pipeline                                         | A2    | `apps/worker/src/code/pipeline.ts`, `TaskLog` (already the checkpoint)                                   |
-| `AuditEvent` model (append-only, role/action/target/traceId)            | A3    | `packages/db/prisma/schema.prisma` (public); `recordAudit()` in worker; Pro UI event feed in `apps/web`  |
-| Role policy guard (capability set)                                      | A4    | `packages/ai-roles/src/policy.ts`; enforced inside the provider wrapper                                  |
-| Langfuse service                                                        | B1    | `docker-compose.yml` (new service, Postgres-backed)                                                      |
-| LLM-call tracing wrapper                                                | B2    | `packages/ai-roles/src/openai-compatible.ts` (the single chokepoint); `traceId` → `TaskLog`/`AuditEvent` |
-| Evals framework + CI job on prompt change                               | B3    | Promptfoo or Langfuse datasets; CI fires on `.claude/agents/**` change                                   |
-| Prompt-injection red-team set                                           | B4    | CI red-team (AgentDojo/InjecAgent-style) against the Analyst `withRagContext` surface                    |
-| `code:review` Self-Refine loop (retry cap + AgentMemory feedback)       | C1    | `apps/worker/src/review/` already one-shot (4.1); C1 adds auto re-enqueue code-execute ≤N                |
-| `AgentMemory` model (task/role/lesson)                                  | C2    | `packages/db/prisma/schema_project_template.prisma`; mixed into Coder + Reviewer prompts                 |
-| `services/model-router` runtime (escalation as 2nd routed request)      | C3    | `services/model-router/src` (currently `export {};` stub); `ModelConfig.config` gains `advisor` per role |
-| Optional Planner Tree-of-Thoughts mode                                  | C4    | `packages/ai-roles/src/planner.ts`; behind a flag                                                        |
-| Reviewer verdict UI                                                     | D1    | `apps/web/src/features/tasks` (verdict list, issues, auto-approve threshold)                             |
-| Support Bot (embed widget + final-compose inclusion)                    | D2    | Dify/lightweight RAG on SPEC + docs; reuses `features/files` pgvector stack                              |
-| Automatic domain deploy (Traefik/nginx)                                 | D3    | `apps/worker/src/deploy/handler.ts`; real URL over `deploy:run`; auditable (A3), idempotent (A1)         |
+| Planned entity / change                                                    | Track                  | Where it will live                                                                                       |
+| -------------------------------------------------------------------------- | ---------------------- | -------------------------------------------------------------------------------------------------------- |
+| Idempotent `code:execute` / `deploy:run` (claim + headCommit/finish dedup) | A1 **done 2026-08-23** | `apps/worker/src/code/{handler,claim,status}.ts`, `apps/worker/src/deploy/{handler,claim,status}.ts`     |
+| Step-encoded resumable pipeline (`CLONE…DONE` + checkpoint ref)            | A2 **done 2026-08-23** | `apps/worker/src/code/pipeline{,-live,-steps,}.ts`, `git-checkpoint.ts`; TaskLog step markers            |
+| `AuditEvent` model (append-only, role/action/target/traceId)               | A3                     | `packages/db/prisma/schema.prisma` (public); `recordAudit()` in worker; Pro UI event feed in `apps/web`  |
+| Role policy guard (capability set)                                         | A4                     | `packages/ai-roles/src/policy.ts`; enforced inside the provider wrapper                                  |
+| Langfuse service                                                           | B1                     | `docker-compose.yml` (new service, Postgres-backed)                                                      |
+| LLM-call tracing wrapper                                                   | B2                     | `packages/ai-roles/src/openai-compatible.ts` (the single chokepoint); `traceId` → `TaskLog`/`AuditEvent` |
+| Evals framework + CI job on prompt change                                  | B3                     | Promptfoo or Langfuse datasets; CI fires on `.claude/agents/**` change                                   |
+| Prompt-injection red-team set                                              | B4                     | CI red-team (AgentDojo/InjecAgent-style) against the Analyst `withRagContext` surface                    |
+| `code:review` Self-Refine loop (retry cap + AgentMemory feedback)          | C1                     | `apps/worker/src/review/` already one-shot (4.1); C1 adds auto re-enqueue code-execute ≤N                |
+| `AgentMemory` model (task/role/lesson)                                     | C2                     | `packages/db/prisma/schema_project_template.prisma`; mixed into Coder + Reviewer prompts                 |
+| `services/model-router` runtime (escalation as 2nd routed request)         | C3                     | `services/model-router/src` (currently `export {};` stub); `ModelConfig.config` gains `advisor` per role |
+| Optional Planner Tree-of-Thoughts mode                                     | C4                     | `packages/ai-roles/src/planner.ts`; behind a flag                                                        |
+| Reviewer verdict UI                                                        | D1                     | `apps/web/src/features/tasks` (verdict list, issues, auto-approve threshold)                             |
+| Support Bot (embed widget + final-compose inclusion)                       | D2                     | Dify/lightweight RAG on SPEC + docs; reuses `features/files` pgvector stack                              |
+| Automatic domain deploy (Traefik/nginx)                                    | D3                     | `apps/worker/src/deploy/handler.ts`; real URL over `deploy:run`; auditable (A3), idempotent (A1)         |

@@ -1,17 +1,20 @@
 /**
  * BullMQ handler for `deploy:run` — clone Gitea repo, dockerode build, update DB.
  * Job attempts are fail-fast (`attempts: 1` on the queue); build errors do not retry.
+ * MVP-3 A1: skip if already DEPLOYED; finishDeploy only from BUILDING.
  */
 
 import type { Job } from 'bullmq';
 import type { DeployRunPayload } from '@aiflow/queue';
 
+import { resolveDeployClaim } from './claim';
 import { pushUserAppSchema } from './app-schema-push';
 import { cloneRepo, deployWorkDir, removeWorkDir } from './clone';
 import { buildDockerImage, warnIfProdSocket } from './docker';
-import { appendDeployLog, finishDeploy } from './status';
+import { appendDeployLog, finishDeploy, loadDeployment } from './status';
 
 export type DeployHandlerDeps = {
+  loadDeployment: typeof loadDeployment;
   cloneRepo: typeof cloneRepo;
   buildDockerImage: typeof buildDockerImage;
   pushUserAppSchema: typeof pushUserAppSchema;
@@ -22,6 +25,7 @@ export type DeployHandlerDeps = {
 };
 
 const defaultDeps: DeployHandlerDeps = {
+  loadDeployment,
   cloneRepo,
   buildDockerImage,
   pushUserAppSchema,
@@ -65,6 +69,18 @@ export async function handleDeployRun(
   warnIfProdSocket();
   const payload = job.data;
   validateDeployPayload(payload);
+  const row = await deps.loadDeployment(payload.schemaName, payload.deploymentId);
+  const claim = resolveDeployClaim(row);
+  if (claim.kind === 'reject') throw new Error(claim.reason);
+  if (claim.kind === 'skip-deployed') {
+    await deps.appendDeployLog(
+      payload.schemaName,
+      payload.deploymentId,
+      'Уже DEPLOYED — пропуск повторной сборки\n',
+    );
+    return;
+  }
+
   const workDir = deployWorkDir(payload.deploymentId);
   const imageTag = makeImageTag(payload.giteaRepo, deps.now());
   try {
