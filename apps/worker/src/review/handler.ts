@@ -13,6 +13,7 @@ import {
 import { ensureTaskGitColumns } from '@aiflow/db';
 import { validateReviewPayload, type CodeReviewPayload } from '@aiflow/queue';
 
+import { auditReviewerVerdict, defaultRecordAudit, type RecordAuditFn } from '../audit';
 import { enqueueReadyTasks, loadReadyCtx } from '../code/enqueue-ready';
 import { mergeTaskBranch } from '../code/merge';
 import { appendTaskLog, loadTask, recordTaskGit, setTaskStatus } from '../code/status';
@@ -24,6 +25,7 @@ export type ReviewHandlerDeps = {
   generateVerdict: (input: ReviewTaskInput) => Promise<ReviewVerdict>;
   applyVerdict: ApplyVerdictDeps;
   finishAccepted: FinishAcceptedDeps;
+  recordAudit: RecordAuditFn;
 };
 
 const defaultDeps: ReviewHandlerDeps = {
@@ -53,6 +55,7 @@ const defaultDeps: ReviewHandlerDeps = {
       now: () => new Date(),
     },
   },
+  recordAudit: defaultRecordAudit,
 };
 
 /** Process one code-review job. Exported for unit tests with mocked deps. */
@@ -90,6 +93,12 @@ async function settleVerdict(
   verdict: ReviewVerdict,
   deps: ReviewHandlerDeps,
 ): Promise<void> {
+  await auditReviewerVerdict(deps.recordAudit, {
+    projectId: payload.projectId,
+    taskId: payload.taskId,
+    verdict: verdict.verdict,
+    confidence: verdict.confidence,
+  });
   if (verdict.verdict !== 'ACCEPTED') {
     await applyReviewVerdict(payload.schemaName, payload.taskId, verdict, deps.applyVerdict);
     return;

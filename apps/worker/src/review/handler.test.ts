@@ -78,6 +78,7 @@ function mockDeps(overrides: Partial<ReviewHandlerDeps> = {}): ReviewHandlerDeps
       ),
       applyVerdict,
     },
+    recordAudit: vi.fn(() => Promise.resolve({})),
     ...overrides,
   };
 }
@@ -118,6 +119,12 @@ describe('handleCodeReview', () => {
       expect.objectContaining({ status: 'DONE' }),
     );
     expect(deps.finishAccepted.mergeTaskBranch).toHaveBeenCalled();
+    expect(deps.recordAudit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'reviewer.verdict',
+        metadata: expect.objectContaining({ verdict: 'ACCEPTED' }),
+      }),
+    );
   });
 
   it('throws when task is missing', async () => {

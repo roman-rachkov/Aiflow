@@ -1,5 +1,7 @@
 'use client';
 
+import type { ReactNode } from 'react';
+
 import { Button, Spinner } from '@aiflow/ui';
 
 import type { TaskPriority, TaskStatus, TaskSummary } from '../model/types';
@@ -13,6 +15,8 @@ type Props = {
   projectId: string;
   projectName: string;
   canPlan: boolean;
+  /** Optional Pro extras under a selected task (e.g. audit feed from app/). */
+  renderTaskExtras?: (taskId: string) => ReactNode;
 };
 
 const STATUS_LABEL: Record<TaskStatus, string> = {
@@ -32,7 +36,7 @@ const PRIORITY_LABEL: Record<TaskPriority, string> = {
 };
 
 /** Roadmap list with plan + coder execute controls (Tasks 3.2–3.3 + 4.1). */
-export function TasksPanel({ projectId, projectName, canPlan }: Props) {
+export function TasksPanel({ projectId, projectName, canPlan, renderTaskExtras }: Props) {
   const s = useTasks(projectId, canPlan);
 
   if (s.loading) {
@@ -64,7 +68,18 @@ export function TasksPanel({ projectId, projectName, canPlan }: Props) {
       ) : (
         <ul className="divide-y divide-border rounded-md border border-border">
           {s.items.map((item) => (
-            <TaskRow key={item.id} item={item} projectId={projectId} canPlan={canPlan} s={s} />
+            <TaskRow
+              key={item.id}
+              item={item}
+              projectId={projectId}
+              canPlan={canPlan}
+              s={s}
+              extras={
+                s.selected?.id === item.id && renderTaskExtras
+                  ? renderTaskExtras(item.id)
+                  : null
+              }
+            />
           ))}
         </ul>
       )}
@@ -118,11 +133,13 @@ function TaskRow({
   projectId,
   canPlan,
   s,
+  extras,
 }: {
   item: TaskSummary;
   projectId: string;
   canPlan: boolean;
   s: ReturnType<typeof useTasks>;
+  extras?: ReactNode;
 }) {
   const deps =
     item.dependencyTitles.length > 0
@@ -160,6 +177,7 @@ function TaskRow({
       {selected || live ? (
         <TaskLogPanel projectId={projectId} taskId={item.id} active={live} seed={seed} />
       ) : null}
+      {extras}
     </li>
   );
 }

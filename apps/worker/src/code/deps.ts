@@ -4,6 +4,7 @@
 
 import type { CodeExecutePayload, CodeReviewPayload } from '@aiflow/queue';
 
+import type { RecordAuditFn } from '../audit';
 import type { TaskRowWithGit } from './claim';
 import type { PipelineStep } from './pipeline-steps';
 import type { CodeTaskStatus } from './status';
@@ -50,6 +51,7 @@ export type CodeHandlerDeps = {
   }) => Promise<void>;
   captureBranchDiff: (workDir: string, baseBranch: string) => Promise<string>;
   enqueueCodeReview: (payload: CodeReviewPayload) => Promise<void>;
+  recordAudit: RecordAuditFn;
   removeWorkDir: (workDir: string) => Promise<void>;
   resolveApiKey: (env?: NodeJS.ProcessEnv) => string;
   writeApiKeySecret: (

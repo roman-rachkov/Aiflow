@@ -83,6 +83,7 @@ model ProjectMeta {
   deletedAt          DateTime?
 
   deployments DeploymentMeta[]
+  auditEvents AuditEvent[]
 
   @@unique([giteaOwner, giteaRepo])
   @@index([ownerId])
@@ -111,6 +112,35 @@ enum DeploymentStatus {
   BUILDING
   DEPLOYED
   FAILED
+}
+
+// Append-only audit trail (MVP-3 A3). Soft-delete exempt — never updated or
+// deleted. Optional langfuseTraceId cross-links B2 traces when keys are set.
+model AuditEvent {
+  id              String         @id @default(uuid())
+  projectId       String
+  project         ProjectMeta    @relation(fields: [projectId], references: [id])
+  taskId          String?
+  actorRole       AuditActorRole
+  action          String
+  targetType      String
+  targetId        String
+  beforeHash      String?
+  afterHash       String?
+  langfuseTraceId String?
+  metadata        Json?
+  createdAt       DateTime       @default(now())
+
+  @@index([projectId, createdAt])
+  @@index([taskId, createdAt])
+  @@index([targetType, targetId])
+}
+
+enum AuditActorRole {
+  CODER
+  REVIEWER
+  DEPLOYER
+  SYSTEM
 }
 
 // NextAuth adapter models (Account, Session, VerificationToken) also live in the

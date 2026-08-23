@@ -6,6 +6,7 @@
 import type { LivePipelineCtx } from './deps';
 import { isBeforeStep, stepDoneMarker, type PipelineStep } from './pipeline-steps';
 import { failTask } from './pipeline-fail';
+import { auditCoderPush } from '../audit';
 
 /** Clone → … → enqueue review; durable steps skip when already finished. */
 export async function runLiveSteps(ctx: LivePipelineCtx): Promise<void> {
@@ -116,9 +117,16 @@ async function runParseStep(ctx: LivePipelineCtx): Promise<void> {
 }
 
 async function runPushStep(ctx: LivePipelineCtx): Promise<void> {
-  const { payload, branch, workDir, deps } = ctx;
+  const { payload, branch, workDir, deps, task } = ctx;
   await deps.appendTaskLog(payload.schemaName, payload.taskId, 'Пуш ветки в Gitea…\n');
   await deps.pushBranch(workDir, branch);
+  const headCommit = task.headCommit ?? (await deps.readHeadCommit(workDir));
+  await auditCoderPush(deps.recordAudit, {
+    projectId: payload.projectId,
+    taskId: payload.taskId,
+    headCommit,
+    branchName: branch,
+  });
 }
 
 async function runDoneStep(ctx: LivePipelineCtx): Promise<void> {

@@ -144,7 +144,14 @@ apps/
 │     │                         model/access.ts — assertProPlan / assertProCode
 │     │                         model/ws-attach.ts — Redis `sandbox:logs:{taskId}`
 │     │                         ui/TasksPanel + ExecuteControls + TaskLogPanel +
-│     │                           ReviewVerdictCard (parses `=== REVIEW ===` log)
+│     │                           ReviewVerdictCard (parses `=== REVIEW ===` log);
+│     │                           `renderTaskExtras` slot for app-composed feeds
+│     ├── audit/          Pro AuditEvent feed (MVP-3 A3)
+│     │                     └── public: `index.ts` (server) + `client.ts` (feed)
+│     │                         model/service.ts — listProjectAudit via
+│     │                           `@aiflow/db` `listAuditEvents`; assertProAudit
+│     │                         ui/AuditEventFeed — chronological role actions
+│     │                           (composed from tasks page via renderTaskExtras)
 │     └── editor/         Pro code editor over Gitea (Task 2.2)
 │                           └── public: `index.ts` (server) + `client.ts` (EditorShell)
 │                               model/access.ts — resolveEditorContext (owner +
@@ -221,6 +228,7 @@ apps/
 │     /api/projects/[id]/tasks/[taskId] (GET detail+logs — Task 3.3)
 │     /api/projects/[id]/tasks/[taskId]/execute (POST dryRun? — Pro, 3.3)
 │     /api/projects/[id]/tasks/[taskId]/confirm (POST after dry-run — Pro, 3.3)
+│     /api/projects/[id]/audit (GET — Pro AuditEvent feed, optional ?taskId=, A3)
 │     /api/projects/[id]/editor/{tree,file,commits,diff} (GET — Task 2.2)
 │     /api/projects/[id]/editor/commit (POST), /editor/files (POST/DELETE),
 │       /editor/files/rename (POST — Task 2.2)
@@ -249,7 +257,9 @@ apps/
         src/review/handler.ts — code-review one-shot LLM Reviewer (MVP-2 4.1):
           generateReviewVerdict → TaskLog `=== REVIEW ===` JSON;
           ACCEPTED → FF into main → DONE → enqueue next ready tasks;
-          REJECTED→PENDING (Self-Refine → MVP-3 C1)
+          REJECTED→PENDING (Self-Refine → MVP-3 C1); AuditEvent on settle (A3)
+        src/audit.ts — recordAudit wrappers (coder.push / reviewer.verdict /
+          deploy.finish) → public.AuditEvent (MVP-3 A3)
         src/deploy/claim.ts — resolveDeployClaim (skip DEPLOYED, reject FAILED)
         src/deploy/status.ts — finishDeploy only from BUILDING (A1 dedup)
         src/chat/ — chat-run multi-turn AG-UI tool loop; Redis publish
@@ -273,10 +283,13 @@ packages/
 │                         ├── prisma/schema.prisma        → public schema
 │                         │     ProjectMeta holds nullable Gitea identity
 │                         │     (giteaOwner/giteaRepo/giteaDefaultBranch; Task 2.2)
+│                         │     AuditEvent append-only trail (MVP-3 A3; no deletedAt)
 │                         ├── prisma/schema_project_template.prisma → project schemas
 │                         ├── generated/public, generated/project (build artifacts)
 │                         ├── src/index.ts  — the Prisma client factory:
 │                         │     getPublicClient(), getProjectClient(schemaName)
+│                         ├── src/audit.ts — recordAudit / listAuditEvents (A3)
+│                         ├── src/public-client.ts — public Prisma singleton
 │                         │     Map-cached + name-validated, evictProjectClient()
 │                         │     on archive/delete, disconnectAll() on shutdown (C1)
 │                         └── scripts/generate-project-sql.ts — renders the
@@ -454,7 +467,7 @@ branch.
 | -------------------------------------------------------------------------- | ---------------------- | -------------------------------------------------------------------------------------------------------- |
 | Idempotent `code:execute` / `deploy:run` (claim + headCommit/finish dedup) | A1 **done 2026-08-23** | `apps/worker/src/code/{handler,claim,status}.ts`, `apps/worker/src/deploy/{handler,claim,status}.ts`     |
 | Step-encoded resumable pipeline (`CLONE…DONE` + checkpoint ref)            | A2 **done 2026-08-23** | `apps/worker/src/code/pipeline{,-live,-steps,}.ts`, `git-checkpoint.ts`; TaskLog step markers            |
-| `AuditEvent` model (append-only, role/action/target/traceId)               | A3                     | `packages/db/prisma/schema.prisma` (public); `recordAudit()` in worker; Pro UI event feed in `apps/web`  |
+| `AuditEvent` model (append-only, role/action/target/traceId)               | A3 **done 2026-08-23** | `packages/db` (`AuditEvent` + `recordAudit`/`listAuditEvents`); worker `src/audit.ts`; Pro feed `features/audit` + `/api/.../audit` |
 | Role policy guard (capability set)                                         | A4                     | `packages/ai-roles/src/policy.ts`; enforced inside the provider wrapper                                  |
 | Langfuse service                                                           | B1                     | `docker-compose.yml` (new service, Postgres-backed)                                                      |
 | LLM-call tracing wrapper                                                   | B2                     | `packages/ai-roles/src/openai-compatible.ts` (the single chokepoint); `traceId` → `TaskLog`/`AuditEvent` |

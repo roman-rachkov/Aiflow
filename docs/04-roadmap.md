@@ -307,11 +307,17 @@ Resume: no `headCommit` → restart at CLONE; with `headCommit` → PUSH or DONE
 from TaskLog; all steps done → no-op wait for review. Doc-test: crashed on
 PUSH → restart → sandbox skipped, push once.
 
-**A3. Audit trails.** Every significant role action (Coder commit, Reviewer
-verdict, deploy) is an audit event. Integration: new `AuditEvent` model in the
-public schema (actor role, action, target, before/after hash, Langfuse `traceId`),
-append-only. Approach: one `recordAudit()` in the worker; a Pro-mode event feed
-in the UI. Done when a `taskId` reconstructs its full attempt + verdict history.
+**A3. Audit trails.** — done (2026-08-23)
+
+Every significant role action (Coder commit, Reviewer verdict, deploy) is an
+audit event. Integration: `AuditEvent` model in the public schema (actor role,
+action, target, before/after hash, optional Langfuse `traceId`), append-only
+(soft-delete exempt). Approach: `recordAudit()` in `@aiflow/db` + worker
+wrappers (`auditCoderPush` / `auditReviewerVerdict` / `auditDeployFinish`)
+hooked at PUSH, review settle, and deploy finish; Pro-mode event feed via
+`GET /api/projects/[id]/audit` + `features/audit` UI composed on the tasks
+page. Stacked on A2 (pipeline step hooks). Done criterion: a `taskId`
+reconstructs its full attempt + verdict history from `AuditEvent` rows.
 
 **A4. Policy layer for roles.** A deterministic guard "what a role may do" _before_
 the LLM call; tool-calling capability ≠ permission. Integration: new

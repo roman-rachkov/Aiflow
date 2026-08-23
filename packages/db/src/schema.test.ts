@@ -22,12 +22,22 @@ describe('public schema', () => {
     const models = [...schema.matchAll(/^model\s+(\w+)/gm)].map((m) => m[1]).sort();
     expect(models).toEqual([
       'Account',
+      'AuditEvent',
       'DeploymentMeta',
       'ProjectMeta',
       'Session',
       'User',
       'VerificationToken',
     ]);
+  });
+
+  it('defines append-only AuditEvent without soft-delete (MVP-3 A3)', () => {
+    expect(schema).toMatch(/model\s+AuditEvent\s*\{/);
+    expect(schema).toMatch(/enum\s+AuditActorRole/);
+    const auditBlock = schema.slice(schema.indexOf('model AuditEvent'));
+    const body = auditBlock.slice(0, auditBlock.indexOf('\n}'));
+    expect(body).not.toMatch(/deletedAt/);
+    expect(body).toMatch(/langfuseTraceId/);
   });
 
   it('generates into its own output directory (C2)', () => {

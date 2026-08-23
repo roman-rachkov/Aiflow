@@ -9,6 +9,7 @@ import { ensureTaskGitColumns } from '@aiflow/db';
 import { getReviewQueue, validateCodePayload, type CodeExecutePayload } from '@aiflow/queue';
 
 import { cloneRepo, removeWorkDir } from '../deploy/clone';
+import { defaultRecordAudit } from '../audit';
 import {
   captureBranchDiff,
   checkoutTaskBranch,
@@ -54,6 +55,7 @@ const defaultDeps: CodeHandlerDeps = {
   enqueueCodeReview: async (payload) => {
     await getReviewQueue().add('code:review', payload);
   },
+  recordAudit: defaultRecordAudit,
   removeWorkDir,
   resolveApiKey,
   writeApiKeySecret,
