@@ -56,7 +56,7 @@ describe('makeImageTag', () => {
   });
 });
 
-describe('handleDeployRun', () => {
+describe('handleDeployRun success', () => {
   it('success → DEPLOYED with imageTag and stub url', async () => {
     const deps = mockDeps();
     await handleDeployRun(job(PAYLOAD), deps);
@@ -93,7 +93,9 @@ describe('handleDeployRun', () => {
       expect.stringContaining('DEPLOYED'),
     );
   });
+});
 
+describe('handleDeployRun failures', () => {
   it('failure → FAILED with log message; cleans temp', async () => {
     const deps = mockDeps({
       buildDockerImage: vi.fn().mockRejectedValue(new Error('build blew up')),

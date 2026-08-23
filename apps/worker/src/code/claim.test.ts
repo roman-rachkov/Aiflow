@@ -28,7 +28,7 @@ function deps(overrides: Partial<ClaimDeps> = {}): ClaimDeps {
   };
 }
 
-describe('resolveCodeClaim', () => {
+describe('resolveCodeClaim happy paths', () => {
   it('claims PENDING → run', async () => {
     const d = deps();
     const out = await resolveCodeClaim('schema', 'task-1', d);
@@ -52,7 +52,9 @@ describe('resolveCodeClaim', () => {
     const out = await resolveCodeClaim('schema', 'task-1', d);
     expect(out).toEqual({ kind: 'reject', reason: 'Task is CANCELLED' });
   });
+});
 
+describe('resolveCodeClaim resume', () => {
   it('IN_PROGRESS without headCommit → run (stalled resume)', async () => {
     const d = deps({
       loadTask: vi.fn(() => Promise.resolve(task({ status: 'IN_PROGRESS' }))),

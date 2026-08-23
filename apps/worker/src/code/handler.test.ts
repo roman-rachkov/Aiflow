@@ -87,7 +87,7 @@ describe('parseResultFromLogs', () => {
   });
 });
 
-describe('handleCodeExecute dry-run', () => {
+describe('handleCodeExecute dry-run and live', () => {
   it('does not start sandbox; sets AWAITING_REVIEW', async () => {
     const deps = mockDeps();
     await handleCodeExecute(job(PAYLOAD), deps);
@@ -130,7 +130,9 @@ describe('handleCodeExecute dry-run', () => {
       expect.objectContaining({ status: 'DONE' }),
     );
   });
+});
 
+describe('handleCodeExecute idempotency', () => {
   it('skips work when task already DONE', async () => {
     const deps = mockDeps({
       loadTask: vi.fn(() => Promise.resolve({ ...TASK, status: 'DONE' as const })),
