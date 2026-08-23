@@ -263,7 +263,7 @@ it" stance above holds until C3 ships.
 
 ---
 
-## 5a. LLM observability — Langfuse (MVP-3 B1–B3 shipped)
+## 5a. LLM observability — Langfuse (MVP-3 B1–B4 shipped)
 
 MVP-3 adds a single observability layer for every LLM role
 ([04-roadmap.md](04-roadmap.md) § 5, tracks B1–B4; decision E2 in
@@ -291,7 +291,10 @@ live Planner call. Optional Langfuse boolean scores on the same ingestion API
 (noop without keys). CI: `.github/workflows/evals.yml` on
 `.claude/agents/**` / sandbox coder / planner+reviewer / `tools/evals/**`.
 
-The prompt-injection red-team (B4) targets the Analyst `withRagContext` surface.
+**B4 (2026-08-23):** untrusted RAG wrap + `allowMutatingTool` guard in
+`packages/ai-roles` (`rag-safety.ts`); worker `executeTool` blocks write tools
+when RAG looks injected without explicit user intent; red-team cases in
+`tools/evals` (`scoreRedTeam`) on the same `yarn evals` / CI path.
 
 ---
 

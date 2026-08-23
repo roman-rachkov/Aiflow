@@ -6,6 +6,8 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { withRagContext as mixRagContext } from '@aiflow/ai-roles';
+
 const here = dirname(fileURLToPath(import.meta.url));
 // apps/worker/src/chat → repo root is four `..`.
 const SYSTEM_PROMPT_PATH = join(here, '..', '..', '..', '..', '.claude', 'agents', 'analyst.md');
@@ -35,8 +37,7 @@ export function readSpecTemplate(): string {
   return after.slice(bodyStart, end);
 }
 
-/** Append RAG context to the system prompt when non-empty. */
+/** Append RAG context (B4 untrusted wrap) to the system prompt when non-empty. */
 export function withRagContext(base: string, context: string): string {
-  if (!context.trim()) return base;
-  return `${base}\n\n${context}`;
+  return mixRagContext(base, context);
 }

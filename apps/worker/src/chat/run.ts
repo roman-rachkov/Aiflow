@@ -61,6 +61,7 @@ async function runWithPublisher(payload: ChatRunPayload, publisher: AguiEmitter)
         resolved,
         emit,
         messageId,
+        ragContext,
       });
       fullText += turn.text;
       usage = sumUsage(usage, turn.usage);
@@ -88,12 +89,13 @@ interface DrainArgs {
   resolved: ResolvedAnalystProvider;
   emit: AguiEmitter['emit'];
   messageId: string;
+  ragContext: string;
 }
 
 async function drainModelTurn(
   args: DrainArgs,
 ): Promise<{ text: string; usage: ChatResult; completed: CompletedToolTurn[] }> {
-  const { payload, history, config, resolved, emit, messageId } = args;
+  const { payload, history, config, resolved, emit, messageId, ragContext } = args;
   const pending = new Map<number, { id: string; name: string; args: string }>();
   let text = '';
   let completed: CompletedToolTurn[] = [];
@@ -103,6 +105,8 @@ async function drainModelTurn(
     ownerId: payload.ownerId,
     uiMode: payload.uiMode,
     resolved,
+    userMessage: payload.userMessage,
+    ragContext,
   };
 
   const { stream, usage: usageP } = await resolved.provider.chatWithTools(history, config);

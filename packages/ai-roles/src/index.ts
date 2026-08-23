@@ -44,3 +44,14 @@ export {
   type ReviewVerdict,
   type ReviewVerdictKind,
 } from './reviewer';
+export {
+  allowMutatingTool,
+  formatUntrustedRag,
+  isMutatingChatTool,
+  MUTATING_CHAT_TOOLS,
+  ragLooksInjected,
+  RAG_UNTRUSTED_END,
+  RAG_UNTRUSTED_START,
+  withRagContext,
+  type MutatingChatTool,
+} from './rag-safety';

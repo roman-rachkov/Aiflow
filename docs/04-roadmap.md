@@ -349,11 +349,16 @@ noop when `LANGFUSE_*` keys unset. GitHub Actions workflow
 `docker/aider-sandbox/**`, planner/reviewer sources, and `tools/evals/**`, so a
 Coder prompt change cannot merge without an evals run.
 
-**B4. Prompt-injection red-team.** Uploaded RAG documents must not break policy or
-exfiltrate the key. Integration: the Analyst mixes user content into its system
-prompt via `withRagContext` — the known surface. Approach: an AgentDojo/
-InjecAgent-style red-team set, auto-run in CI. Done when an injected document
-never triggers a role's write action.
+**B4. Prompt-injection red-team.** — done (2026-08-23)
+
+Uploaded RAG documents must not break policy or exfiltrate keys / trigger writes.
+`@aiflow/ai-roles` `withRagContext` wraps retrieval in untrusted delimiters;
+`allowMutatingTool` blocks `spec:generate` / `run_planner` / `run_coder` / `deploy`
+when RAG looks injected unless the user explicitly requests that action. Worker
+`executeTool` enforces the guard. AgentDojo-style cases live in
+`tools/evals` (`scoreRedTeam`) and run under `yarn evals` +
+`.github/workflows/evals.yml`. Done criterion: an injected document never
+triggers a mutating tool without explicit user intent.
 
 #### Track C — Agent intelligence (Self-Refine, memory, escalation)
 
