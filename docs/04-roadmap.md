@@ -283,13 +283,17 @@ decomposition happens per task in its own brainstorm/sprint, on a `task/*` branc
 
 #### Track A — Architectural maturity (durable + audit + policy)
 
-**A1. Idempotent workers (`code:execute`, `deploy:run`).** At-least-once without
-duplicate effect (double commit/deploy/`markInProgress`). Integration:
-`apps/worker/src/code/handler.ts` (the `CodeHandlerDeps` DI seam already exists),
-`apps/worker/src/deploy/handler.ts`. Approach: DB attempt tokens, status-machine
-transition guards (`IN_PROGRESS` only from `PENDING`/`AWAITING_REVIEW`),
-`pushBranch`/`finishDeploy` dedup by `taskId+attempt`, dead-letter for stuck jobs.
-Done when a worker killed mid-job and restarted produces exactly one commit/deploy.
+**A1. Idempotent workers (`code:execute`, `deploy:run`).** — done (2026-08-23)
+
+At-least-once without duplicate effect (double commit/deploy/`markInProgress`).
+Integration: `apps/worker/src/code/handler.ts` + `claim.ts`,
+`apps/worker/src/deploy/handler.ts` + `claim.ts`. Shipped: conditional
+`claimInProgress` (`PENDING`|`AWAITING_REVIEW`|`FAILED` → `IN_PROGRESS`, clears
+git checkpoint); stalled `IN_PROGRESS` resumes; `headCommit` recorded **before**
+push so crash mid-push → `resume-after-push` (skip sandbox, re-push + re-enqueue
+review); DONE / DEPLOYED are no-op skips; `finishDeploy` only transitions from
+`BUILDING`. BullMQ still fail-fast (`attempts: 1`); operator re-enqueues after
+FAILED. Step-encoded pipeline resume → A2.
 
 **A2. Status machine as source of truth + resumability.** A crashed worker resumes
 from the last checkpoint, not from zero. Integration: `TaskLog` (already the

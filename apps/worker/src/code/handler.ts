@@ -1,6 +1,7 @@
 /**
  * BullMQ handler for `code:execute` — clone, dry-run or sandbox, status/logs.
  * On sandbox success enqueues `code-review` (MVP-2); does not mark DONE here.
+ * MVP-3 A1: claim/resume guards so at-least-once delivery has one effect.
  */
 
 import type { Job } from 'bullmq';
@@ -16,17 +17,19 @@ import {
   readHeadCommit,
   resolveBranchName,
 } from './branch';
+import { resolveCodeClaim, type TaskRowWithGit } from './claim';
 import type { CodeHandlerDeps } from './deps';
 import { failTask, runDryRun, runLive } from './pipeline';
 import { runSandboxContainer } from './sandbox-run';
 import { ensureUserTemplate } from './seed-template';
 import { removeSecretDir, resolveApiKey, writeApiKeySecret } from './secrets';
-import { appendTaskLog, loadTask, recordTaskGit, setTaskStatus } from './status';
+import { appendTaskLog, claimInProgress, loadTask, recordTaskGit, setTaskStatus } from './status';
 
 export type { CodeHandlerDeps } from './deps';
 
 const defaultDeps: CodeHandlerDeps = {
   loadTask,
+  claimInProgress,
   setTaskStatus,
   appendTaskLog,
   cloneRepo,
@@ -55,19 +58,20 @@ export async function handleCodeExecute(
   const payload = job.data;
   validateCodePayload(payload);
   await ensureTaskGitColumns(payload.schemaName);
-  const task = await deps.loadTask(payload.schemaName, payload.taskId);
-  if (!task) throw new Error(`Task not found: ${payload.taskId}`);
+  const claim = await resolveCodeClaim(payload.schemaName, payload.taskId, deps);
+  if (claim.kind === 'reject') throw new Error(claim.reason);
+  if (claim.kind === 'skip-done') {
+    await deps.appendTaskLog(payload.schemaName, payload.taskId, 'Уже DONE — пропуск\n');
+    return;
+  }
 
-  await markInProgress(payload, deps);
-  const branch = resolveBranchName(task.id, task.title, payload.branchName);
   const workDir = codeWorkDir(payload.taskId);
-
   try {
-    if (payload.dryRun) {
-      await runDryRun(payload, task, branch, deps);
+    if (claim.kind === 'resume-after-push') {
+      await resumeAfterPush(payload, claim.task, workDir, deps);
       return;
     }
-    await runLive({ payload, task, branch, workDir, deps });
+    await runClaimed(payload, claim.task, workDir, deps);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     await failTask(payload, `Ошибка выполнения: ${message}`, deps);
@@ -77,13 +81,54 @@ export async function handleCodeExecute(
   }
 }
 
-async function markInProgress(payload: CodeExecutePayload, deps: CodeHandlerDeps): Promise<void> {
-  await deps.setTaskStatus({
+async function runClaimed(
+  payload: CodeExecutePayload,
+  task: TaskRowWithGit,
+  workDir: string,
+  deps: CodeHandlerDeps,
+): Promise<void> {
+  await deps.appendTaskLog(payload.schemaName, payload.taskId, 'Задача взята в работу\n');
+  const branch = resolveBranchName(task.id, task.title, payload.branchName);
+  if (payload.dryRun) {
+    await runDryRun(payload, task, branch, deps);
+    return;
+  }
+  await runLive({ payload, task, branch, workDir, deps });
+}
+
+/** Crash after headCommit recorded: clone, push (idempotent), re-enqueue review. */
+async function resumeAfterPush(
+  payload: CodeExecutePayload,
+  task: TaskRowWithGit & { headCommit: string },
+  workDir: string,
+  deps: CodeHandlerDeps,
+): Promise<void> {
+  const branch = task.branchName ?? resolveBranchName(task.id, task.title, payload.branchName);
+  await deps.appendTaskLog(
+    payload.schemaName,
+    payload.taskId,
+    'Возобновление после сбоя: ветка уже записана, повтор push/review…\n',
+  );
+  await deps.cloneRepo({
+    owner: payload.giteaOwner,
+    repo: payload.giteaRepo,
+    branch: payload.giteaDefaultBranch,
+    workDir,
+  });
+  await deps.checkoutTaskBranch(workDir, branch);
+  await deps.pushBranch(workDir, branch);
+  const diff = await deps.captureBranchDiff(workDir, payload.giteaDefaultBranch);
+  await deps.enqueueCodeReview({
+    projectId: payload.projectId,
     schemaName: payload.schemaName,
     taskId: payload.taskId,
-    status: 'IN_PROGRESS',
-    startedAt: deps.now(),
-    completedAt: null,
+    branchName: branch,
+    diff,
+    checks: { typescript: true, eslint: true, tests: null },
   });
-  await deps.appendTaskLog(payload.schemaName, payload.taskId, 'Задача взята в работу\n');
+  await deps.appendTaskLog(
+    payload.schemaName,
+    payload.taskId,
+    'Повторный enqueue code-review после resume\n',
+  );
 }
