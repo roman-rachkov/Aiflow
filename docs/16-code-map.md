@@ -239,11 +239,13 @@ apps/
           dockerode.buildImage → DEPLOYED|FAILED; url `docker://{tag}` + run hint
         src/plan/handler.ts — load approved Specification → generatePlanTasks
           (env provider) → soft-delete replaceable tasks → Task+deps+TaskLog
-        src/code/handler.ts — code:execute: claim/resume (MVP-3 A1) + dry-run →
-          AWAITING_REVIEW, live → seed template if empty + sandbox + checkpoint
-          headCommit then push + enqueue code-review
-        src/code/claim.ts — resolveCodeClaim (skip DONE, resume-after-push,
-          conditional claim from PENDING|AWAITING_REVIEW|FAILED)
+        src/code/handler.ts — code:execute: claim/resume (MVP-3 A1/A2) + dry-run →
+          AWAITING_REVIEW, live → step pipeline (CLONE…DONE) + sandbox + PARSE
+          checkpoint ref then push + enqueue code-review
+        src/code/claim.ts — resolveCodeClaim (skip DONE, pipeline-complete,
+          resumeFrom from TaskLog+headCommit, fresh claim → CLONE)
+        src/code/pipeline{,-live,-steps}.ts — step encoding + live runner
+        src/code/git-checkpoint.ts — refs/aistudio/task/{id} push/restore (A2)
         src/review/handler.ts — code-review one-shot LLM Reviewer (MVP-2 4.1):
           generateReviewVerdict → TaskLog `=== REVIEW ===` JSON;
           ACCEPTED → FF into main → DONE → enqueue next ready tasks;
@@ -451,7 +453,7 @@ branch.
 | Planned entity / change                                                    | Track                  | Where it will live                                                                                       |
 | -------------------------------------------------------------------------- | ---------------------- | -------------------------------------------------------------------------------------------------------- |
 | Idempotent `code:execute` / `deploy:run` (claim + headCommit/finish dedup) | A1 **done 2026-08-23** | `apps/worker/src/code/{handler,claim,status}.ts`, `apps/worker/src/deploy/{handler,claim,status}.ts`     |
-| Step-encoded resumable pipeline                                            | A2                     | `apps/worker/src/code/pipeline.ts`, `TaskLog` (already the checkpoint)                                   |
+| Step-encoded resumable pipeline (`CLONE…DONE` + checkpoint ref)            | A2 **done 2026-08-23** | `apps/worker/src/code/pipeline{,-live,-steps,}.ts`, `git-checkpoint.ts`; TaskLog step markers            |
 | `AuditEvent` model (append-only, role/action/target/traceId)               | A3                     | `packages/db/prisma/schema.prisma` (public); `recordAudit()` in worker; Pro UI event feed in `apps/web`  |
 | Role policy guard (capability set)                                         | A4                     | `packages/ai-roles/src/policy.ts`; enforced inside the provider wrapper                                  |
 | Langfuse service                                                           | B1                     | `docker-compose.yml` (new service, Postgres-backed)                                                      |
