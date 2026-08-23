@@ -1,6 +1,5 @@
-# Golden SPEC→plan→code evals (MVP-3 B3).
-# Fires when role prompts or the eval suite change so a Coder prompt
-# regression cannot merge without an evals run.
+# Golden SPEC→plan→code evals + prompt-injection red-team (MVP-3 B3/B4).
+# Fires when role prompts, RAG surface, or the eval suite change.
 
 name: evals
 
@@ -10,7 +9,10 @@ on:
       - '.claude/agents/**'
       - 'packages/ai-roles/src/planner*'
       - 'packages/ai-roles/src/reviewer*'
+      - 'packages/ai-roles/src/rag-safety*'
       - 'docker/aider-sandbox/**'
+      - 'apps/worker/src/chat/**'
+      - 'apps/web/src/features/chat/model/schema*'
       - 'tools/evals/**'
       - '.github/workflows/evals.yml'
   push:
@@ -19,7 +21,10 @@ on:
       - '.claude/agents/**'
       - 'packages/ai-roles/src/planner*'
       - 'packages/ai-roles/src/reviewer*'
+      - 'packages/ai-roles/src/rag-safety*'
       - 'docker/aider-sandbox/**'
+      - 'apps/worker/src/chat/**'
+      - 'apps/web/src/features/chat/model/schema*'
       - 'tools/evals/**'
       - '.github/workflows/evals.yml'
   workflow_dispatch:
@@ -44,10 +49,9 @@ jobs:
       - name: Install
         run: yarn install --immutable
 
-      - name: Run golden evals (offline)
+      - name: Run golden + red-team evals (offline)
         run: yarn evals
         env:
-          # Explicitly offline + noop Langfuse so CI stays deterministic.
           EVALS_LIVE: '0'
           LANGFUSE_PUBLIC_KEY: ''
           LANGFUSE_SECRET_KEY: ''

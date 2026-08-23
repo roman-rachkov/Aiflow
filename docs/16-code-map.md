@@ -320,6 +320,8 @@ packages/
 │                               Langfuse tracing when LANGFUSE_* keys set (B2)
 │                             traced-provider.ts / tracer.ts / langfuse-tracer.ts /
 │                               trace-context.ts — ALS context + noop/ingest tracer
+│                             rag-safety.ts — withRagContext untrusted wrap +
+│                               allowMutatingTool (MVP-3 B4 red-team guard)
 │                             env-provider.ts — createProviderFromEnv() /
 │                               readProviderConfigFromEnv(): the app seam; one
 │                               OpenAI-compatible provider from OPENAI_* env
@@ -356,13 +358,14 @@ tools/                    Dev-only workspaces. Ship nowhere; still gated by
 │                             src/taxonomy.ts owns the ourProblem split.
 │                             Complements Anthropic's session-report (cost),
 │                             deliberately not a fork of it — conventions § 8.3
-└── evals/                Golden SPEC→plan→code evals (MVP-3 B3).
+└── evals/                Golden SPEC→plan→code evals (MVP-3 B3) +
+                          prompt-injection red-team (B4).
                           └── public entry: src/cli.ts (`yarn evals`);
-                              cases/{todo-crud,non-goals}/ + prompt contracts;
-                              offline fixtures default; EVALS_LIVE=1 for LLM;
-                              Langfuse score report noop without keys.
-                              deps: @aiflow/ai-roles. CI:
-                              `.github/workflows/evals.yml` on agent/prompt paths.
+                              cases/{todo-crud,non-goals}/ + prompt contracts +
+                              scoreRedTeam; offline fixtures default;
+                              EVALS_LIVE=1 for LLM; Langfuse score report noop
+                              without keys. deps: @aiflow/ai-roles. CI:
+                              `.github/workflows/evals.yml` on agent/prompt/RAG paths.
 
 docker/                   Compose helpers (not a Yarn workspace).
 ├── postgres/init/        CREATE EXTENSION vector, pgcrypto (first-boot only)
@@ -462,7 +465,7 @@ re-derive the integration points. Each lands in its own `task/*` branch.
 | Langfuse self-host (UI :3100; ClickHouse + langfuse-redis; shared PG/MinIO) | B1 **done 2026-08-23** | `docker-compose.yml` (`langfuse-web`/`worker`/`clickhouse`/`langfuse-redis`); `docker/postgres/init/02-langfuse-db.sql`; `docker/minio/ensure-langfuse-bucket.sh` |
 | LLM-call tracing wrapper                                                    | B2 **done 2026-08-23** | `packages/ai-roles` (`traced-provider` + `langfuse-tracer`); `runWithTraceContext`; Reviewer `TaskLog` `langfuseTraceId=`; noop without keys                      |
 | Evals framework + CI job on prompt change                                   | B3 **done 2026-08-23** | `tools/evals` (`yarn evals`); golden cases + prompt contracts; `.github/workflows/evals.yml`; Langfuse scores noop without keys                                   |
-| Prompt-injection red-team set                                               | B4                     | CI red-team (AgentDojo/InjecAgent-style) against the Analyst `withRagContext` surface                                                                             |
+| Prompt-injection red-team set                                               | B4 **done 2026-08-23** | `packages/ai-roles` `rag-safety` (untrusted wrap + `allowMutatingTool`); worker tool guard; `tools/evals` `scoreRedTeam`                                          |
 | `code:review` Self-Refine loop (retry cap + AgentMemory feedback)           | C1                     | `apps/worker/src/review/` already one-shot (4.1); C1 adds auto re-enqueue code-execute ≤N                                                                         |
 | `AgentMemory` model (task/role/lesson)                                      | C2                     | `packages/db/prisma/schema_project_template.prisma`; mixed into Coder + Reviewer prompts                                                                          |
 | `services/model-router` runtime (escalation as 2nd routed request)          | C3                     | `services/model-router/src` (currently `export {};` stub); `ModelConfig.config` gains `advisor` per role                                                          |

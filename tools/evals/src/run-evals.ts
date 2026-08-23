@@ -4,13 +4,14 @@ import { reportEvalScores } from './langfuse-report.ts';
 import { loadGoldenCases } from './load-cases.ts';
 import { scorePlan } from './score-plan.ts';
 import { scorePromptContracts } from './score-prompts.ts';
+import { scoreRedTeam } from './score-redteam.ts';
 import type { CheckResult, EvalRunResult, GoldenCase } from './types.ts';
 
-/** Run the golden SPEC→plan→code eval suite (offline fixtures by default). */
+/** Run the golden SPEC→plan→code + red-team suite (offline fixtures by default). */
 export async function runEvals(options?: { live?: boolean }): Promise<EvalRunResult> {
   const live = options?.live === true || process.env.EVALS_LIVE === '1';
   const cases = await loadGoldenCases();
-  const checks: CheckResult[] = [...(await scorePromptContracts())];
+  const checks: CheckResult[] = [...(await scorePromptContracts()), ...scoreRedTeam()];
   for (const golden of cases) {
     const tasks = await resolvePlan(golden, live);
     checks.push(...scorePlan(golden.id, tasks, golden.expectations));
