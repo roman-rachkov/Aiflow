@@ -1,0 +1,42 @@
+[
+  {
+    "title": "Add Recipe Prisma model",
+    "description": "Add Recipe model with title, ingredients, steps, ownerId linked to User.",
+    "status": "PENDING",
+    "priority": "critical",
+    "effort": "M",
+    "dependencies": [],
+    "acceptance": "Migration applies; Recipe table exists.",
+    "needsConfirmation": false
+  },
+  {
+    "title": "Recipe REST API",
+    "description": "CRUD /api/recipes scoped to the session owner.",
+    "status": "PENDING",
+    "priority": "critical",
+    "effort": "M",
+    "dependencies": ["Add Recipe Prisma model"],
+    "acceptance": "Owner-only CRUD works; no cross-user leak.",
+    "needsConfirmation": false
+  },
+  {
+    "title": "Recipes list and edit UI",
+    "description": "Pages to list, create, and edit recipes.",
+    "status": "PENDING",
+    "priority": "high",
+    "effort": "M",
+    "dependencies": ["Recipe REST API"],
+    "acceptance": "Owner can manage recipes in the UI.",
+    "needsConfirmation": false
+  },
+  {
+    "title": "Smoke-test primary recipe path",
+    "description": "Smoke coverage for create → edit → delete recipe.",
+    "status": "PENDING",
+    "priority": "medium",
+    "effort": "S",
+    "dependencies": ["Recipes list and edit UI"],
+    "acceptance": "Smoke test covers the primary recipe user path.",
+    "needsConfirmation": false
+  }
+]

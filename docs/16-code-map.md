@@ -349,13 +349,20 @@ packages/
 tools/                    Dev-only workspaces. Ship nowhere; still gated by
 │                         `yarn verify` — an unverified self-analysis tool
 │                         would be worth less than none.
-└── session-analyzer/     Tool-flow analytics over ~/.claude transcripts.
-                          └── public entry: src/cli.ts (via tsx), consumed by
-                              /session-review. deps: none (Node built-ins only)
-                              src/transcript.ts is the only parse boundary;
-                              src/taxonomy.ts owns the ourProblem split.
-                              Complements Anthropic's session-report (cost),
-                              deliberately not a fork of it — conventions § 8.3
+├── session-analyzer/     Tool-flow analytics over ~/.claude transcripts.
+│                         └── public entry: src/cli.ts (via tsx), consumed by
+│                             /session-review. deps: none (Node built-ins only)
+│                             src/transcript.ts is the only parse boundary;
+│                             src/taxonomy.ts owns the ourProblem split.
+│                             Complements Anthropic's session-report (cost),
+│                             deliberately not a fork of it — conventions § 8.3
+└── evals/                Golden SPEC→plan→code evals (MVP-3 B3).
+                          └── public entry: src/cli.ts (`yarn evals`);
+                              cases/{todo-crud,non-goals}/ + prompt contracts;
+                              offline fixtures default; EVALS_LIVE=1 for LLM;
+                              Langfuse score report noop without keys.
+                              deps: @aiflow/ai-roles. CI:
+                              `.github/workflows/evals.yml` on agent/prompt paths.
 
 docker/                   Compose helpers (not a Yarn workspace).
 ├── postgres/init/        CREATE EXTENSION vector, pgcrypto (first-boot only)
@@ -454,7 +461,7 @@ re-derive the integration points. Each lands in its own `task/*` branch.
 | Role policy guard (capability set)                                          | A4                     | `packages/ai-roles/src/policy.ts`; enforced inside the provider wrapper                                                                                           |
 | Langfuse self-host (UI :3100; ClickHouse + langfuse-redis; shared PG/MinIO) | B1 **done 2026-08-23** | `docker-compose.yml` (`langfuse-web`/`worker`/`clickhouse`/`langfuse-redis`); `docker/postgres/init/02-langfuse-db.sql`; `docker/minio/ensure-langfuse-bucket.sh` |
 | LLM-call tracing wrapper                                                    | B2 **done 2026-08-23** | `packages/ai-roles` (`traced-provider` + `langfuse-tracer`); `runWithTraceContext`; Reviewer `TaskLog` `langfuseTraceId=`; noop without keys                      |
-| Evals framework + CI job on prompt change                                   | B3                     | Promptfoo or Langfuse datasets; CI fires on `.claude/agents/**` change                                                                                            |
+| Evals framework + CI job on prompt change                                   | B3 **done 2026-08-23** | `tools/evals` (`yarn evals`); golden cases + prompt contracts; `.github/workflows/evals.yml`; Langfuse scores noop without keys                                   |
 | Prompt-injection red-team set                                               | B4                     | CI red-team (AgentDojo/InjecAgent-style) against the Analyst `withRagContext` surface                                                                             |
 | `code:review` Self-Refine loop (retry cap + AgentMemory feedback)           | C1                     | `apps/worker/src/review/` already one-shot (4.1); C1 adds auto re-enqueue code-execute ≤N                                                                         |
 | `AgentMemory` model (task/role/lesson)                                      | C2                     | `packages/db/prisma/schema_project_template.prisma`; mixed into Coder + Reviewer prompts                                                                          |
