@@ -11,9 +11,28 @@ Updated by each docs-autopilot wave. Orchestrator reads this before code waves.
 
 ## Phase
 
-- **Current:** Wave C4 complete (MVP2-43-DOMAIN + MVP3-D3 Traefik domain deploy).
-- **Next:** Wave C5 — MVP2-42-BOT (Support Bot), MVP3-C3 (model-router runtime), MVP3-C4 (Planner ToT), dogfood closure.
-- **Blocked:** `APP_COMPLETE` — 17 open requirements in `REQUIREMENTS.md`.
+- **Current:** Wave C5 complete (MVP2-42-BOT + MVP2-42-COMPOSE + MVP3-D2 Support Bot).
+- **Next:** Wave C6 — MVP3-C3 (model-router runtime), MVP3-C4 (Planner ToT), MVP2-51 dogfood closure.
+- **Blocked:** `APP_COMPLETE` — ~14 open requirements in `REQUIREMENTS.md`.
+
+## Wave C5 summary (2026-08-31)
+
+- Implemented MVP2-42-BOT + MVP2-42-COMPOSE + MVP3-D2: Support Bot with RAG.
+- New feature slice `apps/web/src/features/support-bot/` (FSD):
+  - `model/types.ts` — wire types (SupportChatRequest/Delta/Done)
+  - `model/prompt.ts` — support bot system prompt (English internal, Russian user-facing)
+  - `model/service.ts` — `streamSupportAnswer(schemaName, message, deps)` with dependency injection
+    for `retrieveChunks` (boundaries/dependencies rule enforcement)
+  - `ui/SupportBotPanel.tsx` — Pro-only chat panel with SSE streaming + source citation
+  - `index.ts` — public barrel
+- New API route `POST /api/projects/[id]/support/chat` — SSE streaming, auth guard, 404 on
+  missing/foreign project; injects `retrieveChunks` from `features/files/rag`
+- `SidebarNav.tsx` + `ProjectRoutes.tsx` updated: "Агенты" sidebar item (Pro only) with
+  `SupportBotPanel` in `AgentInterface.Route path="agents"`
+- `features/deploy/model/templates.ts` `renderDeployTemplates` now accepts
+  `options.includeSupportBot`; `SUPPORT_BOT_ENABLED=true` env var appends `support-bot`
+  sidecar service to generated compose file
+- 4 unit tests in `service.test.ts` (stream output, RAG degradation, system prompt injection)
 
 ## Wave C4 summary (2026-08-31)
 

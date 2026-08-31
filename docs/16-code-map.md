@@ -128,7 +128,9 @@ apps/
 │     ├── deploy/         Manual deploy: templates, enqueue, UI (Task 2.3)
 │     │                     └── public: `index.ts` (server) + `client.ts` (panel)
 │     │                         model/templates.ts — Dockerfile + compose render
-│     │                           (`aistudio-project-{shortId}`, port 3000)
+│     │                           (`aistudio-project-{shortId}`, port 3000);
+│     │                           `SUPPORT_BOT_ENABLED` env / `options.includeSupportBot`
+│     │                           appends `support-bot` sidecar (MVP2-42-COMPOSE)
 │     │                         model/export.ts — optional Gitea Contents commit
 │     │                         model/service.ts — create Deployment+Meta (same
 │     │                           uuid), getDeployQueue().add — **no dockerode**
@@ -152,6 +154,15 @@ apps/
 │     │                           `@aiflow/db` `listAuditEvents`; assertProAudit
 │     │                         ui/AuditEventFeed — chronological role actions
 │     │                           (composed from tasks page via renderTaskExtras)
+│     ├── support-bot/    Support Bot: RAG-backed Q&A for deployed apps (MVP-2 4.2)
+│     │                     └── public: `index.ts` (server + panel)
+│     │                         model/prompt.ts — base system prompt (English)
+│     │                         model/service.ts — `streamSupportAnswer(schema,msg,deps)`
+│     │                           with injected `retrieveChunks` (DI avoids boundary rule)
+│     │                         model/types.ts — wire types (SupportChatRequest/Delta/Done)
+│     │                         ui/SupportBotPanel.tsx — Pro "Агенты" route panel with
+│     │                           SSE streaming + source citation
+│     │                         API: POST /api/projects/[id]/support/chat (SSE)
 │     └── editor/         Pro code editor over Gitea (Task 2.2)
 │                           └── public: `index.ts` (server) + `client.ts` (EditorShell)
 │                               model/access.ts — resolveEditorContext (owner +
@@ -520,5 +531,5 @@ branch.
 | `services/model-router` runtime (escalation as 2nd routed request)          | C3                     | `services/model-router/src` (currently `export {};` stub); `ModelConfig.config` gains `advisor` per role                                                                          |
 | Optional Planner Tree-of-Thoughts mode                                      | C4                     | `packages/ai-roles/src/planner.ts`; behind a flag                                                                                                                                 |
 | Reviewer verdict UI                                                         | D1                     | `apps/web/src/features/tasks` (verdict list, issues, auto-approve threshold)                                                                                                      |
-| Support Bot (embed widget + final-compose inclusion)                        | D2                     | Dify/lightweight RAG on SPEC + docs; reuses `features/files` pgvector stack                                                                                                       |
+| Support Bot (embed widget + final-compose inclusion)                        | D2 ✅                  | `features/support-bot/`; `/api/projects/[id]/support/chat` (SSE); Pro "Агенты" panel; compose sidecar via `SUPPORT_BOT_ENABLED`                                                  |
 | Automatic domain deploy (Traefik/nginx)                                     | D3 **done 2026-08-31** | `apps/worker/src/deploy/run-container.ts`; Traefik v3 in compose; real URL `http://app-{hex}.localhost:8090`; idempotent remove-before-create; fallback `docker://` when disabled |

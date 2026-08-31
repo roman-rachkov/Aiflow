@@ -24,6 +24,7 @@ import { FilePanel } from '@/features/files/client';
 import { TasksPanel } from '@/features/tasks/client';
 import { DeploymentsPanel } from '@/features/deploy/client';
 import { ModelSettingsForm } from '@/features/model-config/client';
+import { SupportBotPanel } from '@/features/support-bot';
 import type { FileListItemView } from '@/features/files';
 import type { SpecificationListItemView } from '@/features/specifications';
 import { SpecApproveButton } from '@/shared/spec-approve-button';
@@ -64,6 +65,9 @@ export function buildProjectRoutes(props: ProjectRoutesProps): ReactElement[] {
   ];
   if (props.isPro) {
     routes.push(
+      <AgentInterface.Route key="agents" path="agents">
+        <SupportBotPanel projectId={props.projectId} />
+      </AgentInterface.Route>,
       <AgentInterface.Route key="models" path="models">
         <div className="h-full overflow-auto p-4">
           <ModelSettingsForm projectId={props.projectId} />
