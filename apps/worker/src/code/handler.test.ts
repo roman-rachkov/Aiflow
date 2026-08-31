@@ -53,6 +53,7 @@ function mockDeps(overrides: Partial<CodeHandlerDeps> = {}): CodeHandlerDeps {
     recordTaskGit: vi.fn(() => Promise.resolve()),
     captureBranchDiff: vi.fn(() => Promise.resolve('diff --git a/x\n')),
     enqueueCodeReview: vi.fn(() => Promise.resolve()),
+    recordAudit: vi.fn(() => Promise.resolve({})),
     removeWorkDir: vi.fn(() => Promise.resolve()),
     resolveApiKey: vi.fn(() => 'sk-test'),
     writeApiKeySecret: vi.fn(() =>

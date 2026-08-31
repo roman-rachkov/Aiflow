@@ -144,7 +144,14 @@ apps/
 │     │                         model/access.ts — assertProPlan / assertProCode
 │     │                         model/ws-attach.ts — Redis `sandbox:logs:{taskId}`
 │     │                         ui/TasksPanel + ExecuteControls + TaskLogPanel +
-│     │                           ReviewVerdictCard (parses `=== REVIEW ===` log)
+│     │                           ReviewVerdictCard (parses `=== REVIEW ===` log);
+│     │                           `renderTaskExtras` slot for app-composed feeds
+│     ├── audit/          Pro AuditEvent feed (MVP-3 A3)
+│     │                     └── public: `index.ts` (server) + `client.ts` (feed)
+│     │                         model/service.ts — listProjectAudit via
+│     │                           `@aiflow/db` `listAuditEvents`; assertProAudit
+│     │                         ui/AuditEventFeed — chronological role actions
+│     │                           (composed from tasks page via renderTaskExtras)
 │     └── editor/         Pro code editor over Gitea (Task 2.2)
 │                           └── public: `index.ts` (server) + `client.ts` (EditorShell)
 │                               model/access.ts — resolveEditorContext (owner +
@@ -222,6 +229,7 @@ apps/
 │     /api/projects/[id]/tasks/[taskId] (GET detail+logs — Task 3.3)
 │     /api/projects/[id]/tasks/[taskId]/execute (POST dryRun? — Pro, 3.3)
 │     /api/projects/[id]/tasks/[taskId]/confirm (POST after dry-run — Pro, 3.3)
+│     /api/projects/[id]/audit (GET — Pro AuditEvent feed, optional ?taskId=, A3)
 │     /api/projects/[id]/editor/{tree,file,commits,diff} (GET — Task 2.2)
 │     /api/projects/[id]/editor/commit (POST), /editor/files (POST/DELETE),
 │       /editor/files/rename (POST — Task 2.2)
@@ -250,7 +258,9 @@ apps/
         src/review/handler.ts — code-review one-shot LLM Reviewer (MVP-2 4.1):
           generateReviewVerdict → TaskLog `=== REVIEW ===` JSON;
           ACCEPTED → FF into main → DONE → enqueue next ready tasks;
-          REJECTED→PENDING (Self-Refine → MVP-3 C1)
+          REJECTED→PENDING (Self-Refine → MVP-3 C1); AuditEvent on settle (A3)
+        src/audit.ts — recordAudit wrappers (coder.push / reviewer.verdict /
+          deploy.finish) → public.AuditEvent (MVP-3 A3)
         src/deploy/claim.ts — resolveDeployClaim (skip DEPLOYED, reject FAILED)
         src/deploy/status.ts — finishDeploy only from BUILDING (A1 dedup)
         src/chat/ — chat-run multi-turn AG-UI tool loop; Redis publish
@@ -274,10 +284,13 @@ packages/
 │                         ├── prisma/schema.prisma        → public schema
 │                         │     ProjectMeta holds nullable Gitea identity
 │                         │     (giteaOwner/giteaRepo/giteaDefaultBranch; Task 2.2)
+│                         │     AuditEvent append-only trail (MVP-3 A3; no deletedAt)
 │                         ├── prisma/schema_project_template.prisma → project schemas
 │                         ├── generated/public, generated/project (build artifacts)
 │                         ├── src/index.ts  — the Prisma client factory:
 │                         │     getPublicClient(), getProjectClient(schemaName)
+│                         ├── src/audit.ts — recordAudit / listAuditEvents (A3)
+│                         ├── src/public-client.ts — public Prisma singleton
 │                         │     Map-cached + name-validated, evictProjectClient()
 │                         │     on archive/delete, disconnectAll() on shutdown (C1)
 │                         └── scripts/generate-project-sql.ts — renders the
@@ -323,12 +336,14 @@ packages/
 │                             openai-compatible.ts — createOpenAICompatibleProvider:
 │                               parameterized ${baseURL}/chat/completions streaming +
 │                               /embeddings; mock path when no key (canned chat,
-│                               deterministic 768-dim embeddings); wraps with
 │                               Langfuse tracing when LANGFUSE_* keys set (B2)
 │                             traced-provider.ts / tracer.ts / langfuse-tracer.ts /
 │                               trace-context.ts — ALS context + noop/ingest tracer
 │                             rag-safety.ts — withRagContext untrusted wrap +
 │                               allowMutatingTool (MVP-3 B4 red-team guard)
+│                             policy.ts / policy-guard.ts — role capability sets +
+│                               withPolicyGuard on provider (MVP-3 A4); Reviewer
+│                               lacks write-commit
 │                             env-provider.ts — createProviderFromEnv() /
 │                               readProviderConfigFromEnv(): the app seam; one
 │                               OpenAI-compatible provider from OPENAI_* env
@@ -418,32 +433,32 @@ compose topology          `docker compose up` (no `--build`): postgres, redis,
 
 ## Cross-cutting
 
-| Concern                                                            | Where                                                                  |
-| ------------------------------------------------------------------ | ---------------------------------------------------------------------- |
-| Auth helpers (`requireUser`, `requireProMode`, `canAccessProject`) | `apps/web/src/features/auth` (Task 1.2a)                               |
-| Per-route project access gate (`resolveProjectSchema`)             | `apps/web/src/features/projects/model/access.ts` (Task 2.1)            |
-| Projects CRUD + schema provisioning                                | `apps/web/src/features/projects` (Task 1.2b)                           |
-| Analyst chat (SSE streaming + history, RAG-augmented)              | `apps/web/src/features/chat` (Task 1.3; RAG in Task 2.1)               |
-| File upload + RAG indexing + retrieval                             | `apps/web/src/features/files` (Task 2.1)                               |
-| Dev-time repo RAG MCP (`aiflow-rag` search/status)                 | `apps/web/scripts/{ingest-repo,rag-mcp,rag-query,dev-rag-shared}.ts`   |
-| SPEC.md version list, view, generation                             | `apps/web/src/features/specifications` (Task 2.1)                      |
-| Analyst ModelConfig (encrypt, API, settings UI)                    | `apps/web/src/features/model-config` (Task 2.3)                        |
-| Manual deploy (templates, enqueue, deployments UI)                 | `apps/web/src/features/deploy` (Task 2.3); worker `deploy:run`         |
-| Roadmap tasks + plan/code enqueue + live sandbox logs WS           | `apps/web/src/features/tasks` (3.2–3.3); worker `plan`/`code`          |
-| Model provider adapter (universal OpenAI-compatible, chat+embed)   | `packages/ai-roles/src` (Task 1.3; universal + embeddings in Task 2.1) |
-| App shell (list-layout header nav; project shell = `_shell/`)     | `apps/web/src/shared/ui` (AppHeader, AppNav); `ProjectShell` in `_shell/` |
-| MinIO object storage client                                        | `apps/web/src/shared/minio` (Task 2.1)                                 |
-| Gitea HTTP client (REST v1, fetch-only; token file or env)         | `apps/web/src/shared/gitea` (Task 2.2); worker `gitea-token.ts`        |
-| Gitea bootstrap after volume wipe                                  | `docker/gitea/bootstrap.sh` + compose `gitea-init`                     |
-| App HTTP bind (`LISTEN_HOST` / `HOST`, never Docker `HOSTNAME`)    | `apps/web/server.ts`                                                   |
-| Pro code editor (Monaco + Gitea files/git + in-memory WS hub)      | `apps/web/src/features/editor` (Task 2.2); WS via `apps/web/server.ts` |
-| UI primitives + design tokens (OpenUI-backed)                      | `packages/ui/src` (Task 1.2d; OpenUI D0a)                              |
-| OpenUI brand tokens (CSS `:root` overrides)                        | `apps/web/src/app/globals.css` (D0a; no ThemeProvider)                 |
-| Prisma client factory                                              | `packages/db/src/index.ts`                                             |
-| Queue definitions                                                  | `packages/queue/src`                                                   |
-| Encryption helpers (AES-256-GCM + envelope typing)                 | `packages/crypto` + `packages/db/src/config-types.ts`                  |
-| Gitea identity on `ProjectMeta` (owner/repo/branch)                | `packages/db` public schema (Task 2.2)                                 |
-| Env validation                                                     | `.env.example` + `apps/web/src/shared/env` (planned)                   |
+| Concern                                                            | Where                                                                     |
+| ------------------------------------------------------------------ | ------------------------------------------------------------------------- |
+| Auth helpers (`requireUser`, `requireProMode`, `canAccessProject`) | `apps/web/src/features/auth` (Task 1.2a)                                  |
+| Per-route project access gate (`resolveProjectSchema`)             | `apps/web/src/features/projects/model/access.ts` (Task 2.1)               |
+| Projects CRUD + schema provisioning                                | `apps/web/src/features/projects` (Task 1.2b)                              |
+| Analyst chat (SSE streaming + history, RAG-augmented)              | `apps/web/src/features/chat` (Task 1.3; RAG in Task 2.1)                  |
+| File upload + RAG indexing + retrieval                             | `apps/web/src/features/files` (Task 2.1)                                  |
+| Dev-time repo RAG MCP (`aiflow-rag` search/status)                 | `apps/web/scripts/{ingest-repo,rag-mcp,rag-query,dev-rag-shared}.ts`      |
+| SPEC.md version list, view, generation                             | `apps/web/src/features/specifications` (Task 2.1)                         |
+| Analyst ModelConfig (encrypt, API, settings UI)                    | `apps/web/src/features/model-config` (Task 2.3)                           |
+| Manual deploy (templates, enqueue, deployments UI)                 | `apps/web/src/features/deploy` (Task 2.3); worker `deploy:run`            |
+| Roadmap tasks + plan/code enqueue + live sandbox logs WS           | `apps/web/src/features/tasks` (3.2–3.3); worker `plan`/`code`             |
+| Model provider adapter (universal OpenAI-compatible, chat+embed)   | `packages/ai-roles/src` (Task 1.3; universal + embeddings in Task 2.1)    |
+| App shell (list-layout header nav; project shell = `_shell/`)      | `apps/web/src/shared/ui` (AppHeader, AppNav); `ProjectShell` in `_shell/` |
+| MinIO object storage client                                        | `apps/web/src/shared/minio` (Task 2.1)                                    |
+| Gitea HTTP client (REST v1, fetch-only; token file or env)         | `apps/web/src/shared/gitea` (Task 2.2); worker `gitea-token.ts`           |
+| Gitea bootstrap after volume wipe                                  | `docker/gitea/bootstrap.sh` + compose `gitea-init`                        |
+| App HTTP bind (`LISTEN_HOST` / `HOST`, never Docker `HOSTNAME`)    | `apps/web/server.ts`                                                      |
+| Pro code editor (Monaco + Gitea files/git + in-memory WS hub)      | `apps/web/src/features/editor` (Task 2.2); WS via `apps/web/server.ts`    |
+| UI primitives + design tokens (OpenUI-backed)                      | `packages/ui/src` (Task 1.2d; OpenUI D0a)                                 |
+| OpenUI brand tokens (CSS `:root` overrides)                        | `apps/web/src/app/globals.css` (D0a; no ThemeProvider)                    |
+| Prisma client factory                                              | `packages/db/src/index.ts`                                                |
+| Queue definitions                                                  | `packages/queue/src`                                                      |
+| Encryption helpers (AES-256-GCM + envelope typing)                 | `packages/crypto` + `packages/db/src/config-types.ts`                     |
+| Gitea identity on `ProjectMeta` (owner/repo/branch)                | `packages/db` public schema (Task 2.2)                                    |
+| Env validation                                                     | `.env.example` + `apps/web/src/shared/env` (planned)                      |
 
 ## Rules that keep it readable
 
@@ -480,8 +495,8 @@ branch.
 | --------------------------------------------------------------------------- | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Idempotent `code:execute` / `deploy:run` (claim + headCommit/finish dedup)  | A1 **done 2026-08-23** | `apps/worker/src/code/{handler,claim,status}.ts`, `apps/worker/src/deploy/{handler,claim,status}.ts`                                                              |
 | Step-encoded resumable pipeline (`CLONE…DONE` + checkpoint ref)             | A2 **done 2026-08-23** | `apps/worker/src/code/pipeline{,-live,-steps,}.ts`, `git-checkpoint.ts`; TaskLog step markers                                                                     |
-| `AuditEvent` model (append-only, role/action/target/traceId)                | A3                     | `packages/db/prisma/schema.prisma` (public); `recordAudit()` in worker; Pro UI event feed in `apps/web`                                                           |
-| Role policy guard (capability set)                                          | A4                     | `packages/ai-roles/src/policy.ts`; enforced inside the provider wrapper                                                                                           |
+| `AuditEvent` model (append-only, role/action/target/traceId)                | A3 **done 2026-08-23** | `packages/db` (`AuditEvent` + `recordAudit`/`listAuditEvents`); worker `src/audit.ts`; Pro feed `features/audit` + `/api/.../audit`                               |
+| Role policy guard (capability set)                                          | A4 **done 2026-08-23** | `packages/ai-roles` `policy.ts` + `policy-guard.ts`; PUSH asserts `write-commit`; violation → AuditEvent                                                          |
 | Langfuse self-host (UI :3100; ClickHouse + langfuse-redis; shared PG/MinIO) | B1 **done 2026-08-23** | `docker-compose.yml` (`langfuse-web`/`worker`/`clickhouse`/`langfuse-redis`); `docker/postgres/init/02-langfuse-db.sql`; `docker/minio/ensure-langfuse-bucket.sh` |
 | LLM-call tracing wrapper                                                    | B2 **done 2026-08-23** | `packages/ai-roles` (`traced-provider` + `langfuse-tracer`); `runWithTraceContext`; Reviewer `TaskLog` `langfuseTraceId=`; noop without keys                      |
 | Evals framework + CI job on prompt change                                   | B3 **done 2026-08-23** | `tools/evals` (`yarn evals`); golden cases + prompt contracts; `.github/workflows/evals.yml`; Langfuse scores noop without keys                                   |

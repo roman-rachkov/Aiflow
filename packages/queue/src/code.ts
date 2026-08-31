@@ -6,6 +6,7 @@ import { QUEUE_CODE_EXECUTE } from './names';
 /**
  * Payload for `code:execute`. `taskId` is the project-schema Task row.
  * `dryRun: true` plans without starting the Aider sandbox.
+ * `retryCount` / `reviewFeedback` are set on Reviewer Self-Refine re-enqueues (MVP-3 C1).
  */
 export type CodeExecutePayload = {
   projectId: string;
@@ -16,6 +17,10 @@ export type CodeExecutePayload = {
   giteaDefaultBranch: string;
   dryRun: boolean;
   branchName?: string;
+  /** Number of reviewer-driven retries already consumed (0-based; absent on first run). */
+  retryCount?: number;
+  /** Reviewer feedback text to prepend to sandbox task description on retry. */
+  reviewFeedback?: string;
 };
 
 /**

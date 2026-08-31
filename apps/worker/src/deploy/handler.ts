@@ -7,6 +7,7 @@
 import type { Job } from 'bullmq';
 import type { DeployRunPayload } from '@aiflow/queue';
 
+import { auditDeployFinish, defaultRecordAudit, type RecordAuditFn } from '../audit';
 import { resolveDeployClaim } from './claim';
 import { pushUserAppSchema } from './app-schema-push';
 import { cloneRepo, deployWorkDir, removeWorkDir } from './clone';
@@ -21,6 +22,7 @@ export type DeployHandlerDeps = {
   appendDeployLog: typeof appendDeployLog;
   finishDeploy: typeof finishDeploy;
   removeWorkDir: typeof removeWorkDir;
+  recordAudit: RecordAuditFn;
   now: () => Date;
 };
 
@@ -32,6 +34,7 @@ const defaultDeps: DeployHandlerDeps = {
   appendDeployLog,
   finishDeploy,
   removeWorkDir,
+  recordAudit: defaultRecordAudit,
   now: () => new Date(),
 };
 
@@ -87,12 +90,19 @@ export async function handleDeployRun(
     await runDeployPipeline(payload, workDir, imageTag, deps);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    await deps.finishDeploy({
+    const finished = await deps.finishDeploy({
       schemaName: payload.schemaName,
       deploymentId: payload.deploymentId,
       status: 'FAILED',
       logChunk: `Ошибка сборки: ${message}\n`,
     });
+    if (finished) {
+      await auditDeployFinish(deps.recordAudit, {
+        projectId: payload.projectId,
+        deploymentId: payload.deploymentId,
+        status: 'FAILED',
+      });
+    }
     throw err;
   } finally {
     await deps.removeWorkDir(workDir);
@@ -128,7 +138,7 @@ async function runDeployPipeline(
   });
   const pushed = await deps.pushUserAppSchema(workDir, payload.schemaName);
   const url = `docker://${imageTag}`;
-  await deps.finishDeploy({
+  const finished = await deps.finishDeploy({
     schemaName: payload.schemaName,
     deploymentId: payload.deploymentId,
     status: 'DEPLOYED',
@@ -136,6 +146,14 @@ async function runDeployPipeline(
     url,
     logChunk: finishLog(imageTag, pushed.appSchema, pushed.skipped),
   });
+  if (finished) {
+    await auditDeployFinish(deps.recordAudit, {
+      projectId: payload.projectId,
+      deploymentId: payload.deploymentId,
+      status: 'DEPLOYED',
+      imageTag,
+    });
+  }
 }
 
 function finishLog(imageTag: string, appSchema: string, skipped: boolean): string {

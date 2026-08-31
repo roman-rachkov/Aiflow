@@ -1,4 +1,3 @@
-import { PrismaClient as PublicClient } from '../generated/public';
 import { PrismaClient as ProjectClient } from '../generated/project';
 
 // Re-export the typed wrappers for the Json config columns so consumers go
@@ -32,6 +31,16 @@ export {
   generateProjectSql,
   PROJECT_SCHEMA_PATTERN,
 } from './project-schema';
+export {
+  listAuditEvents,
+  recordAudit,
+  type AuditActorRole,
+  type AuditEventRow,
+  type ListAuditOptions,
+  type RecordAuditInput,
+} from './audit';
+export { getPublicClient } from './public-client';
+import { disconnectPublicClient } from './public-client';
 
 /**
  * Data access for the two-schema split described in docs/03-data-model.md.
@@ -53,14 +62,6 @@ export {
  * archive or delete, or connections leak for the process lifetime.
  */
 const projectClients = new Map<string, ProjectClient>();
-
-let publicClient: PublicClient | undefined;
-
-/** The `public` schema client. One per process. */
-export function getPublicClient(): PublicClient {
-  publicClient ??= new PublicClient();
-  return publicClient;
-}
 
 function projectUrl(schemaName: string): string {
   const baseUrl = process.env.DATABASE_URL;
@@ -109,8 +110,7 @@ export async function disconnectAll(): Promise<void> {
   projectClients.clear();
 
   await Promise.all(clients.map((c) => c.$disconnect()));
-  await publicClient?.$disconnect();
-  publicClient = undefined;
+  await disconnectPublicClient();
 }
 
 /** Exposed for tests: how many project clients are currently held. */

@@ -208,13 +208,13 @@ eslint-config-prettier        last — disables conflicting stylistic rules
 
 Rules that matter beyond the presets:
 
-| Rule                                      | Setting | Why                                                           |
-| ----------------------------------------- | ------- | ------------------------------------------------------------- |
-| `@typescript-eslint/no-explicit-any`      | error   | `docs/07-prompt-coder.md` forbids `any`                       |
-| `@typescript-eslint/no-floating-promises` | error   | An unawaited promise in a worker silently loses a job         |
-| `import/no-cycle`                         | error   | Cycles are how small modules quietly become one big one       |
+| Rule                                      | Setting | Why                                                          |
+| ----------------------------------------- | ------- | ------------------------------------------------------------ |
+| `@typescript-eslint/no-explicit-any`      | error   | `docs/07-prompt-coder.md` forbids `any`                      |
+| `@typescript-eslint/no-floating-promises` | error   | An unawaited promise in a worker silently loses a job        |
+| `import/no-cycle`                         | error   | Cycles are how small modules quietly become one big one      |
 | `boundaries/dependencies`                 | error   | Enforces § 2.2 — `app` → `features`/`shared`, no cross-slice |
-| size rules from § 3.1                     | warn    | Blocking via `--max-warnings 0`                               |
+| size rules from § 3.1                     | warn    | Blocking via `--max-warnings 0`                              |
 
 **FSD enforcement today:** `eslint-plugin-boundaries` with `capture: ['slice']` on
 `apps/web/src/features/*` — same-slice imports allowed, cross-slice forbidden,
@@ -354,14 +354,14 @@ These rules were chosen for our own development, but the platform generates code
 
 Not yet updated — these are edits for the scaffolding task, where paths change alongside real files:
 
-| Document                         | What is now wrong                                                                                                                                                                                                                                                    |
-| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `docs/02-architecture.md`        | ~~Queue names, lifecycle, auth~~ — **partial 2026-08-31** (Wave A): hyphen queues, slim MVP-1 gate, chat-run errata. Full chat-run prose rewrite still deferred.                                                                                                         |
-| ~~`docs/11-sandbox.md`~~         | ~~Lint failure non-fatal, no Prettier or `prisma validate`, `--no-git` vs. `no-auto-commits` contradiction~~ — **done 2026-08-02**. ~~Still open: no commit call in `runner.js`~~ — **done Task 3.1** (`commitWorkspace` after gate)                                 |
-| ~~`docs/03-data-model.md`~~      | ~~Doc prose lagged the Prisma schemas~~ — **done 2026-08-08**: § 2/§ 3/§ 7 rewritten against `schema.prisma` + `schema_project_template.prisma (enums, missing models, indexes). Schema and doc now agree.                                                           |
-| ~~`docs/08-prompt-reviewer.md`~~ | ~~Add the size criterion from § 6 to the REJECTED list~~ — **done 2026-08-07** (file ≤200 / function ≤50 on REJECTED)                                                                                                                                                |
-| `docs/09-ui-spec.md`             | **Resolved 2026-08-31 (Wave A)** — rewritten for OpenUI `ProjectShell` / `AgentInterface` shell (Stage D). **Still open:** shared Modal/Toast/Timeline primitives; `/agents` screen (MVP-2); Monaco SPEC edit in shell. |
-| ~~`docs/12-open-questions.md`~~  | ~~#3 (concurrency) loses its premise~~ — **done 2026-08-02**, #3 marked Resolved                                                                                                                                                                                     |
+| Document                         | What is now wrong                                                                                                                                                                                                                    |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `docs/02-architecture.md`        | ~~Queue names, lifecycle, auth~~ — **partial 2026-08-31** (Wave A): hyphen queues, slim MVP-1 gate, chat-run errata. Full chat-run prose rewrite still deferred.                                                                     |
+| ~~`docs/11-sandbox.md`~~         | ~~Lint failure non-fatal, no Prettier or `prisma validate`, `--no-git` vs. `no-auto-commits` contradiction~~ — **done 2026-08-02**. ~~Still open: no commit call in `runner.js`~~ — **done Task 3.1** (`commitWorkspace` after gate) |
+| ~~`docs/03-data-model.md`~~      | ~~Doc prose lagged the Prisma schemas~~ — **done 2026-08-08**: § 2/§ 3/§ 7 rewritten against `schema.prisma` + `schema_project_template.prisma (enums, missing models, indexes). Schema and doc now agree.                           |
+| ~~`docs/08-prompt-reviewer.md`~~ | ~~Add the size criterion from § 6 to the REJECTED list~~ — **done 2026-08-07** (file ≤200 / function ≤50 on REJECTED)                                                                                                                |
+| `docs/09-ui-spec.md`             | **Resolved 2026-08-31 (Wave A)** — rewritten for OpenUI `ProjectShell` / `AgentInterface` shell (Stage D). **Still open:** shared Modal/Toast/Timeline primitives; `/agents` screen (MVP-2); Monaco SPEC edit in shell.              |
+| ~~`docs/12-open-questions.md`~~  | ~~#3 (concurrency) loses its premise~~ — **done 2026-08-02**, #3 marked Resolved                                                                                                                                                     |
 
 ### Resolved defect: `yarn verify` on a clean tree
 

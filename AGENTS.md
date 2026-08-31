@@ -18,13 +18,13 @@ User-app bootstrap template: `templates/user-nextjs/`. Details: `docs/04-roadmap
 
 ## Current phase (docs-autopilot)
 
-| Gate            | Status | Notes |
-| --------------- | ------ | ----- |
-| `DOCS_COMPLETE` | `yes`  | Wave A + B complete — see `docs/roadmap/STATUS.md` |
-| `APP_COMPLETE`  | `no`   | 30 open requirements — MVP-2 partial, MVP-3 not started |
-| Roadmap phase   | Wave B done → Wave C | Foundation: A1, A2, B1, B2 + slim MVP-1 dogfood proof |
-| Next milestone  | Wave C | Idempotent workers + Langfuse + resumable pipeline |
-| Run / verify    | `docker compose up` then `docker compose exec app yarn verify` | Copy `.env.example` → `.env` first |
+| Gate            | Status                                                         | Notes                                                   |
+| --------------- | -------------------------------------------------------------- | ------------------------------------------------------- |
+| `DOCS_COMPLETE` | `yes`                                                          | Wave A + B complete — see `docs/roadmap/STATUS.md`      |
+| `APP_COMPLETE`  | `no`                                                           | 29 open requirements — MVP-2 partial, MVP-3 C1 done     |
+| Roadmap phase   | Wave C1 done (Self-Refine loop)                                | MVP-3 A1–B4 done; C1 done; C2, C3, D1+ pending         |
+| Next milestone  | Wave C2                                                        | Persistent agent memory (`AgentMemory` model)           |
+| Run / verify    | `docker compose up` then `docker compose exec app yarn verify` | Copy `.env.example` → `.env` first                      |
 
 Continuity artifacts: `docs/roadmap/REQUIREMENTS.md`, `MASTER_ROADMAP.md`, `DECISIONS.md`,
 `DOC_GAPS.md`, `DOC_RESOLUTIONS.md`, `STATUS.md`, `docs/glossary.md`.
@@ -112,7 +112,8 @@ workspace with zero tests fails loudly instead of looking green. Pre-commit (`hu
   `docker build -t aistudio/aider-sandbox:latest -f docker/aider-sandbox/Dockerfile docker/aider-sandbox`.
 - **Soft delete only.** Every domain model has `deletedAt DateTime?`. Queries must filter
   `deletedAt: null` **manually** (no Prisma extension). Delete = `update { deletedAt: now() }`,
-  never `.delete()`. NextAuth/cascade models are exempt. Full rule in `CLAUDE.md`.
+  never `.delete()`. NextAuth/cascade models and append-only `AuditEvent` (MVP-3 A3) are exempt.
+  Full rule in `CLAUDE.md`.
 - Details (port allocation, URL-rewriting, container hardening, encrypted value shape) live in the
   `ai-studio-internals` skill — read it before touching compose, sandbox, per-project DB, or secrets.
 

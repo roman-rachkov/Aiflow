@@ -55,3 +55,16 @@ export {
   withRagContext,
   type MutatingChatTool,
 } from './rag-safety';
+export {
+  assertCapability,
+  assertRoleMayCallLlm,
+  getActiveRole,
+  hasCapability,
+  PolicyViolationError,
+  ROLE_CAPABILITIES,
+  runWithRole,
+  runWithRoleAsync,
+  type AiRole,
+  type Capability,
+} from './policy';
+export { withPolicyGuard } from './policy-guard';

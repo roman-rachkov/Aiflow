@@ -7,13 +7,13 @@ doc gaps resolved in Wave A, see also `DOC_RESOLUTIONS.md`.
 
 ## Wave A (doc analyst)
 
-| ID | Decision | Reference |
-| --- | --- | --- |
-| R-A3-01 | UI spec follows shipped OpenUI `ProjectShell` / `AgentInterface` | `DOC_RESOLUTIONS.md` |
-| R-A3-02 | `AGENTS.md` **Current phase** block added | `DOC_RESOLUTIONS.md` |
-| R-A4-01 | Sandbox lint gate is fatal (Task 3.1) | `DOC_RESOLUTIONS.md` |
+| ID      | Decision                                                                 | Reference            |
+| ------- | ------------------------------------------------------------------------ | -------------------- |
+| R-A3-01 | UI spec follows shipped OpenUI `ProjectShell` / `AgentInterface`         | `DOC_RESOLUTIONS.md` |
+| R-A3-02 | `AGENTS.md` **Current phase** block added                                | `DOC_RESOLUTIONS.md` |
+| R-A4-01 | Sandbox lint gate is fatal (Task 3.1)                                    | `DOC_RESOLUTIONS.md` |
 | R-A4-02 | ESLint FSD = `boundaries/dependencies`, not `import/no-internal-modules` | `DOC_RESOLUTIONS.md` |
-| R-A3-05 | Deployer prompt deferred (T3) — not blocking `DOCS_COMPLETE` | `DOC_RESOLUTIONS.md` |
+| R-A3-05 | Deployer prompt deferred (T3) — not blocking `DOCS_COMPLETE`             | `DOC_RESOLUTIONS.md` |
 
 ---
 
@@ -86,7 +86,7 @@ with verifiable evidence. Do not mark done from branch names alone.
 
 **Decision:** Four forever-waives from `docs/04-roadmap.md` §5.3 only (FW-01–FW-04).
 No Stripe waiver found in docs — not listed. Deployer prompt (ENG-T03) stays
-**open** but was waived as *blocking for docs* in Wave A (R-A3-05).
+**open** but was waived as _blocking for docs_ in Wave A (R-A3-05).
 
 ---
 

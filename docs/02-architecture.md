@@ -155,17 +155,17 @@ This topology makes it impossible for user code to reach the platform's database
 
 ## 7. Technology stack (final list)
 
-| Component        | Technology                          |
-| ---------------- | ----------------------------------- |
-| Frontend         | React 18, Next.js, Tailwind, Monaco |
-| Backend          | Next.js API Routes, WebSocket       |
+| Component        | Technology                                       |
+| ---------------- | ------------------------------------------------ |
+| Frontend         | React 18, Next.js, Tailwind, Monaco              |
+| Backend          | Next.js API Routes, WebSocket                    |
 | Authentication   | NextAuth Credentials (MVP); Email/OAuth deferred |
-| Database         | PostgreSQL 16 + Prisma              |
-| Queues           | BullMQ + Redis 7                    |
-| File storage     | MinIO                               |
-| Git              | Gitea                               |
-| Sandboxes        | Docker Engine API (dockerode)       |
-| Coder            | Aider (pinned version)              |
-| AI routing       | In-house ModelRouter (Express)      |
-| Queue monitoring | Bull Board                          |
-| Deployment       | Docker Compose                      |
+| Database         | PostgreSQL 16 + Prisma                           |
+| Queues           | BullMQ + Redis 7                                 |
+| File storage     | MinIO                                            |
+| Git              | Gitea                                            |
+| Sandboxes        | Docker Engine API (dockerode)                    |
+| Coder            | Aider (pinned version)                           |
+| AI routing       | In-house ModelRouter (Express)                   |
+| Queue monitoring | Bull Board                                       |
+| Deployment       | Docker Compose                                   |

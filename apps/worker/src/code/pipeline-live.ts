@@ -6,6 +6,8 @@
 import type { LivePipelineCtx } from './deps';
 import { isBeforeStep, stepDoneMarker, type PipelineStep } from './pipeline-steps';
 import { failTask } from './pipeline-fail';
+import { auditCoderPush } from '../audit';
+import { assertCapability, runWithRoleAsync } from '@aiflow/ai-roles';
 
 /** Clone → … → enqueue review; durable steps skip when already finished. */
 export async function runLiveSteps(ctx: LivePipelineCtx): Promise<void> {
@@ -77,13 +79,16 @@ async function runSandboxStep(ctx: LivePipelineCtx): Promise<boolean> {
   await deps.appendTaskLog(payload.schemaName, payload.taskId, 'Запуск sandbox…\n');
   const apiKey = deps.resolveApiKey();
   const secret = await deps.writeApiKeySecret(apiKey);
+  const description = payload.reviewFeedback
+    ? `${task.description}\n\n${payload.reviewFeedback}`
+    : task.description;
   try {
     const out = await deps.runSandboxContainer({
       workspaceHostPath: workDir,
       apiKeyHostPath: secret.filePath,
       task: {
         title: task.title,
-        description: task.description,
+        description,
         acceptance: task.acceptance,
       },
       schemaName: payload.schemaName,
@@ -116,9 +121,19 @@ async function runParseStep(ctx: LivePipelineCtx): Promise<void> {
 }
 
 async function runPushStep(ctx: LivePipelineCtx): Promise<void> {
-  const { payload, branch, workDir, deps } = ctx;
-  await deps.appendTaskLog(payload.schemaName, payload.taskId, 'Пуш ветки в Gitea…\n');
-  await deps.pushBranch(workDir, branch);
+  const { payload, branch, workDir, deps, task } = ctx;
+  await runWithRoleAsync('coder', async () => {
+    assertCapability('write-commit');
+    await deps.appendTaskLog(payload.schemaName, payload.taskId, 'Пуш ветки в Gitea…\n');
+    await deps.pushBranch(workDir, branch);
+  });
+  const headCommit = task.headCommit ?? (await deps.readHeadCommit(workDir));
+  await auditCoderPush(deps.recordAudit, {
+    projectId: payload.projectId,
+    taskId: payload.taskId,
+    headCommit,
+    branchName: branch,
+  });
 }
 
 async function runDoneStep(ctx: LivePipelineCtx): Promise<void> {
@@ -131,6 +146,7 @@ async function runDoneStep(ctx: LivePipelineCtx): Promise<void> {
     branchName: branch,
     diff,
     checks: { typescript: true, eslint: true, tests: null },
+    retryCount: payload.retryCount,
   });
   await deps.appendTaskLog(
     payload.schemaName,

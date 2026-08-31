@@ -35,6 +35,7 @@ function mockDeps(overrides: Partial<DeployHandlerDeps> = {}): DeployHandlerDeps
     appendDeployLog: vi.fn(() => Promise.resolve()),
     finishDeploy: vi.fn(() => Promise.resolve(true)),
     removeWorkDir: vi.fn(() => Promise.resolve()),
+    recordAudit: vi.fn(() => Promise.resolve({})),
     now: () => new Date('2026-08-07T02:00:00.000Z'),
     ...overrides,
   };

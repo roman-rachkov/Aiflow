@@ -205,15 +205,15 @@ Anthropic's own `advisor` tool was evaluated for dev-time use here and rejected:
 
 ## Question Status
 
-| #   | Question                       | Status                                                                              |
-| --- | ------------------------------ | ----------------------------------------------------------------------------------- |
-| 1   | Project template               | **Resolved 2026-08-07** — `templates/user-nextjs/` → Gitea on bootstrap             |
-| 2   | Applying migrations            | **Resolved 2026-08-07** — validate in sandbox; `db push` at deploy into `app_{hex}` |
-| 3   | code:execute concurrency       | **Resolved 2026-08-02** — premise removed by branch-per-task                        |
+| #   | Question                       | Status                                                                                   |
+| --- | ------------------------------ | ---------------------------------------------------------------------------------------- |
+| 1   | Project template               | **Resolved 2026-08-07** — `templates/user-nextjs/` → Gitea on bootstrap                  |
+| 2   | Applying migrations            | **Resolved 2026-08-07** — validate in sandbox; `db push` at deploy into `app_{hex}`      |
+| 3   | code:execute concurrency       | **Resolved 2026-08-02** — premise removed by branch-per-task                             |
 | 4   | docker.sock mount in prod      | **Resolved 2026-08-31** — dev sock OK; prod = dedicated host + TLS at MVP-3 D3 (RES-004) |
-| 5   | API key passing                | **Resolved 2026-08-07** — `/run/secrets/api_key` file mount                         |
-| 6   | Proxy allowlist                | **Resolved 2026-08-07** — Node proxy + expandable `ALLOWED_HOSTS`                   |
-| 7   | Reviewer role                  | **Resolved 2026-08-07** — deferred to MVP-2; gate = sandbox checks                  |
-| 8   | MVP-1 timeline                 | **Resolved 2026-08-07** — slim MVP-1 (Planner+Coder); rest → MVP-2                  |
-| 9   | Escalation to a stronger model | **Resolved (deferred) 2026-08-31** — MVP-3 C3; RES-009; not blocking MVP builds   |
-| 10  | AG-UI optimistic vs DB msg ids | **Resolved 2026-08-11** — persist client UUID as ChatMessage PK                     |
+| 5   | API key passing                | **Resolved 2026-08-07** — `/run/secrets/api_key` file mount                              |
+| 6   | Proxy allowlist                | **Resolved 2026-08-07** — Node proxy + expandable `ALLOWED_HOSTS`                        |
+| 7   | Reviewer role                  | **Resolved 2026-08-07** — deferred to MVP-2; gate = sandbox checks                       |
+| 8   | MVP-1 timeline                 | **Resolved 2026-08-07** — slim MVP-1 (Planner+Coder); rest → MVP-2                       |
+| 9   | Escalation to a stronger model | **Resolved (deferred) 2026-08-31** — MVP-3 C3; RES-009; not blocking MVP builds          |
+| 10  | AG-UI optimistic vs DB msg ids | **Resolved 2026-08-11** — persist client UUID as ChatMessage PK                          |

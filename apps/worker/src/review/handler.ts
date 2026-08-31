@@ -1,6 +1,7 @@
 /**
- * BullMQ handler for `code-review` — one-shot LLM Reviewer (MVP-2 Task 4.1).
+ * BullMQ handler for `code-review` — LLM Reviewer with Self-Refine loop (MVP-3 C1).
  * ACCEPTED fast-forwards the task branch into main, then enqueues ready tasks.
+ * REJECTED → re-enqueue code-execute with feedback (≤MAX_REVIEW_RETRIES); then FAILED.
  */
 
 import type { Job } from 'bullmq';
@@ -13,19 +14,28 @@ import {
   type ReviewVerdict,
 } from '@aiflow/ai-roles';
 import { ensureTaskGitColumns } from '@aiflow/db';
-import { validateReviewPayload, type CodeReviewPayload } from '@aiflow/queue';
+import {
+  getCodeQueue,
+  validateReviewPayload,
+  type CodeExecutePayload,
+  type CodeReviewPayload,
+} from '@aiflow/queue';
 
+import { auditReviewerVerdict, defaultRecordAudit, type RecordAuditFn } from '../audit';
 import { enqueueReadyTasks, loadReadyCtx } from '../code/enqueue-ready';
 import { mergeTaskBranch } from '../code/merge';
 import { appendTaskLog, loadTask, recordTaskGit, setTaskStatus } from '../code/status';
-import { applyReviewVerdict, type ApplyVerdictDeps } from './apply-verdict';
+import type { ApplyVerdictDeps } from './apply-verdict';
 import { finishAcceptedReview, type FinishAcceptedDeps } from './finish-accepted';
+import { handleRejectedVerdict } from './retry';
 
 export type ReviewHandlerDeps = {
   loadTask: typeof loadTask;
   generateVerdict: (input: ReviewTaskInput) => Promise<ReviewVerdict>;
   applyVerdict: ApplyVerdictDeps;
   finishAccepted: FinishAcceptedDeps;
+  enqueueCodeExecute: (payload: CodeExecutePayload) => Promise<void>;
+  recordAudit: RecordAuditFn;
 };
 
 const defaultDeps: ReviewHandlerDeps = {
@@ -55,6 +65,10 @@ const defaultDeps: ReviewHandlerDeps = {
       now: () => new Date(),
     },
   },
+  enqueueCodeExecute: async (payload) => {
+    await getCodeQueue().add('code:execute', payload);
+  },
+  recordAudit: defaultRecordAudit,
 };
 
 /** Process one code-review job. Exported for unit tests with mocked deps. */
@@ -113,10 +127,28 @@ async function settleVerdict(
   verdict: ReviewVerdict,
   deps: ReviewHandlerDeps,
 ): Promise<void> {
-  if (verdict.verdict !== 'ACCEPTED') {
-    await applyReviewVerdict(payload.schemaName, payload.taskId, verdict, deps.applyVerdict);
+  await auditReviewerVerdict(deps.recordAudit, {
+    projectId: payload.projectId,
+    taskId: payload.taskId,
+    verdict: verdict.verdict,
+    confidence: verdict.confidence,
+  });
+  if (verdict.verdict === 'ACCEPTED') {
+    await settleAccepted(payload, verdict, deps);
     return;
   }
+  await handleRejectedVerdict(payload, verdict, {
+    applyVerdict: deps.applyVerdict,
+    loadGitea: deps.finishAccepted.loadGitea,
+    enqueueCodeExecute: deps.enqueueCodeExecute,
+  });
+}
+
+async function settleAccepted(
+  payload: CodeReviewPayload,
+  verdict: ReviewVerdict,
+  deps: ReviewHandlerDeps,
+): Promise<void> {
   try {
     await finishAcceptedReview(payload, verdict, {
       ...deps.finishAccepted,

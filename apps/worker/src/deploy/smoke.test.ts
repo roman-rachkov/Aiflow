@@ -41,6 +41,7 @@ describe('Task 2.3 smoke (mocked)', () => {
       appendDeployLog: vi.fn().mockResolvedValue(undefined),
       finishDeploy,
       removeWorkDir: vi.fn().mockResolvedValue(undefined),
+      recordAudit: vi.fn().mockResolvedValue({}),
       now: () => new Date('2026-01-01T00:00:00.000Z'),
     };
 

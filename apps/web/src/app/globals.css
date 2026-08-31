@@ -48,6 +48,7 @@
 @source '../../src/features/deploy/**/*.{ts,tsx}';
 @source '../../src/features/model-config/**/*.{ts,tsx}';
 @source '../../src/features/tasks/**/*.{ts,tsx}';
+@source '../../src/features/audit/**/*.{ts,tsx}';
 
 /*
  * Required, and silent when wrong: Yarn symlinks the workspace into

@@ -19,6 +19,7 @@ import type { OpenAICompatibleProvider, ProviderConfig } from './types';
 import { liveChatWithTools, liveChatWithUsage, streamLiveChat } from './live-chat';
 import { mockChatStream, withNullUsageStream } from './mock-chat';
 import { mockEmbed } from './mock-embeddings';
+import { withPolicyGuard } from './policy-guard';
 import { withLlmTracing } from './traced-provider';
 import { getTracerFromEnv, type LlmTracer } from './tracer';
 
@@ -65,7 +66,7 @@ export function createOpenAICompatibleProvider(
   options?: CreateProviderOptions,
 ): OpenAICompatibleProvider {
   const live = hasKey(config);
-  const raw: OpenAICompatibleProvider = {
+  const inner: OpenAICompatibleProvider = {
     async *chat(messages, cfg) {
       if (!live) {
         yield* mockChatStream(messages);
@@ -97,5 +98,6 @@ export function createOpenAICompatibleProvider(
       return live ? liveEmbed(texts, config) : mockEmbed(texts);
     },
   };
-  return withLlmTracing(raw, options?.tracer ?? getTracerFromEnv());
+  const traced = withLlmTracing(inner, options?.tracer ?? getTracerFromEnv());
+  return withPolicyGuard(traced);
 }

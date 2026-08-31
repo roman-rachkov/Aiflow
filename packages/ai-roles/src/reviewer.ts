@@ -5,6 +5,7 @@
 
 import type { ChatConfig, ChatMessage, ModelProvider } from './types';
 import { collectChatText } from './planner';
+import { assertCapability, runWithRoleAsync } from './policy';
 import { extractJsonObject, parseReviewVerdict } from './reviewer-parse';
 import { REVIEWER_SYSTEM_PROMPT } from './reviewer-prompt';
 
@@ -59,6 +60,18 @@ export async function generateReviewVerdict(
   provider: ModelProvider,
   task: ReviewTaskInput,
   options: GenerateReviewOptions = {},
+): Promise<ReviewVerdict> {
+  return runWithRoleAsync('reviewer', async () => {
+    assertCapability('verdict');
+    assertCapability('read-diff');
+    return generateReviewVerdictInner(provider, task, options);
+  });
+}
+
+async function generateReviewVerdictInner(
+  provider: ModelProvider,
+  task: ReviewTaskInput,
+  options: GenerateReviewOptions,
 ): Promise<ReviewVerdict> {
   const maxRetries = options.maxRetries ?? MAX_PARSE_RETRIES;
   const config: ChatConfig = {
