@@ -11,9 +11,19 @@ Updated by each docs-autopilot wave. Orchestrator reads this before code waves.
 
 ## Phase
 
-- **Current:** Wave C6 complete — MVP3-C3 (model-router) + MVP3-C4 (Planner ToT) + ENG-UI-MT.
-- **Next:** Wave C7 — MVP2-51 live dogfood, ENG-T02, MVP3-D4 stabilization.
-- **Blocked:** `APP_COMPLETE` — 6 open + 4 partial in `REQUIREMENTS.md`.
+- **Current:** Wave C7 partial — ENG-T02 barrel ESLint, stabilization gate, waivers.
+- **Next:** Wave C7 continued — MVP2-51 live dogfood (compose), close partial R01/R05/D4.
+- **Blocked:** `APP_COMPLETE` — 1 open + 4 partial in `REQUIREMENTS.md`.
+
+## Wave C7 summary (2026-08-31)
+
+- ENG-T02: `no-restricted-imports` on `apps/web/src/app/**`; `chat/client.ts` barrel;
+  `indexDocument` on files barrel; deep imports removed from ProjectShell + files route.
+- MVP3-D4 partial: `tools/stabilization/` + `yarn stabilization` (evals + load isolation +
+  dogfood-smoke).
+- Waivers: MVP2-41-UT → forever-waive (roadmap §3.3 Deferred); ENG-T03 → forever-waive
+  (R-A3-05); MVP2-41-UI → done (D1 complete).
+- `yarn verify` green (481 tests).
 
 ## Wave C6 summary (2026-08-31)
 

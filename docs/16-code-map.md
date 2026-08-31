@@ -402,6 +402,11 @@ tools/                    Dev-only workspaces. Ship nowhere; still gated by
 │                         Vitest smoke: unit always; DB integration skipIf no
 │                         DATABASE_URL.
 │                         └── public entry: src/run.mts (`tsx src/run.mts`)
+├── dogfood-smoke/        Automated slim-MVP-1 wiring gate (R01/R05 partial).
+│                         `yarn dogfood-smoke` — vitest pipeline smoke + appends
+│                         `specs/slim-mvp1-dogfood/EVIDENCE.md`.
+├── stabilization/        MVP-3 D4 offline bundle: `yarn stabilization` runs
+│                         evals + load isolation vitest + dogfood-smoke.
 └── evals/                Golden SPEC→plan→code evals (MVP-3 B3) +
                           prompt-injection red-team (B4).
                           └── public entry: src/cli.ts (`yarn evals`);

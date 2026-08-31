@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 
 import { requireUser } from '@/features/auth';
-import { indexDocument } from '@/features/files/model/index-service';
+import { indexDocument } from '@/features/files';
 import { resolveProjectSchema } from '@/features/projects';
 
 /**
@@ -14,12 +14,6 @@ import { resolveProjectSchema } from '@/features/projects';
  * result, so this handler always answers 200 with the outcome — `INDEXED` or
  * `FAILED` with a short `reason`. A 500 would mean an unexpected throw from
  * the service, which is treated as a generic indexing failure.
- *
- * Deep import into `features/files/model/index-service` rather than the slice
- * barrel: `indexDocument` is intentionally not re-exported from the barrel
- * (the slice's public surface stays the file CRUD + chunk helpers), and the
- * route lives in `app/`, where `import/no-internal-modules` is scoped to
- * `features` so this `app/`-side deep import is allowed.
  */
 export async function POST(
   _request: Request,

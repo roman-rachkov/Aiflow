@@ -85,8 +85,40 @@ with verifiable evidence. Do not mark done from branch names alone.
 **Context:** User mandate: waive only when docs explicitly say so.
 
 **Decision:** Four forever-waives from `docs/04-roadmap.md` §5.3 only (FW-01–FW-04).
-No Stripe waiver found in docs — not listed. Deployer prompt (ENG-T03) stays
-**open** but was waived as _blocking for docs_ in Wave A (R-A3-05).
+No Stripe waiver found in docs — not listed. Deployer prompt (ENG-T03) was waived as
+_blocking for docs_ in Wave A (R-A3-05); promoted to forever-waive in Wave C7 (R-C7-02).
+
+---
+
+## Wave C7 (implementation) — 2026-08-31
+
+### R-C7-01 — Unit test generation agent deferred
+
+**Context:** `docs/04-roadmap.md` §3.3 Task 4.1 explicitly marks unit-test generation
+**Deferred**; static sandbox checks ship in Task 3.1.
+
+**Decision:** `MVP2-41-UT` → **forever-waive** (FW-05). No worker queue until a future
+phase re-opens the requirement with a new ADR.
+
+---
+
+### R-C7-02 — Deployer LLM prompt (ENG-T03) forever-waived
+
+**Context:** Deploy worker is deterministic template rendering; `DOC_RESOLUTIONS.md`
+R-A3-05 deferred T3 as non-blocking for docs.
+
+**Decision:** `ENG-T03` → **forever-waive** (FW-06). Revisit only if deploy becomes
+LLM-driven.
+
+---
+
+### R-C7-03 — Barrel-only imports enforced for app/
+
+**Context:** `DOC_GAPS` A4-03; `boundaries/dependencies` blocks cross-slice but not
+`app/` → `features/*/ui/...` deep paths.
+
+**Decision:** `no-restricted-imports` on `apps/web/src/app/**` with exceptions for
+documented public seams (`client.ts`, `rag.ts`). Mark `ENG-T02` **done**.
 
 ---
 
