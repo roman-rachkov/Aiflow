@@ -125,7 +125,7 @@ match desktop:
 | -------------------------- | ------------------------------------------------------- |
 | `.cursor/skills/`          | Primary — Cloud Agents read this on checkout            |
 | `.claude/skills/`          | Mirror for Claude Code (project skills + vendored copy) |
-| `.cursor/rules/`           | Global rules (`docs-autopilot`, `solo-notebook`)        |
+| `.cursor/rules/`           | Global rules (`docs-autopilot`, `solo-notebook`, `design-testing-skills`) |
 | `.cursor/commands/`        | Global slash command (`docs-autopilot`)                 |
 | `.cursor/environment.json` | Cloud env manifest                                      |
 
@@ -183,6 +183,56 @@ engineering, not legal. Recorded because the search should not be repeated.
 | `@openuidev/react-lang`     | MIT        | `product` | **adopted** as peer of `react-ui` (Renderer / library types). Full OpenUI Lang streaming in Researcher chat is a later task                                                                                                                    |
 | `@openuidev/react-headless` | MIT        | `product` | **adopted** as peer of `react-ui` (chat state primitives). Researcher still uses `@assistant-ui/react` until a deliberate chat migration                                                                                                       |
 
+### 2.3 Design & testing skills (repo-vendored cluster)
+
+Configured 2026-08-31 for solo-builder workflows on AI Studio. Skills live in
+`.cursor/skills/` (Cloud Agents) with shortcuts mirrored under `.claude/skills/`
+where applicable. **Routing rule:** [`.cursor/rules/design-testing-skills.mdc`](../.cursor/rules/design-testing-skills.mdc)
+— decision tree, not a duplicate of each SKILL.md.
+
+**Product UI guardrails** ([09-ui-spec.md](09-ui-spec.md) § 9): light theme, Inter,
+blue accent, minimalist Operate surfaces, `@aiflow/ui` primitives. Anthropic
+`frontend-design` stays rejected (§ 2.1). Prefer **`impeccable`** for in-app UI;
+**`design-taste-frontend`** is marketing/landing-only (explicitly excludes dashboards).
+
+#### Priority table (solo builder — use 5–8, not all 30)
+
+| Skill | Path | When in AI Studio | Priority | Scope | Status |
+| ----- | ---- | ----------------- | -------- | ----- | ------ |
+| `verification-before-completion` | `.cursor/skills/verification-before-completion/` | Before claiming done, commit, or PR — fresh `yarn verify` evidence | **must-use** | `dev` | in use |
+| `impeccable` (+ `audit` / `critique` / `polish` shortcuts) | `.cursor/skills/impeccable/` | Pre-PR UX/visual pass on product screens; Operate mode for app UI | **must-use** | `dev` | configured |
+| `api-smoke-testing` | `.cursor/skills/api-smoke-testing/` | After API/route changes; needs dev stack + auth as needed | **must-use** | `dev` | configured |
+| `walkthrough-artifacts` | `.cursor/skills/walkthrough-artifacts/` | Cloud Agent UI delivery — screenshot or short recording as proof | **must-use** (cloud) | `dev` | configured |
+| `web-design-guidelines` | `.cursor/skills/web-design-guidelines/` | Accessibility / Vercel WIG review on touched components | nice-to-have | `both` | configured |
+| `webapp-testing` | `.cursor/skills/webapp-testing/` | Ad-hoc browser checks via Python Playwright when no TS E2E suite | nice-to-have | `dev` | configured |
+| `test-driven-development` | `.cursor/skills/test-driven-development/` | New Vitest unit behaviour before implementation | nice-to-have | `both` | configured |
+| `ui-radar` | `.cursor/skills/ui-radar/` | Real-world UI references before a redesign (UIZZE API or connector) | nice-to-have | `dev` | configured |
+| `redesign-existing-projects` | `.cursor/skills/redesign-existing-projects/` | Broad visual upgrade without rewrite — overlaps `impeccable`; use one | nice-to-have | `dev` | untested |
+| `design-taste-frontend` | `.cursor/skills/design-taste-frontend/` | Landing/marketing only — **not** AI Studio product chrome | defer | `dev` | configured |
+| `imagegen-frontend-web`, `image-to-code` | `.cursor/skills/imagegen-frontend-web/`, `image-to-code/` | Comp generation → implementation; conflicts with § 9 unless scoped to marketing | defer | `dev` | untested |
+| `canvas` | `.cursor/skills/canvas/` | Analytical deliverables (tables, charts) — not product UI | defer | `dev` | untested |
+| `playwright-cli`, `playwright-best-practices`, `playwright-generate-test`, `e2e-testing-patterns` | `.cursor/skills/playwright-*/`, `e2e-testing-patterns/` | Persistent E2E suite — **no `@playwright/test` in repo yet** | defer | `both` | blocked |
+| `vitest-midscene-e2e` | `.cursor/skills/vitest-midscene-e2e/` | AI-driven E2E — needs Playwright + Midscene wiring | defer | `both` | blocked |
+| `qa-expert` | `.cursor/skills/qa-expert/` | Full QA process / handoff packs — heavy for MVP solo flow | defer | `dev` | untested |
+| `agent-browser` | `.cursor/skills/agent-browser/` | One-off browser automation alternative to `webapp-testing` | defer | `dev` | untested |
+
+#### Workflow hooks
+
+| Trigger | Reach for |
+| ------- | --------- |
+| UI feature, pre-PR | `impeccable` → `audit` (shortcut `audit/`), fix findings, optional `polish/` |
+| REST/API change | `api-smoke-testing` with `docker compose up` |
+| Claim work complete | `verification-before-completion` → `/verify` or `docker compose exec app yarn verify` |
+| Cloud Agent ships UI | `walkthrough-artifacts` + `RecordScreen` when video helps |
+| Add E2E (future) | Adopt `@playwright/test`, then `e2e-testing-patterns` + `playwright-best-practices` |
+
+#### Gaps (follow-up)
+
+- **No Playwright in monorepo** — only Vitest unit tests today (`vitest.config.ts`).
+  `impeccable` font-match may optionally resolve `playwright` if installed; not a project dep.
+- **`ui-radar`**: UIZZE MCP connector optional; skill falls back to public search API.
+- **`walkthrough-artifacts`**: vendored from Cursor global skills into `.cursor/skills/` for cloud parity (2026-08-31).
+
 ---
 
 ## 3. Subagents
@@ -232,6 +282,7 @@ The core value of this registry. Every subagent run during development is a free
 | 2026-08-07 | Analyst, Planner, Coder, Reviewer (orchestrate) | `.claude/agents/*` + `/orchestrate`     | Autonomous Cursor orchestrate for roadmap Tasks **2.2** + **2.3** (full MVP-0 tail). Skip-interview SPEC → PLAN → Coder→gate→Reviewer with `run the whole plan`. Artifacts: `specs/task-2.2-editor-gitea/`, `specs/task-2.3-deploy-modelconfig/`. Branches `task/2.2-editor-gitea` → `task/2.3-deploy-modelconfig`                                                                                                                                                             | Both plans closed `DONE`. **2.2**: Gitea client, create saga, Monaco editor, WS via custom `server.ts`, 177→ then 207 tests. **2.3**: `@aiflow/crypto`, ModelConfig, `@aiflow/queue`, worker `deploy:run`+dockerode (dev sock), deployments UI. Host `yarn verify` still fragile on Prisma generate EPERM when DLL locked; compose/`tsc` + `yarn test` green. Reviewer used selectively early; later batches relied on eslint/test gate + orchestrator mechanical lint fixes                                                                                                                                                                                                                                                                                      | Prefer smaller Coder batches when pre-commit `--max-warnings 0` catches size/unsafe-any; keep custom Next server documented in code-map; treat Prisma Windows EPERM as env, not schema failure                                                                                                                                                                                                          |
 | 2026-08-07 | Coder (parallel agents; slim MVP-1)             | product prompts + Task SPECs 3.1–3.3    | Roadmap Tasks **3.1** (sandbox + `registry-proxy`), **3.2** (Planner / `plan:generate`), **3.3** (Coder / `code:execute`) implemented via parallel coder agents. Artifacts: `specs/task-3.1-sandbox-infra/`, `specs/task-3.2-planner/`, `specs/task-3.3-coder/`; narrow dogfood checklist `specs/slim-mvp1-dogfood/`                                                                                                                                                           | Unit coverage green for plan parse, queue payloads, dry-run/live handlers, sandbox options, registry allowlist. Product gate = sandbox checks (no LLM Reviewer). Live compose dogfood remains operator-driven per checklist.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | None for prompts from this batch. Keep MVP-2 Reviewer/Support/domain/full-dogfood deferred; log live dogfood outcomes when run                                                                                                                                                                                                                                                                          |
 | 2026-08-07 | Analyst–Reviewer (pattern mining)               | `05`–`08` + § 8 external sources        | Applied open-source pattern mining (Spec Kit / BMAD / MetaGPT / bolt.diy — MIT or reference-only) into docs without vendoring runtimes: Analyst Non-goals/Success metrics/`[NEEDS CLARIFICATION]`/language purity; Planner ≤24 task cap + `effort`; Coder sandbox core aligned with docs/07; Reviewer `confidence` + severity/`sandbox∧AC` policy (MVP-2)                                                                                                                      | Docs + `.claude/agents` mirrors + `planner-prompt.ts` / `planner.ts` / `runner.js` updated. Prompt content changes; full four-role LLM re-run not part of this edit                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | Re-run `/orchestrate` smoke when convenient; keep leaked proprietary prompts out of product                                                                                                                                                                                                                                                                                                             |
+| 2026-08-31 | Design & testing skills (dev workflow)          | `.cursor/skills/*`, § 2.3               | Configured repo-vendored design/testing cluster: routing rule `.cursor/rules/design-testing-skills.mdc`, registry § 2.3, vendored `walkthrough-artifacts` for Cloud Agents. No Playwright in monorepo — E2E skills marked blocked/defer                                                                                                                                                                                                                                         | Docs-only setup; `yarn verify` not run (host lacks `node_modules`; compose down). Decision tree prioritizes `impeccable` audit + `api-smoke-testing` + `verification-before-completion` for solo builder                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Adopt `@playwright/test` when first E2E gate is planned; re-test `impeccable audit` on a real UI slice                                                                                                                                                                                                                                                                                                 |
 
 ---
 
