@@ -6,6 +6,7 @@
 
 import type { Job } from 'bullmq';
 import { ensureTaskGitColumns } from '@aiflow/db';
+import { retrieveLessons } from '@aiflow/db';
 import { getReviewQueue, validateCodePayload, type CodeExecutePayload } from '@aiflow/queue';
 
 import { cloneRepo, removeWorkDir } from '../deploy/clone';
@@ -56,6 +57,10 @@ const defaultDeps: CodeHandlerDeps = {
     await getReviewQueue().add('code:review', payload);
   },
   recordAudit: defaultRecordAudit,
+  retrieveLessons: async (schemaName, taskId) => {
+    const rows = await retrieveLessons(schemaName, { taskId });
+    return rows.map((r) => r.lesson);
+  },
   removeWorkDir,
   resolveApiKey,
   writeApiKeySecret,

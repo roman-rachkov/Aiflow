@@ -11,9 +11,21 @@ Updated by each docs-autopilot wave. Orchestrator reads this before code waves.
 
 ## Phase
 
-- **Current:** Wave C2 complete (MVP-3 D1 Full Reviewer UI); C1 Self-Refine + A1–B4 foundation intact.
-- **Next:** Wave C3 — MVP2-43-DOMAIN (Traefik deploy), MVP3-C2 (AgentMemory), root README, dogfood closure.
-- **Blocked:** `APP_COMPLETE` — 20 open requirements in `REQUIREMENTS.md`.
+- **Current:** Wave C3 complete (MVP-3 C2 AgentMemory + Reflexion prompt mixing); C1 Self-Refine + A1–B4 + D1 intact.
+- **Next:** Wave C4 — MVP2-43-DOMAIN (Traefik deploy), root README, dogfood closure.
+- **Blocked:** `APP_COMPLETE` — 19 open requirements in `REQUIREMENTS.md`.
+
+## Wave C3 summary (2026-08-31)
+
+- Implemented MVP-3 C2: Persistent agent memory (Reflexion).
+- `AgentMemory` model added to `schema_project_template.prisma` (taskId, role, lesson, timestamps, soft-delete).
+- `packages/db/src/agent-memory.ts`: `storeLesson` / `retrieveLessons` backed by project Prisma client.
+- `apps/worker/src/review/memory.ts`: `extractLesson(verdict, title)` + `storeLessonFromVerdict` helper.
+- Reviewer handler: retrieves past lessons before `generateVerdict`, passes as `pastLessons`; stores lesson after verdict.
+- `buildReviewUserPrompt` in `@aiflow/ai-roles`: includes `pastLessons` section when present.
+- Coder pipeline (`pipeline-live.ts`): `buildSandboxDescription` retrieves lessons and prepends to task description.
+- 17 new tests across `agent-memory.test.ts`, `memory.test.ts`, `handler.test.ts`, `reviewer.test.ts`.
+- `yarn verify` green (436 tests).
 
 ## Wave B summary (2026-08-31)
 

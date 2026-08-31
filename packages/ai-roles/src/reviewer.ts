@@ -43,6 +43,8 @@ export type ReviewTaskInput = {
     eslint?: boolean | null;
     tests?: boolean | null;
   };
+  /** Lessons extracted from prior Reviewer verdicts on the same task (C2 Reflexion). */
+  pastLessons?: string[];
 };
 
 const MAX_PARSE_RETRIES = 2;
@@ -97,14 +99,21 @@ async function generateReviewVerdictInner(
 /** Build the USER message body for the Reviewer. */
 export function buildReviewUserPrompt(task: ReviewTaskInput): string {
   const checks = task.checks ?? {};
-  return [
+  const lines: string[] = [
     `Title: ${task.title}`,
     `Description:\n${task.description}`,
     `Acceptance:\n${task.acceptance}`,
     `Automated checks: typescript=${fmtCheck(checks.typescript)}; eslint=${fmtCheck(checks.eslint)}; tests=${fmtCheck(checks.tests)}`,
-    'Diff:',
-    task.diff.trim() === '' ? '(empty diff)' : task.diff,
-  ].join('\n\n');
+  ];
+  if (task.pastLessons && task.pastLessons.length > 0) {
+    lines.push(
+      'Past lessons (avoid repeating these mistakes):\n' +
+        task.pastLessons.map((l, i) => `  ${String(i + 1)}. ${l}`).join('\n'),
+    );
+  }
+  lines.push('Diff:');
+  lines.push(task.diff.trim() === '' ? '(empty diff)' : task.diff);
+  return lines.join('\n\n');
 }
 
 function fmtCheck(value: boolean | null | undefined): string {

@@ -18,13 +18,13 @@ User-app bootstrap template: `templates/user-nextjs/`. Details: `docs/04-roadmap
 
 ## Current phase (docs-autopilot)
 
-| Gate            | Status                                                         | Notes                                               |
-| --------------- | -------------------------------------------------------------- | --------------------------------------------------- |
-| `DOCS_COMPLETE` | `yes`                                                          | Wave A + B complete — see `docs/roadmap/STATUS.md`  |
-| `APP_COMPLETE`  | `no`                                                           | 20 open requirements — see `docs/roadmap/REQUIREMENTS.md` |
-| Roadmap phase   | Wave C2 (D1 UI + README done)                                  | MVP-3 A1–B4 + C1 done; C2–C4, MVP-2 product features open |
-| Next milestone  | Wave C3                                                        | AgentMemory (C2), domain deploy (MVP2-43), Support Bot    |
-| Run / verify    | `docker compose up` then `docker compose exec app yarn verify` | Copy `.env.example` → `.env` first                  |
+| Gate            | Status                                                         | Notes                                                     |
+| --------------- | -------------------------------------------------------------- | --------------------------------------------------------- |
+| `DOCS_COMPLETE` | `yes`                                                          | Wave A + B complete — see `docs/roadmap/STATUS.md`        |
+| `APP_COMPLETE`  | `no`                                                           | 19 open requirements — see `docs/roadmap/REQUIREMENTS.md` |
+| Roadmap phase   | Wave C3 complete (MVP-3 C2 AgentMemory done)                   | MVP-3 A1–B4 + C1 + C2 + D1 done; C3–C4, MVP-2 product features open |
+| Next milestone  | Wave C4                                                        | Domain deploy (MVP2-43), root README, dogfood closure     |
+| Run / verify    | `docker compose up` then `docker compose exec app yarn verify` | Copy `.env.example` → `.env` first                        |
 
 Continuity artifacts: `docs/roadmap/REQUIREMENTS.md`, `MASTER_ROADMAP.md`, `DECISIONS.md`,
 `DOC_GAPS.md`, `DOC_RESOLUTIONS.md`, `STATUS.md`, `docs/glossary.md`.

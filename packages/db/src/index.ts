@@ -40,6 +40,14 @@ export {
   type RecordAuditInput,
 } from './audit';
 export { getPublicClient } from './public-client';
+export {
+  retrieveLessons,
+  storeLesson,
+  type AgentRole,
+  type MemoryRow,
+  type RetrieveMemoryInput,
+  type StoreMemoryInput,
+} from './agent-memory';
 import { disconnectPublicClient } from './public-client';
 
 /**

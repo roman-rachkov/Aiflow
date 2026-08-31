@@ -13,7 +13,11 @@ import {
   type ReviewTaskInput,
   type ReviewVerdict,
 } from '@aiflow/ai-roles';
-import { ensureTaskGitColumns } from '@aiflow/db';
+import {
+  ensureTaskGitColumns,
+  retrieveLessons as dbRetrieveLessons,
+  storeLesson,
+} from '@aiflow/db';
 import {
   getCodeQueue,
   validateReviewPayload,
@@ -27,6 +31,7 @@ import { mergeTaskBranch } from '../code/merge';
 import { appendTaskLog, loadTask, recordTaskGit, setTaskStatus } from '../code/status';
 import type { ApplyVerdictDeps } from './apply-verdict';
 import { finishAcceptedReview, type FinishAcceptedDeps } from './finish-accepted';
+import { storeLessonFromVerdict, type LessonStoreDeps } from './memory';
 import { handleRejectedVerdict } from './retry';
 
 export type ReviewHandlerDeps = {
@@ -36,6 +41,8 @@ export type ReviewHandlerDeps = {
   finishAccepted: FinishAcceptedDeps;
   enqueueCodeExecute: (payload: CodeExecutePayload) => Promise<void>;
   recordAudit: RecordAuditFn;
+  lessonStore: LessonStoreDeps;
+  retrieveLessons: (schemaName: string, taskId: string) => Promise<string[]>;
 };
 
 const defaultDeps: ReviewHandlerDeps = {
@@ -69,6 +76,11 @@ const defaultDeps: ReviewHandlerDeps = {
     await getCodeQueue().add('code:execute', payload);
   },
   recordAudit: defaultRecordAudit,
+  lessonStore: { storeLesson },
+  retrieveLessons: async (schemaName, taskId) => {
+    const rows = await dbRetrieveLessons(schemaName, { taskId, role: 'REVIEWER' });
+    return rows.map((r) => r.lesson);
+  },
 };
 
 /** Process one code-review job. Exported for unit tests with mocked deps. */
@@ -90,6 +102,7 @@ export async function handleCodeReview(
   );
 
   let traceId: string | undefined;
+  const pastLessons = await deps.retrieveLessons(payload.schemaName, payload.taskId);
   const verdict = await runWithTraceContext(
     {
       role: 'reviewer',
@@ -104,6 +117,7 @@ export async function handleCodeReview(
         acceptance: task.acceptance,
         diff: payload.diff,
         checks: payload.checks,
+        pastLessons: pastLessons.length > 0 ? pastLessons : undefined,
       });
       traceId = getCurrentTraceId();
       return result;
@@ -118,13 +132,14 @@ export async function handleCodeReview(
     );
   }
 
-  await settleVerdict(payload, verdict, deps);
+  await settleVerdict(payload, verdict, task, deps);
   return verdict;
 }
 
 async function settleVerdict(
   payload: CodeReviewPayload,
   verdict: ReviewVerdict,
+  task: { title: string },
   deps: ReviewHandlerDeps,
 ): Promise<void> {
   await auditReviewerVerdict(deps.recordAudit, {
@@ -133,6 +148,10 @@ async function settleVerdict(
     verdict: verdict.verdict,
     confidence: verdict.confidence,
   });
+  await storeLessonFromVerdict(
+    { schemaName: payload.schemaName, taskId: payload.taskId, taskTitle: task.title, verdict },
+    deps.lessonStore,
+  );
   if (verdict.verdict === 'ACCEPTED') {
     await settleAccepted(payload, verdict, deps);
     return;

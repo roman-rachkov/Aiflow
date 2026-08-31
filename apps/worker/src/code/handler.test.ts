@@ -5,6 +5,7 @@ import type { CodeExecutePayload } from '@aiflow/queue';
 
 vi.mock('@aiflow/db', () => ({
   ensureTaskGitColumns: vi.fn(() => Promise.resolve()),
+  retrieveLessons: vi.fn(() => Promise.resolve([])),
 }));
 
 import { handleCodeExecute, type CodeHandlerDeps } from './handler';
@@ -54,6 +55,7 @@ function mockDeps(overrides: Partial<CodeHandlerDeps> = {}): CodeHandlerDeps {
     captureBranchDiff: vi.fn(() => Promise.resolve('diff --git a/x\n')),
     enqueueCodeReview: vi.fn(() => Promise.resolve()),
     recordAudit: vi.fn(() => Promise.resolve({})),
+    retrieveLessons: vi.fn(() => Promise.resolve([])),
     removeWorkDir: vi.fn(() => Promise.resolve()),
     resolveApiKey: vi.fn(() => 'sk-test'),
     writeApiKeySecret: vi.fn(() =>

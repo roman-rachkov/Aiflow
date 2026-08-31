@@ -6,6 +6,8 @@ import type { CodeReviewPayload } from '@aiflow/queue';
 
 vi.mock('@aiflow/db', () => ({
   ensureTaskGitColumns: vi.fn(() => Promise.resolve()),
+  storeLesson: vi.fn(() => Promise.resolve()),
+  retrieveLessons: vi.fn(() => Promise.resolve([])),
 }));
 
 import { applyReviewVerdict, formatReviewLog, REVIEW_LOG_MARKER } from './apply-verdict';
@@ -77,6 +79,18 @@ function mockDeps(overrides: Partial<ReviewHandlerDeps> = {}): ReviewHandlerDeps
     },
     enqueueCodeExecute: vi.fn(() => Promise.resolve()),
     recordAudit: vi.fn(() => Promise.resolve({})),
+    lessonStore: {
+      storeLesson: vi.fn(() =>
+        Promise.resolve({
+          id: 'x',
+          taskId: TASK.id,
+          role: 'REVIEWER' as const,
+          lesson: '',
+          createdAt: new Date(),
+        }),
+      ),
+    },
+    retrieveLessons: vi.fn(() => Promise.resolve([])),
     ...overrides,
   };
 }
@@ -195,5 +209,37 @@ describe('handleCodeReview — Self-Refine (MVP-3 C1)', () => {
     expect(deps.applyVerdict.setTaskStatus).toHaveBeenCalledWith(
       expect.objectContaining({ status: 'PENDING' }),
     );
+  });
+});
+
+describe('handleCodeReview — Reflexion memory (MVP-3 C2)', () => {
+  it('stores a lesson after ACCEPTED verdict', async () => {
+    const deps = mockDeps();
+    await handleCodeReview(job(PAYLOAD), deps);
+    expect(deps.lessonStore.storeLesson).toHaveBeenCalledOnce();
+  });
+
+  it('stores a lesson after REJECTED verdict', async () => {
+    const deps = mockDeps({ generateVerdict: vi.fn(() => Promise.resolve(REJECTED)) });
+    await handleCodeReview(job(PAYLOAD), deps);
+    expect(deps.lessonStore.storeLesson).toHaveBeenCalledOnce();
+  });
+
+  it('passes retrieved lessons to generateVerdict', async () => {
+    const lessons = ['Do not forget to handle null', 'Always validate input'];
+    const deps = mockDeps({
+      retrieveLessons: vi.fn(() => Promise.resolve(lessons)),
+    });
+    await handleCodeReview(job(PAYLOAD), deps);
+    expect(deps.generateVerdict).toHaveBeenCalledWith(
+      expect.objectContaining({ pastLessons: lessons }),
+    );
+  });
+
+  it('omits pastLessons when none exist', async () => {
+    const deps = mockDeps({ retrieveLessons: vi.fn(() => Promise.resolve([])) });
+    await handleCodeReview(job(PAYLOAD), deps);
+    const call = vi.mocked(deps.generateVerdict).mock.calls[0][0];
+    expect(call.pastLessons).toBeUndefined();
   });
 });

@@ -79,9 +79,7 @@ async function runSandboxStep(ctx: LivePipelineCtx): Promise<boolean> {
   await deps.appendTaskLog(payload.schemaName, payload.taskId, 'Запуск sandbox…\n');
   const apiKey = deps.resolveApiKey();
   const secret = await deps.writeApiKeySecret(apiKey);
-  const description = payload.reviewFeedback
-    ? `${task.description}\n\n${payload.reviewFeedback}`
-    : task.description;
+  const description = await buildSandboxDescription(payload, task, deps);
   try {
     const out = await deps.runSandboxContainer({
       workspaceHostPath: workDir,
@@ -104,6 +102,25 @@ async function runSandboxStep(ctx: LivePipelineCtx): Promise<boolean> {
   } finally {
     await deps.removeSecretDir(secret.dir);
   }
+}
+
+async function buildSandboxDescription(
+  payload: { schemaName: string; taskId: string; reviewFeedback?: string },
+  task: { description: string },
+  deps: Pick<LivePipelineCtx['deps'], 'retrieveLessons'>,
+): Promise<string> {
+  const parts: string[] = [task.description];
+  const lessons = await deps.retrieveLessons(payload.schemaName, payload.taskId);
+  if (lessons.length > 0) {
+    parts.push(
+      'Past lessons — do not repeat these mistakes:\n' +
+        lessons.map((l, i) => `  ${String(i + 1)}. ${l}`).join('\n'),
+    );
+  }
+  if (payload.reviewFeedback) {
+    parts.push(payload.reviewFeedback);
+  }
+  return parts.join('\n\n');
 }
 
 async function runParseStep(ctx: LivePipelineCtx): Promise<void> {

@@ -52,6 +52,7 @@ export type CodeHandlerDeps = {
   captureBranchDiff: (workDir: string, baseBranch: string) => Promise<string>;
   enqueueCodeReview: (payload: CodeReviewPayload) => Promise<void>;
   recordAudit: RecordAuditFn;
+  retrieveLessons: (schemaName: string, taskId: string) => Promise<string[]>;
   removeWorkDir: (workDir: string) => Promise<void>;
   resolveApiKey: (env?: NodeJS.ProcessEnv) => string;
   writeApiKeySecret: (
