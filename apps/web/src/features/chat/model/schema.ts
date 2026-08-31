@@ -20,6 +20,8 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { withRagContext as mixRagContext } from '@aiflow/ai-roles';
+
 const here = dirname(fileURLToPath(import.meta.url));
 // From apps/web/src/features/chat/model/ up to the repo root is six `..`.
 const SYSTEM_PROMPT_PATH = join(
@@ -79,17 +81,10 @@ export function readSpecTemplate(): string {
 }
 
 /**
- * Mix RAG context into the Analyst system prompt (SPEC assumption #8).
- *
- * The retrieval context is appended implicitly — the chat UI is unchanged and
- * the user message still reads as a plain turn. When `context` is empty
- * (falsy) — no indexed documents, no matching chunks, or an embed/retrieval
- * failure that degrades to chat-without-RAG — the base prompt is returned
- * verbatim, identical to task 1.3 behavior. Otherwise the context block (a
- * Russian `Контекст из загруженных документов:` body produced by
- * `retrieveContext` in `@/features/files`) is appended after one blank line.
+ * Mix RAG context into the Analyst system prompt (SPEC assumption #8; B4 wrap).
+ * Empty context → base unchanged. Non-empty context is wrapped as untrusted
+ * uploaded-document DATA via `@aiflow/ai-roles` `withRagContext`.
  */
 export function withRagContext(basePrompt: string, context: string): string {
-  if (!context) return basePrompt;
-  return `${basePrompt}\n\n${context}`;
+  return mixRagContext(basePrompt, context);
 }

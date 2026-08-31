@@ -16,6 +16,19 @@ sandbox checks (LLM Reviewer → MVP-2). Sandbox API key via `/run/secrets/api_k
 User-app bootstrap template: `templates/user-nextjs/`. Details: `docs/04-roadmap.md` § 3,
 `docs/12-open-questions.md` #1/#5/#7/#8.
 
+## Current phase (docs-autopilot)
+
+| Gate            | Status                                                         | Notes                                              |
+| --------------- | -------------------------------------------------------------- | -------------------------------------------------- |
+| `DOCS_COMPLETE` | `yes`                                                          | Wave A + B complete — see `docs/roadmap/STATUS.md` |
+| `APP_COMPLETE`  | `no`                                                           | 5 partial — live dogfood evidence needed           |
+| Roadmap phase   | Wave C7 partial (dogfood-live + prod runbook)                  | Run `yarn dogfood-live` on compose host            |
+| Next milestone  | Live dogfood PASS → close R01/R05/MVP2-51                      |                                                    |
+| Run / verify    | `docker compose up` then `docker compose exec app yarn verify` | Copy `.env.example` → `.env` first                 |
+
+Continuity artifacts: `docs/roadmap/REQUIREMENTS.md`, `MASTER_ROADMAP.md`, `DECISIONS.md`,
+`DOC_GAPS.md`, `DOC_RESOLUTIONS.md`, `STATUS.md`, `docs/glossary.md`.
+
 Real packages today: `apps/web` (Next.js 15 App Router), `packages/db` (Prisma, two schemas),
 `packages/ui` (design system), `packages/ai-roles` (OpenAI-compatible chat+embed),
 `packages/crypto` (AES-256-GCM ModelConfig envelope), `packages/queue` (BullMQ
@@ -23,7 +36,8 @@ Real packages today: `apps/web` (Next.js 15 App Router), `packages/db` (Prisma, 
 for `deploy-run`, `plan-generate`, `code-execute`, `code-review`, and `chat-run`; `spec-generate` is dormant — SPEC
 generation runs from the chat tool on the worker, so that queue stub-acks),
 `services/registry-proxy` (sandbox egress allowlist), `tools/session-analyzer`
-(dev-only analytics). Declared-but-empty stub (do not assume it works yet):
+(dev-only analytics), `tools/evals` (MVP-3 B3 golden SPEC→plan→code evals;
+`yarn evals`; CI on prompt-path changes). Declared-but-empty stub (do not assume it works yet):
 `services/model-router`. The code map at `docs/16-code-map.md` tracks which is
 which — read it first.
 
@@ -67,6 +81,7 @@ Run with `yarn`. `yarn verify` reproduces CI: typecheck → lint → format:chec
 | Command                                                                                                         | Purpose                                                                                                                                                                                               |
 | --------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `yarn verify`                                                                                                   | The CI gate — run before marking anything done                                                                                                                                                        |
+| `yarn evals`                                                                                                    | Golden SPEC→plan→code + prompt contracts (MVP-3 B3); offline by default; `EVALS_LIVE=1` for live Planner                                                                                              |
 | `yarn typecheck` / `yarn lint` / `yarn test`                                                                    | Individual gates (`typecheck` fans out via Lerna; `lint`/`test` run at root)                                                                                                                          |
 | `yarn format` / `yarn format:check`                                                                             | Prettier write / check only                                                                                                                                                                           |
 | `apps/web`: `yarn dev`, `yarn build`                                                                            | Next.js (binds `0.0.0.0:3000` for compose); production build                                                                                                                                          |
@@ -97,16 +112,18 @@ workspace with zero tests fails loudly instead of looking green. Pre-commit (`hu
   `docker build -t aistudio/aider-sandbox:latest -f docker/aider-sandbox/Dockerfile docker/aider-sandbox`.
 - **Soft delete only.** Every domain model has `deletedAt DateTime?`. Queries must filter
   `deletedAt: null` **manually** (no Prisma extension). Delete = `update { deletedAt: now() }`,
-  never `.delete()`. NextAuth/cascade models are exempt. Full rule in `CLAUDE.md`.
+  never `.delete()`. NextAuth/cascade models and append-only `AuditEvent` (MVP-3 A3) are exempt.
+  Full rule in `CLAUDE.md`.
 - Details (port allocation, URL-rewriting, container hardening, encrypted value shape) live in the
   `ai-studio-internals` skill — read it before touching compose, sandbox, per-project DB, or secrets.
 
 ## Code organization
 
 Feature-sliced inside `apps/web`: `app/ → features/ → shared/ → packages/`, one-way, enforced by
-ESLint (`import/no-internal-modules`, plus `no-restricted-imports` blocking deep `features/*/*`
-imports from `app/`). `app/` is routing only — no logic there. Each feature slice exposes a single
-`index.ts` public surface; never import another slice's internals.
+ESLint (`eslint-plugin-boundaries` `boundaries/dependencies` for cross-slice isolation;
+`import/no-cycle`). Barrel-only imports (`index.ts` public surface) are convention +
+review, not an active `import/no-internal-modules` rule yet — see `docs/15` § 4.2.
+Each feature slice exposes a single `index.ts` public surface; never import another slice's internals.
 
 **The UI split is load-bearing.** `packages/ui` (`@aiflow/ui`) owns primitives + design tokens
 (`Button`, `Input`/`Field`, `Card`, `Spinner`, plus `styles/theme.css`). `apps/web/src/shared/ui`

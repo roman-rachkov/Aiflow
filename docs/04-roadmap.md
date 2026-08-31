@@ -128,7 +128,7 @@ Gitea saga + lazy backfill. Specs in `specs/task-2.2-editor-gitea/`.
 - ModelConfig settings page (provider/model choice for the Analyst).
 
 Shipped on `task/2.3-deploy-modelconfig`: `@aiflow/crypto`, ModelConfig UI/API,
-chat provider resolve, `@aiflow/queue` + worker `deploy:run` (dockerode,
+chat provider resolve, `@aiflow/queue` + worker `deploy-run` (dockerode,
 dev-only sock), deployments UI. Specs in `specs/task-2.3-deploy-modelconfig/`.
 
 **MVP-0 exit criterion:**
@@ -154,7 +154,7 @@ moves to **MVP-2** (see § 3.3). Rationale: open questions #7–#8 in
 - Aider-based Coder in isolated Docker sandboxes (simple CRUD scope).
 - Sandbox acceptance checks (lint/typecheck/validate) as the product gate.
 - Bootstrap from `templates/user-nextjs/` into the project Gitea repo.
-- Reuse MVP-0 manual deploy (`deploy:run`) for the generated image.
+- Reuse MVP-0 manual deploy (`deploy-run`) for the generated image.
 
 ### 3.2. Detailed task plan (slim MVP-1)
 
@@ -175,12 +175,12 @@ Aider pin and `registry-proxy` shape: C4/C5 in `docs/14-decisions-needed.md`.
 **Task 3.2. Planner** (done 2026-08-07)
 
 - Develop the prompt for generating a task list from SPEC.md (in a format the Coder understands).
-- Integration with the `plan:generate` queue: fetch SPEC.md, call the LLM, parse, create `Task` records.
+- Integration with the `plan-generate` queue: fetch SPEC.md, call the LLM, parse, create `Task` records.
 - UI for the Roadmap (task list with order and dependencies); drag-reorder deferred.
 
 **Task 3.3. Coder** (done 2026-08-07; E2E wiring 2026-08-17)
 
-- Worker `code:execute`: takes a task, fetches current code from Gitea, starts a sandbox.
+- Worker `code-execute`: takes a task, fetches current code from Gitea, starts a sandbox.
 - Result handling: commit on success (runner), worker push, log capture and FAILED marking on failure.
 - Dry-run mode: planned prompt stub → `AWAITING_REVIEW`, confirm enqueues live run.
 - WebSocket streaming of sandbox logs (`sandbox:logs:{taskId}` via custom server).
@@ -209,7 +209,7 @@ Moved out of slim MVP-1 so Planner+Coder can stabilize first
 
 **Task 4.3. Automatic domain deploy**
 
-- Worker `deploy:run` extended: builds the Docker image with the application and agents.
+- Worker `deploy-run` extended: builds the Docker image with the application and agents.
 - Deployment to a test domain (based on Traefik or an nginx proxy).
 - URL and logs surfaced in the project UI.
 
@@ -283,57 +283,101 @@ decomposition happens per task in its own brainstorm/sprint, on a `task/*` branc
 
 #### Track A — Architectural maturity (durable + audit + policy)
 
-**A1. Idempotent workers (`code:execute`, `deploy:run`).** At-least-once without
-duplicate effect (double commit/deploy/`markInProgress`). Integration:
-`apps/worker/src/code/handler.ts` (the `CodeHandlerDeps` DI seam already exists),
-`apps/worker/src/deploy/handler.ts`. Approach: DB attempt tokens, status-machine
-transition guards (`IN_PROGRESS` only from `PENDING`/`AWAITING_REVIEW`),
-`pushBranch`/`finishDeploy` dedup by `taskId+attempt`, dead-letter for stuck jobs.
-Done when a worker killed mid-job and restarted produces exactly one commit/deploy.
+**A1. Idempotent workers (`code:execute`, `deploy:run`).** — done (2026-08-23)
 
-**A2. Status machine as source of truth + resumability.** A crashed worker resumes
-from the last checkpoint, not from zero. Integration: `TaskLog` (already the
-checkpoint), `apps/worker/src/code/pipeline.ts`. Approach: explicit step encoding
-(`CLONE→CHECKOUT→SANDBOX→PARSE→PUSH→DONE`), each step idempotent by
-`(taskId, step)`; BullMQ resume replays from the first unfinished step. Done when
-the "crashed on PUSH → restart → commit lands once" doc-test passes.
+At-least-once without duplicate effect (double commit/deploy/`markInProgress`).
+Integration: `apps/worker/src/code/handler.ts` + `claim.ts`,
+`apps/worker/src/deploy/handler.ts` + `claim.ts`. Shipped: conditional
+`claimInProgress` (`PENDING`|`AWAITING_REVIEW`|`FAILED` → `IN_PROGRESS`, clears
+git checkpoint); stalled `IN_PROGRESS` resumes; `headCommit` recorded **before**
+push so crash mid-push → `resume-after-push` (skip sandbox, re-push + re-enqueue
+review); DONE / DEPLOYED are no-op skips; `finishDeploy` only transitions from
+`BUILDING`. BullMQ still fail-fast (`attempts: 1`); operator re-enqueues after
+FAILED. Step-encoded pipeline resume shipped in A2.
 
-**A3. Audit trails.** Every significant role action (Coder commit, Reviewer
-verdict, deploy) is an audit event. Integration: new `AuditEvent` model in the
-public schema (actor role, action, target, before/after hash, Langfuse `traceId`),
-append-only. Approach: one `recordAudit()` in the worker; a Pro-mode event feed
-in the UI. Done when a `taskId` reconstructs its full attempt + verdict history.
+**A2. Status machine as source of truth + resumability.** — done (2026-08-23)
 
-**A4. Policy layer for roles.** A deterministic guard "what a role may do" _before_
-the LLM call; tool-calling capability ≠ permission. Integration: new
-`packages/ai-roles/src/policy.ts`; role → capability set (`read-spec`, `read-diff`,
-`write-commit`, `verdict`). Approach: guard inside the provider wrapper (E2);
-violation → audit + throw, never "the LLM decided". Done when the Reviewer
-physically cannot commit even under injection.
+A crashed worker resumes from the last durable checkpoint, not from zero.
+Integration: `TaskLog` step markers + `headCommit` / git checkpoint ref,
+`apps/worker/src/code/pipeline{,-live,-steps}.ts`, `git-checkpoint.ts`.
+Steps: `CLONE→CHECKOUT→SANDBOX→PARSE→PUSH→DONE` (DONE = enqueue
+`code-review`). PARSE pushes `refs/aistudio/task/{taskId}` before recording
+`headCommit` so a mid-PUSH crash restores the commit after workDir wipe.
+Resume: no `headCommit` → restart at CLONE; with `headCommit` → PUSH or DONE
+from TaskLog; all steps done → no-op wait for review. Doc-test: crashed on
+PUSH → restart → sandbox skipped, push once.
+
+**A3. Audit trails.** — done (2026-08-23)
+
+Every significant role action (Coder commit, Reviewer verdict, deploy) is an
+audit event. Integration: `AuditEvent` model in the public schema (actor role,
+action, target, before/after hash, optional Langfuse `traceId`), append-only
+(soft-delete exempt). Approach: `recordAudit()` in `@aiflow/db` + worker
+wrappers (`auditCoderPush` / `auditReviewerVerdict` / `auditDeployFinish`)
+hooked at PUSH, review settle, and deploy finish; Pro-mode event feed via
+`GET /api/projects/[id]/audit` + `features/audit` UI composed on the tasks
+page. Stacked on A2 (pipeline step hooks). Done criterion: a `taskId`
+reconstructs its full attempt + verdict history from `AuditEvent` rows.
+
+**A4. Policy layer for roles.** — done (2026-08-23)
+
+A deterministic guard "what a role may do" _before_ the LLM call; tool-calling
+capability ≠ permission (E4). Integration: `packages/ai-roles/src/policy.ts`
+(role → capability set: `read-spec`, `read-diff`, `write-commit`, `verdict`,
+…); `withPolicyGuard` on `createOpenAICompatibleProvider`; Planner/Reviewer
+bind role via `runWithRoleAsync` + `assertCapability`; coder PUSH asserts
+`write-commit`. Violation → `policy.violation` AuditEvent +
+`PolicyViolationError`. Done criterion: Reviewer physically cannot
+`write-commit` even under injection (unit-tested).
 
 #### Track B — Observability & Evals (Langfuse)
 
-**B1. Langfuse self-host in compose.** Service in `docker-compose.yml`,
-Postgres-backed, OTLP receiver. Done when `docker compose up` brings up the
-Langfuse UI on a dedicated port.
+**B1. Langfuse self-host in compose.** — done (2026-08-23)
 
-**B2. Trace every LLM call.** Prompt/tokens/latency/cost/errors for
-Analyst/Planner/Coder/Reviewer, linked to project/task. Integration: the wrapper
-in `packages/ai-roles/src/openai-compatible.ts`
-(`createOpenAICompatibleProvider`) — the single chokepoint of all roles. Approach:
-OTel/Langfuse-SDK spans; `traceId` propagates into `TaskLog`/`AuditEvent` for
-cross-link. Done when a single Coder attempt is visible end-to-end in Langfuse.
+`langfuse-web` + `langfuse-worker` (`langfuse/langfuse:3`) in
+`docker-compose.yml`, UI on host **3100**. Shared Postgres DB `langfuse`
+(`docker/postgres/init/02-langfuse-db.sql`), shared MinIO bucket (init script),
+dedicated `clickhouse` + `langfuse-redis` (BullMQ redis stays untouched).
+Secrets via `LANGFUSE_*` / `CLICKHOUSE_*` in `.env.example`. OTLP/SDK tracing
+of role calls → B2. Done criterion: `docker compose up` serves Langfuse UI
+at `http://localhost:3100` (verify on a host with Docker; this agent env had
+no docker daemon).
 
-**B3. Evals framework (golden set + regression).** A SPEC→plan→code case set;
-prompt/model regression on change. Approach: Promptfoo or Langfuse datasets; a CI
-job fires when a prompt in `.claude/agents/` changes. Done when a Coder prompt
-change cannot merge without an evals run.
+**B2. Trace every LLM call.** — done (2026-08-23)
 
-**B4. Prompt-injection red-team.** Uploaded RAG documents must not break policy or
-exfiltrate the key. Integration: the Analyst mixes user content into its system
-prompt via `withRagContext` — the known surface. Approach: an AgentDojo/
-InjecAgent-style red-team set, auto-run in CI. Done when an injected document
-never triggers a role's write action.
+Prompt/tokens/latency/cost/errors for Analyst/Planner/Reviewer (and any
+caller of `createOpenAICompatibleProvider`), linked to project/task via
+`runWithTraceContext`. Integration: wrapper in `packages/ai-roles` around the
+OpenAI-compatible provider (single chokepoint). Thin Langfuse public-ingestion
+client (fetch + Basic auth); noop when `LANGFUSE_PUBLIC_KEY` /
+`LANGFUSE_SECRET_KEY` unset. Reviewer jobs append `langfuseTraceId=` to
+`TaskLog` for cross-link (AuditEvent → A3). Sandbox Aider (Coder) stays outside
+this wrapper — Reviewer traces cover the code-execute → review path.
+Done criterion: with Langfuse up and keys set, a Reviewer/Planner/Analyst call
+appears in the Langfuse UI; without keys, chat/embed behave as before.
+
+**B3. Evals framework (golden set + regression).** — done (2026-08-23)
+
+A SPEC→plan→code golden set under `tools/evals/cases/` plus prompt-contract
+checks for Planner/Reviewer/Coder (`.claude/agents/*` + sandbox
+`CODER_CORE_PROMPT` + runtime prompts in `@aiflow/ai-roles`). Offline fixtures
+are the default CI path (`yarn evals`); `EVALS_LIVE=1` optionally calls the env
+LLM provider. Langfuse score upload via the same public ingestion API as B2 —
+noop when `LANGFUSE_*` keys unset. GitHub Actions workflow
+`.github/workflows/evals.yml` path-filters on `.claude/agents/**`,
+`docker/aider-sandbox/**`, planner/reviewer sources, and `tools/evals/**`, so a
+Coder prompt change cannot merge without an evals run.
+
+**B4. Prompt-injection red-team.** — done (2026-08-23)
+
+Uploaded RAG documents must not break policy or exfiltrate keys / trigger writes.
+`@aiflow/ai-roles` `withRagContext` wraps retrieval in untrusted delimiters;
+`allowMutatingTool` blocks `spec:generate` / `run_planner` / `run_coder` / `deploy`
+when RAG looks injected unless the user explicitly requests that action. Worker
+`executeTool` enforces the guard. AgentDojo-style cases live in
+`tools/evals` (`scoreRedTeam`) and run under `yarn evals` +
+`.github/workflows/evals.yml`. Done criterion: an injected document never
+triggers a mutating tool without explicit user intent.
 
 #### Track C — Agent intelligence (Self-Refine, memory, escalation)
 
@@ -430,13 +474,13 @@ suffice, revisit on C2 data).
 4. All secrets are stored encrypted; sandbox API key is file-mounted (`/run/secrets/api_key`); project isolation holds for the concurrent projects exercised in MVP-0/1.
 5. Narrow dogfood: at least one simple CRUD app through plan → sandbox codegen (full self-dogfood and load testing → MVP-2).
 
-## 5. Tools and repositories
+## 7. Tools and repositories
 
 - **Code**: a monorepo in Gitea (Next.js, workers, Docker Compose configuration).
 - **CI/CD**: for MVP, manual test and build runs via scripts. Later, integration with Gitea Actions.
 - **Documentation**: kept in the AI Studio `SPEC.md` and updated as dogfooding proceeds.
 
-## 6. Risks and mitigation
+## 8. Risks and mitigation
 
 | Risk                              | Likelihood | Impact   | Mitigation                                                     |
 | --------------------------------- | ---------- | -------- | -------------------------------------------------------------- |

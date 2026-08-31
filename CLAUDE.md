@@ -92,6 +92,7 @@ The quality gate is real: `--max-warnings 0` blocks lint failures, and Prettier 
 | Command                                       | Purpose                                                                                           |
 | --------------------------------------------- | ------------------------------------------------------------------------------------------------- |
 | `yarn verify`                                 | The CI gate: typecheck → lint → format:check → test. Run before marking anything done             |
+| `yarn evals`                                  | Golden SPEC→plan→code + prompt contracts (MVP-3 B3); offline default; `EVALS_LIVE=1` for live LLM |
 | `yarn typecheck` / `yarn lint` / `yarn test`  | Individual gates. `typecheck` fans out via Lerna; `lint` and `test` run once at the root          |
 | `yarn format`                                 | Fix formatting; `format:check` only reports                                                       |
 | `yarn workspace @aiflow/web docs:ingest`      | Rebuild stable dogfood RAG index (docs + filtered source → pgvector); needs Postgres + embeddings |
@@ -134,7 +135,7 @@ Four component groups, all under Docker Compose. Details in `docs/02-architectur
 
 **Secrets** are AES-256-GCM encrypted under `ENCRYPTION_KEY`.
 
-**Domain models are soft-deleted, never physically removed.** Every domain model (both schemas) carries a `deletedAt DateTime?`. A non-null timestamp marks the row as deleted; queries must filter `deletedAt: null` **manually** (there is no Prisma extension — explicit filtering is safer than magical auto-filtering, but it means every new query has to remember the clause). Deletion is `update { deletedAt: now() }`, not `delete`. NextAuth adapter models (`Account`, `Session`, `VerificationToken`) and pure cascade children (`TaskDependency`, `TaskLog`, `DocumentChunk`) are exempt — they follow the adapter / their parent. `ProjectStatus.DELETED` was removed: `deletedAt` is the single deletion signal, so two indicators cannot disagree.
+**Domain models are soft-deleted, never physically removed.** Every domain model (both schemas) carries a `deletedAt DateTime?`. A non-null timestamp marks the row as deleted; queries must filter `deletedAt: null` **manually** (there is no Prisma extension — explicit filtering is safer than magical auto-filtering, but it means every new query has to remember the clause). Deletion is `update { deletedAt: now() }`, not `delete`. NextAuth adapter models (`Account`, `Session`, `VerificationToken`), pure cascade children (`TaskDependency`, `TaskLog`, `DocumentChunk`), and append-only `AuditEvent` (MVP-3 A3) are exempt — they follow the adapter / their parent / immutable audit semantics. `ProjectStatus.DELETED` was removed: `deletedAt` is the single deletion signal, so two indicators cannot disagree.
 
 The specifics of all three — the URL-rewriting trick, the container hardening flags, the encrypted value shape, and the codegen lifecycle — are in [`ai-studio-internals`](.claude/skills/ai-studio-internals/SKILL.md). Read it before touching compose, sandbox config, per-project DB access, or secret handling.
 
@@ -148,7 +149,7 @@ These rules govern code the _product_ generates, not code we write. Needed only 
 
 ## Port allocation → `/ai-studio-internals`
 
-Host ports: 3000, 3001, 3002, 5432, 6379, 9000/9001. The Gitea 3000/3002 split and all details are in [`ai-studio-internals`](.claude/skills/ai-studio-internals/SKILL.md).
+Host ports: 3000, 3001, 3002, 3100 (Langfuse), 5432, 6379, 9000/9001. The Gitea 3000/3002 split and all details are in [`ai-studio-internals`](.claude/skills/ai-studio-internals/SKILL.md).
 
 ## One thing that will waste your time
 

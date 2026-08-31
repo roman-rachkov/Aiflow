@@ -6,20 +6,35 @@ AI Studio is a responsive web application built around two roles: Customer (Aunt
 
 ## 2. Screen Map and Navigation
 
-```
+Two layout groups (see § 9):
 
-/ (after login) → Dashboard (project list)
-/projects/[id] → Project card
-/projects/[id]/research → Researcher (chat + SPEC)
-/projects/[id]/tasks → Tasks and Roadmap
-/projects/[id]/editor → Code editor (Monaco)
-/projects/[id]/agents → Project agents
-/projects/[id]/deployments → Deployment history
-/settings/profile → Profile settings
+- **`(app)` layout** — `AppHeader` + horizontal `AppNav`. Project list and create.
+- **`(shell)` layout** — full-bleed `ProjectShell` (`AgentInterface`, 100dvh). No
+  `AppHeader`; navigation lives in the chat sidebar.
 
 ```
+/ (after login) → redirect /projects
+/projects → Dashboard (project list, app layout)
+/projects/new → Create project (app layout)
+/projects/[id] → Project home — PRIMARY (shell: chat + sidebar tools)
+/projects/[id]/research → redirect → home (legacy URL)
+/projects/[id]/chat → redirect → home (legacy preview URL)
+/projects/[id]/tasks → Tasks (standalone deep link; same panel as shell Route)
+/projects/[id]/deployments → Deployments (standalone deep link)
+/projects/[id]/editor → Code editor (Monaco + WS; separate page, not in shell)
+/projects/[id]/settings/models → Model settings (Pro; standalone or shell Route)
+/projects/[id]/agents → Project agents (not shipped — MVP-2 Support Bot)
+/settings/profile → Profile settings (planned)
+```
 
-For the Customer the **top navigation** contains Projects, and (inside a project) Researcher, Tasks, Deployments. The Engineer (Pro) also sees Editor and Model settings.
+**Customer primary path:** open project → home shell (chat). Files, tasks, deploy,
+and SPEC are **sidebar Route panels** inside the shell (`files`, `tasks`, `deploy`,
+`spec`). **Engineer (Pro)** also sees Models in the sidebar and an Editor link that
+opens `/editor`.
+
+**Legacy `AppNav`** (horizontal, app layout only) still lists «Исследование» →
+`/research` (redirects to home). Deep links to `/tasks` and `/deployments` remain
+valid outside the shell.
 
 ## 3. Screen: Dashboard
 
@@ -41,48 +56,71 @@ For the Customer the **top navigation** contains Projects, and (inside a project
 
 - On project creation the user is redirected to the Researcher at `/projects/[id]/research`.
 
-## 4. Screen: Researcher (the Customer's main screen)
+## 4. Screen: Project home (Analyst chat shell)
 
-**URL:** `/projects/[id]/research`
-**Purpose:** interview with the AI Analyst, review and approval of the specification.
+**URL:** `/projects/[id]` (canonical). Legacy `/projects/[id]/research` redirects here.
+**Purpose:** interview with the AI Analyst, multi-thread chat, SPEC generation via
+tools, and sidebar access to files / tasks / deploy / SPEC / models.
+
+**Implementation:** `ProjectShell` + OpenUI `@openuidev/react-ui` `AgentInterface`
+(`apps/web/src/app/(shell)/projects/[id]/_shell/`). Russian labels in
+`features/chat/ui/agui/labels.ts`.
 
 ### Layout
 
-- **Left panel (20% width):** project artifacts:
-  - "Specification" (with version).
-  - "Uploaded files" (list, deletable).
-  - "Roadmap" (link to /tasks).
-- **Center (60%):** chat with the Analyst.
-  - Message area (dialog history).
-  - Each message: avatar (AI/user), text, timestamp.
-  - Input field at the bottom, "Send" button.
-  - "Create specification" button above the input (generates SPEC.md from the dialog).
-- **Right panel (20%):** SPEC.md preview (rendered Markdown). Appears after the specification is generated.
-  - "Approve specification" button (becomes disabled after approval; a "Start generation" button appears).
+Full-viewport `AgentInterface` (shell layout — no top `AppHeader`):
+
+- **Sidebar (left):**
+  - Project title header.
+  - «Новый чат» (`AgentInterface.NewChatButton`).
+  - **Thread list** (`AguiThreadList`) — rename, fork, delete per thread.
+  - **Tool nav** (`SidebarNav`) — Route panels: Files, Tasks, Deploy, SPEC;
+    Pro adds Editor (navigates to `/editor`) and Models.
+- **Main (center, default):** chat with the Analyst.
+  - AG-UI streaming via `POST /threads/{tid}/run` → worker `chat-run` queue.
+  - Welcome screen with starters (including SPEC generation starter).
+  - Custom message renderers: copy / regenerate / edit / delete (Stage A).
+  - Composer at bottom (Russian placeholder).
+- **Route panels (replace chat when a sidebar tool is selected):**
+  - **Files** (`path=files`) — upload + index (`FilePanel`).
+  - **Tasks** (`path=tasks`) — `TasksPanel` (plan enqueue, execute controls, logs).
+  - **Deploy** (`path=deploy`) — `DeploymentsPanel`.
+  - **SPEC** (`path=spec`) — latest SPEC markdown + «Утвердить» (`SpecApproveButton`).
+  - **Models** (`path=models`, Pro) — Analyst `ModelSettingsForm`.
+- **SPEC artifact in chat:** tool result renders as OpenUI artifact card
+  (`spec-artifact-renderer`) with preview + approve in the message stream.
+
+Routes must be **direct children** of `AgentInterface` (shallow slot extract —
+see `ProjectRoutes.tsx`).
 
 ### States
 
-- **Waiting for the Analyst's reply:** "typing..." indicator with animated dots.
-- **SPEC generation:** progress bar, message "The Analyst is preparing the specification...".
-- **Error:** message "Something went wrong, please try again".
+- **Streaming reply:** AG-UI run in progress (composer disabled while running).
+- **SPEC tool / generation:** artifact card + worker-side `spec:generate` tool in
+  the chat loop (not a separate page-level progress bar).
+- **Error:** surfaced in chat or panel fetch errors (inline; no global toast yet).
 
 ### Customer actions
 
-1. Enters the idea description.
-2. Answers clarifying questions.
-3. Clicks "Create specification".
-4. Reviews SPEC.md in the right panel.
-5. Clicks "Approve specification".
-6. Clicks "Start generation" → redirected to /tasks. (`plan:generate` / live task progress is MVP-1; the tasks route is a stub until then.)
+1. Opens project → lands on chat (welcome or active thread).
+2. Describes the idea; answers clarifying questions in chat.
+3. Triggers SPEC via starter or Analyst tool → reviews artifact / SPEC Route panel.
+4. Clicks «Утвердить» on SPEC → `approveSpecification`.
+5. Opens **Tasks** sidebar panel (or `/tasks`) → enqueue plan / watch execution
+   (Pro: «Сгенерировать план»; live sandbox logs over WebSocket).
 
 ### Engineer actions
 
-- Can edit SPEC.md manually ("Edit" button in the right panel, opens Monaco in Markdown mode).
-- Can add files via the "Upload" button (left panel).
+- Upload and index files via **Files** Route panel.
+- Configure Analyst model via **Models** panel (Pro).
+- Manual code edits via **Editor** link (separate Monaco page).
+- Monaco-based SPEC edit is **not** in the shell yet — SPEC is viewed/approved in
+  the Route panel; full markdown edit deferred.
 
 ## 5. Screen: Tasks and Roadmap
 
-**URL:** `/projects/[id]/tasks`
+**URL:** `/projects/[id]/tasks` (standalone page) **or** shell Route `tasks`
+(sidebar «Задачи»). Same `TasksPanel` component in both places.
 **Purpose:** review the plan and task execution status.
 
 ### Components
@@ -150,7 +188,8 @@ For the Customer the **top navigation** contains Projects, and (inside a project
 
 ## 8. Screen: Deployment History
 
-**URL:** `/projects/[id]/deployments`
+**URL:** `/projects/[id]/deployments` (standalone) **or** shell Route `deploy`
+(sidebar «Развёртывания»). Same `DeploymentsPanel`.
 **Purpose:** review deployment statuses and logs.
 
 ### Components
@@ -161,11 +200,16 @@ For the Customer the **top navigation** contains Projects, and (inside a project
 
 ## 9. Shared Elements and States
 
-### Top navigation
+### Navigation (two surfaces)
 
-- Customer: "Projects"; under a project — "Researcher", "Tasks", "Deployments".
-- Engineer (Pro): adds "Editor", "Model settings".
-- Lives in the app header (horizontal), not a left sidebar.
+**Project shell (primary):** sidebar inside `AgentInterface` — threads + tool
+Routes (Files / Tasks / Deploy / SPEC / Models) + Editor link (Pro). No horizontal
+project nav in the shell layout.
+
+**App header nav (legacy / list screens):** `AppNav` in `(app)` layout only —
+«Проекты»; under a project path «Исследование» (redirects home), «Задачи»,
+«Развёртывания»; Pro adds «Редактор», «Модели». Deep links to standalone routes.
+Not shown on the full-bleed shell pages.
 
 ### Modals
 
@@ -194,7 +238,11 @@ Where the styling mandate above lives in code:
 - **Shared primitives** — `packages/ui` (`@aiflow/ui`): `Button`, `Input` +
   `Field`, `Card` + `CardTitle`/`CardDescription`, `Spinner`, `cn`.
 - **App composition** — `apps/web/src/shared/ui`: `AppHeader`, `AppNav`
-  (the horizontal nav described above), `LocalDateTime`.
+  (horizontal nav for `(app)` layout only), `LocalDateTime`.
+- **Project shell** — `apps/web/src/app/(shell)/projects/[id]/_shell/`:
+  `ProjectShell`, `SidebarNav`, `ProjectRoutes` (`buildProjectRoutes`).
+- **Chat surface** — `features/chat/ui/agui/` (`AguiChatPanel` patterns,
+  `AguiThreadList`, custom message renderers, `llm.ts`, `storage.ts`).
 
 Not yet shared primitives (inline per feature until a second consumer appears):
 the editor runs its own `DialogHost` and an inline toast strip; there is no
@@ -210,16 +258,16 @@ feature (`features/editor`), not in `packages/ui`.
 
 ### Customer flow (Aunt Zina)
 
-1. Login → Dashboard → Create project → Researcher.
-2. Describe the idea in chat → Create specification → Review SPEC → Approve → Start generation.
-3. Automatic redirect to /tasks → watch progress.
-4. After deploy → go to /deployments → open the application by URL.
+1. Login → Projects → Create project → **project home** (chat shell).
+2. Chat with Analyst → generate SPEC (tool/starter) → review SPEC Route or artifact → Approve.
+3. Open **Tasks** (sidebar or `/tasks`) → watch plan/code progress.
+4. After deploy → **Deploy** panel or `/deployments` → open application URL.
 
 ### Engineer flow (Uncle Vasya)
 
-1. Login → Dashboard → create or open a project.
-2. Researcher: upload files, dialog, approve SPEC.
-3. Run the planner manually (or automatically), review tasks.
-4. If needed: code editor, manual fixes, commits.
-5. Configure agents.
-6. Start the deploy, check logs.
+1. Login → Projects → create or open a project (home shell).
+2. Chat + **Files** panel: upload/index documents; approve SPEC.
+3. **Tasks** panel: enqueue plan (Pro), run/confirm coder tasks, read logs.
+4. **Editor** page: manual fixes, commits (separate from shell).
+5. **Models** panel: Analyst ModelConfig (Pro).
+6. **Deploy** panel: build, read logs. (Agents screen — MVP-2.)

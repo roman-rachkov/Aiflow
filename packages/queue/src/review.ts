@@ -6,6 +6,7 @@ import { QUEUE_CODE_REVIEW } from './names';
 /**
  * Payload for `code-review` (MVP-2 Task 4.1 one-shot LLM Reviewer).
  * Diff is captured after sandbox success, before the workdir is removed.
+ * `retryCount` tracks how many Self-Refine iterations have already run (MVP-3 C1).
  */
 export type CodeReviewPayload = {
   projectId: string;
@@ -19,6 +20,8 @@ export type CodeReviewPayload = {
     eslint?: boolean | null;
     tests?: boolean | null;
   };
+  /** Self-Refine iteration index: 0 = first review, 1+ = after retry (MVP-3 C1). */
+  retryCount?: number;
 };
 
 /** Review jobs: a few attempts for transient LLM blips; parse retries in handler. */

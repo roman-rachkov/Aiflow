@@ -4,7 +4,12 @@
  */
 
 import type { Job } from 'bullmq';
-import { createProviderFromEnv, generatePlanTasks, type PlanTask } from '@aiflow/ai-roles';
+import {
+  createProviderFromEnv,
+  generatePlanTasksWithToT,
+  runWithTraceContext,
+  type PlanTask,
+} from '@aiflow/ai-roles';
 import { getProjectClient } from '@aiflow/db';
 import type { PlanGeneratePayload } from '@aiflow/queue';
 
@@ -25,7 +30,7 @@ export type PlanHandlerDeps = {
 
 const defaultDeps: PlanHandlerDeps = {
   loadSpecification: loadApprovedSpecification,
-  generatePlan: (spec) => generatePlanTasks(createProviderFromEnv(), spec),
+  generatePlan: (spec) => generatePlanTasksWithToT(createProviderFromEnv(), spec),
   persistPlan: persistPlanTasks,
 };
 
@@ -58,7 +63,10 @@ export async function handlePlanGenerate(
     throw new Error(`Specification not approved: ${payload.specificationId}`);
   }
 
-  const plan = await deps.generatePlan(spec.content);
+  const plan = await runWithTraceContext(
+    { role: 'planner', projectId: payload.projectId, tags: ['plan-generate'] },
+    () => deps.generatePlan(spec.content),
+  );
   return deps.persistPlan({
     schemaName: payload.schemaName,
     specificationId: spec.id,

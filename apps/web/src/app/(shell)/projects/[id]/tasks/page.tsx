@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
 
+import { AuditEventFeed } from '@/features/audit/client';
 import { requireUser } from '@/features/auth';
 import { getProject } from '@/features/projects';
 import { TasksPanel } from '@/features/tasks/client';
@@ -11,5 +12,15 @@ export default async function TasksPage({ params }: { params: Promise<{ id: stri
   const project = await getProject(id, user.id);
   if (!project) notFound();
 
-  return <TasksPanel projectId={id} projectName={project.name} canPlan={user.uiMode === 'PRO'} />;
+  const isPro = user.uiMode === 'PRO';
+  return (
+    <TasksPanel
+      projectId={id}
+      projectName={project.name}
+      canPlan={isPro}
+      renderTaskExtras={
+        isPro ? (taskId) => <AuditEventFeed projectId={id} taskId={taskId} /> : undefined
+      }
+    />
+  );
 }

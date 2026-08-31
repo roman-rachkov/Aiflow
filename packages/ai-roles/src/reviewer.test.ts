@@ -90,6 +90,30 @@ describe('buildReviewUserPrompt', () => {
     expect(text).toContain('tests=absent');
     expect(text).toContain('diff --git');
   });
+
+  it('includes past lessons when provided', () => {
+    const text = buildReviewUserPrompt({
+      title: 'Add model',
+      description: 'Create Recipe',
+      acceptance: 'Table exists',
+      diff: '',
+      pastLessons: ['Always validate input', 'Handle null pointers'],
+    });
+    expect(text).toContain('Past lessons');
+    expect(text).toContain('Always validate input');
+    expect(text).toContain('Handle null pointers');
+  });
+
+  it('omits lessons block when pastLessons is empty', () => {
+    const text = buildReviewUserPrompt({
+      title: 't',
+      description: 'd',
+      acceptance: 'a',
+      diff: '',
+      pastLessons: [],
+    });
+    expect(text).not.toContain('Past lessons');
+  });
 });
 
 describe('generateReviewVerdict', () => {

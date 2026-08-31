@@ -8,3 +8,5 @@
  */
 export type { CreateUserFileInput, FileListItemView, UserFileView } from './model/types';
 export { createUserFile, listFiles } from './model/service';
+export { indexDocument } from './model/index-service';
+export type { IndexResult } from './model/index-service';

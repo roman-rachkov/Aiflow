@@ -187,6 +187,25 @@ export default tseslint.config(
     },
   },
 
+  // app/ routes import feature slices via barrel or client.ts only (ENG-T02).
+  {
+    files: ['apps/web/src/app/**'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['@/features/*/**', '!@/features/*/client', '!@/features/*/rag'],
+              message:
+                'Import feature slices from their public barrel (@/features/<slice>), client.ts, or rag.ts only.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+
   // Must stay last — disables every rule Prettier would fight over (§ 4.1)
   prettier,
 );

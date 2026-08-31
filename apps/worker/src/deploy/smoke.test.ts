@@ -27,14 +27,22 @@ describe('Task 2.3 smoke (mocked)', () => {
       giteaDefaultBranch: 'main',
     };
 
-    const finishDeploy = vi.fn().mockResolvedValue(undefined);
+    const finishDeploy = vi.fn().mockResolvedValue(true);
     const deps: DeployHandlerDeps = {
+      loadDeployment: vi.fn().mockResolvedValue({
+        id: 'd1',
+        status: 'BUILDING',
+        imageTag: null,
+        url: null,
+      }),
       cloneRepo: vi.fn().mockResolvedValue(undefined),
       buildDockerImage: vi.fn().mockResolvedValue({ imageTag: 't' }),
+      runDeployedContainer: vi.fn().mockResolvedValue({ url: 'docker://t', containerName: 'c' }),
       pushUserAppSchema: vi.fn().mockResolvedValue({ appSchema: 'app_aaa', skipped: false }),
       appendDeployLog: vi.fn().mockResolvedValue(undefined),
       finishDeploy,
       removeWorkDir: vi.fn().mockResolvedValue(undefined),
+      recordAudit: vi.fn().mockResolvedValue({}),
       now: () => new Date('2026-01-01T00:00:00.000Z'),
     };
 

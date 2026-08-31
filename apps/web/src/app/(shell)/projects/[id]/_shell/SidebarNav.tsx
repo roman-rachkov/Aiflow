@@ -9,7 +9,7 @@
  * Pro-only items (Editor, Models) are hidden for BASIC users.
  */
 
-import { FileText, ListChecks, Rocket, FileCode2, Sliders, Code2 } from 'lucide-react';
+import { FileText, ListChecks, Rocket, FileCode2, Sliders, Code2, Bot } from 'lucide-react';
 
 import { AgentInterface } from '@openuidev/react-ui/AgentInterface';
 
@@ -19,7 +19,7 @@ export interface SidebarNavProps {
 }
 
 /** The route paths the shell navigates between (chat = `undefined`). */
-export const SHELL_ROUTES = ['files', 'tasks', 'deploy', 'spec'] as const;
+export const SHELL_ROUTES = ['files', 'tasks', 'deploy', 'spec', 'agents'] as const;
 export type ShellRoute = (typeof SHELL_ROUTES)[number];
 
 export function SidebarNav({ isPro, onOpenEditor }: SidebarNavProps) {
@@ -39,6 +39,9 @@ export function SidebarNav({ isPro, onOpenEditor }: SidebarNavProps) {
       </AgentInterface.SidebarItem>
       {isPro ? (
         <>
+          <AgentInterface.SidebarItem icon={<Bot size="1em" />} path="agents">
+            Агенты
+          </AgentInterface.SidebarItem>
           <AgentInterface.SidebarItem icon={<Code2 size="1em" />} onClick={onOpenEditor}>
             Редактор
           </AgentInterface.SidebarItem>

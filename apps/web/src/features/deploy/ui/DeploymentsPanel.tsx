@@ -1,6 +1,6 @@
 'use client';
 
-import { Button, Spinner } from '@aiflow/ui';
+import { Button, Spinner, ToastNotice } from '@aiflow/ui';
 
 import { LocalDateTime } from '@/shared/ui';
 
@@ -63,7 +63,7 @@ export function DeploymentsPanel({ projectId, canBuild, highlightId = null }: Pr
         </ul>
       )}
       {s.expanded ? <LogDrawer detail={s.expanded} onClose={s.closeLog} /> : null}
-      {s.toast ? <Toast message={s.toast} onClose={s.clearToast} /> : null}
+      {s.toast ? <ToastNotice message={s.toast} onClose={s.clearToast} /> : null}
     </div>
   );
 }
@@ -130,20 +130,6 @@ function LogDrawer({ detail, onClose }: { detail: DeploymentDetail; onClose: () 
           {detail.log?.trim() ? detail.log : 'Лог пуст'}
         </pre>
       </div>
-    </div>
-  );
-}
-
-function Toast({ message, onClose }: { message: string; onClose: () => void }) {
-  return (
-    <div
-      role="status"
-      className="fixed top-4 right-4 z-50 rounded-md border border-border bg-surface px-3 py-2 text-sm shadow"
-    >
-      {message}
-      <button type="button" className="ml-2 text-fg-muted" onClick={onClose}>
-        ×
-      </button>
     </div>
   );
 }

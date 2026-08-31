@@ -1,0 +1,42 @@
+[
+  {
+    "title": "Add Todo Prisma model",
+    "description": "Add Todo model linked to User in schema.prisma with title, done, ownerId.",
+    "status": "PENDING",
+    "priority": "critical",
+    "effort": "M",
+    "dependencies": [],
+    "acceptance": "Migration applies; Todo table exists with owner FK.",
+    "needsConfirmation": false
+  },
+  {
+    "title": "Todo REST API",
+    "description": "Implement /api/todos list/create/patch/delete for the session user.",
+    "status": "PENDING",
+    "priority": "critical",
+    "effort": "M",
+    "dependencies": ["Add Todo Prisma model"],
+    "acceptance": "CRUD endpoints return JSON; unauthorized returns 401.",
+    "needsConfirmation": false
+  },
+  {
+    "title": "Todo list page UI",
+    "description": "Build the Todo list page with add, toggle, and delete controls.",
+    "status": "PENDING",
+    "priority": "high",
+    "effort": "M",
+    "dependencies": ["Todo REST API"],
+    "acceptance": "Owner can manage todos in the browser.",
+    "needsConfirmation": false
+  },
+  {
+    "title": "Smoke-test primary todo path",
+    "description": "Add a smoke check for create → toggle → delete on the primary user path.",
+    "status": "PENDING",
+    "priority": "medium",
+    "effort": "S",
+    "dependencies": ["Todo list page UI"],
+    "acceptance": "Smoke test covers the primary todo user path.",
+    "needsConfirmation": false
+  }
+]

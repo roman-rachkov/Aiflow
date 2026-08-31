@@ -83,6 +83,7 @@ model ProjectMeta {
   deletedAt          DateTime?
 
   deployments DeploymentMeta[]
+  auditEvents AuditEvent[]
 
   @@unique([giteaOwner, giteaRepo])
   @@index([ownerId])
@@ -111,6 +112,35 @@ enum DeploymentStatus {
   BUILDING
   DEPLOYED
   FAILED
+}
+
+// Append-only audit trail (MVP-3 A3). Soft-delete exempt — never updated or
+// deleted. Optional langfuseTraceId cross-links B2 traces when keys are set.
+model AuditEvent {
+  id              String         @id @default(uuid())
+  projectId       String
+  project         ProjectMeta    @relation(fields: [projectId], references: [id])
+  taskId          String?
+  actorRole       AuditActorRole
+  action          String
+  targetType      String
+  targetId        String
+  beforeHash      String?
+  afterHash       String?
+  langfuseTraceId String?
+  metadata        Json?
+  createdAt       DateTime       @default(now())
+
+  @@index([projectId, createdAt])
+  @@index([taskId, createdAt])
+  @@index([targetType, targetId])
+}
+
+enum AuditActorRole {
+  CODER
+  REVIEWER
+  DEPLOYER
+  SYSTEM
 }
 
 // NextAuth adapter models (Account, Session, VerificationToken) also live in the
@@ -269,19 +299,44 @@ enum LogLevel {
   ERROR
 }
 
+// A conversation thread. A project holds many threads; the OpenUI
+// AgentInterface ThreadList maps onto these. Forking uses `forkedFromId`.
+model ChatThread {
+  id           String       @id @default(uuid())
+  title        String       @default("Новый чат")
+  forkedFromId String?
+  forkedFrom   ChatThread?  @relation("ChatThreadFork", fields: [forkedFromId], references: [id], onDelete: NoAction)
+  forks        ChatThread[] @relation("ChatThreadFork")
+  messages     ChatMessage[]
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  deletedAt    DateTime?
+
+  @@index([createdAt])
+  @@index([forkedFromId])
+}
+
 // Analyst interview history. `tokensIn` / `tokensOut` are nullable because both
 // a streaming mock and a dropped connection leave them absent — NULL is an
 // honest "we don't know", not a zero.
+//
+// `threadId` is nullable for legacy rows (pre-thread migration); new rows
+// always carry one. `parentId` links edited/regenerated message versions.
 model ChatMessage {
   id         String      @id @default(uuid())
   role       ChatRole
   content    String      @db.Text
   tokensIn   Int?
   tokensOut  Int?
+  threadId   String?
+  thread     ChatThread? @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  parentId   String?
   createdAt  DateTime    @default(now())
   deletedAt  DateTime?
 
   @@index([createdAt])
+  @@index([threadId])
+  @@index([parentId])
 }
 
 enum ChatRole {

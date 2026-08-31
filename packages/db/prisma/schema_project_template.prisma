@@ -350,3 +350,24 @@ enum DeploymentStatus {
   DEPLOYED
   FAILED
 }
+
+// Per-task lessons learned extracted from Reviewer verdicts (MVP-3 C2 Reflexion).
+// Queried by taskId (same task retrying) and by role (feed back to Coder or Reviewer).
+// Soft-delete convention applies: filter `deletedAt: null` on read.
+model AgentMemory {
+  id        String    @id @default(uuid())
+  taskId    String
+  role      AgentRole
+  lesson    String    @db.Text
+  createdAt DateTime  @default(now())
+  deletedAt DateTime?
+
+  @@index([taskId, role])
+  @@index([role, createdAt])
+  @@index([deletedAt])
+}
+
+enum AgentRole {
+  CODER
+  REVIEWER
+}

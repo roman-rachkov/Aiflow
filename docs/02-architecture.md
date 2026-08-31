@@ -17,20 +17,28 @@ All components are deployed via Docker Compose, each in its own container, with 
 
 - **Functions**: serving the frontend, REST API, WebSocket terminal (proxied into the sandbox), authentication via NextAuth.
 - **Responsibility boundary**: does not run long tasks, only enqueues them.
+  Chat LLM loops run on the `chat-run` worker (D0g); the app proxies Redis
+  pub/sub as SSE — see `docs/14-decisions-needed.md` § D0g.
 - **Scaling**: runs in a single container; scales horizontally when needed thanks to its stateless architecture (state lives in PostgreSQL and Redis).
 
 ### 2.2. Background workers (BullMQ Workers)
 
 Run as **separate Node.js containers** that share no memory with the Next.js server. This prevents heavy tasks from blocking the main event loop.
 
-Queues:
+Queues (hyphen names — BullMQ forbids `:` in queue names; see
+`docs/roadmap/DOC_RESOLUTIONS.md` RES-QUEUE):
 
-- `spec:generate` – specification generation and refinement by the Analyst.
-- `plan:generate` – decomposition of SPEC.md into tasks by the Planner.
-- `code:execute` – execution of atomic tasks by the Coder in a sandbox.
-- `deploy:run` – Docker image build and deploy of the user application.
+- `spec-generate` – **dormant** (stub-ack); SPEC generation runs inside the
+  `chat-run` tool executor, not this queue.
+- `plan-generate` – decomposition of SPEC.md into tasks by the Planner.
+- `code-execute` – execution of atomic tasks by the Coder in a sandbox.
+- `code-review` – LLM Reviewer one-shot verdict (shipped; product gate still
+  sandbox checks until MVP-2 — OQ #7).
+- `deploy-run` – Docker image build and deploy of the user application.
+- `chat-run` – multi-turn Analyst chat with tool calling on the worker.
 
-Each worker subscribes to one queue, so they scale independently under load.
+Each worker container subscribes to the queues listed in compose `QUEUES` and
+scales independently under load.
 
 **Fault tolerance**: task progress is checkpointed periodically to `TaskLog` (PostgreSQL). If Redis crashes and the queue is lost, the worker recovers unfinished tasks from the logs.
 
@@ -55,7 +63,9 @@ Each worker subscribes to one queue, so they scale independently under load.
 #### Gitea
 
 - Self-hosted Git server, one repository per project.
-- Each repository holds not only code but also `SPEC.md` at the root, so requirements are versioned too.
+- Generated user repos hold `specs/SPEC.md` (B1 in `14-decisions-needed.md`).
+  The platform reads specifications from the `Specification` table; Gitea
+  receives a copy on each version commit for audit alongside code.
 - AI agent commits are signed with a dedicated platform GPG key; manual commits use the user's key (optional).
 - If Gitea goes down, Coder workers cache the last commit in PostgreSQL and keep working from the local copy (in the sandbox container), syncing changes after recovery.
 
@@ -87,6 +97,9 @@ An in-house adapter microservice exposing one interface for LLM calls. It suppor
 - **Fallback chain**: if the primary provider is unavailable, the next one is tried automatically (from the project configuration). The user can set the order.
 - **Caching**: identical requests (within one context) are cached in Redis for 1 hour.
 - **Configuration**: each role (Analyst, Planner, Coder, Reviewer) can have its own set of models and providers, configured by the Engineer in project settings. The Customer uses defaults.
+- **Escalation (MVP-3 C3):** optional advisor model per role — post-MVP; the
+  router must allow a second routed request without redesign. See
+  `docs/roadmap/DOC_RESOLUTIONS.md` RES-009 and OQ #9.
 
 The router stores no keys: they arrive encrypted, are decrypted inside the service for the duration of the call, and are wiped from memory immediately after.
 
@@ -111,16 +124,19 @@ This topology makes it impossible for user code to reach the platform's database
 
 ## 4. Code generation request lifecycle
 
-1. The user approves SPEC.md and clicks "Start generation".
-2. The API enqueues a `plan:generate` task.
-3. The Planner generates atomic tasks and puts them into `code:execute`.
-4. The Coder worker picks up a task and starts a sandbox:
-   - Clones the current code from Gitea into a temporary volume.
-   - Runs Aider with the task prompt and acceptance criteria.
-   - Runs linters and tests.
-5. On full success the result is committed and the task is marked done.
-6. Otherwise the Reviewer analyses the errors and either re-queues the task with clarification or closes it as failed (manual intervention required).
-7. Once all tasks finish, `deploy:run` starts automatically.
+1. The user approves SPEC.md and starts planning (UI or chat tool).
+2. The API enqueues `plan-generate`.
+3. The Planner creates atomic `Task` records with dependencies.
+4. The user starts the plan; the worker enqueues unblocked tasks on
+   `code-execute`.
+5. The Coder worker starts a sandbox: clones from Gitea, checks out
+   `task/{id}-{slug}`, runs Aider, then fatal sandbox checks.
+6. On sandbox success the runner commits; the worker pushes the branch and
+   may enqueue `code-review` (LLM verdict — optional product path, MVP-2).
+7. **Slim MVP-1 product gate:** sandbox green + push → task progresses; check
+   failure → `FAILED`. No mandatory LLM Reviewer (OQ #7).
+8. When tasks complete, the user triggers `deploy-run` (manual in slim MVP-1;
+   automatic domain deploy → MVP-2 §4.3).
 
 ## 5. Error handling and monitoring
 
@@ -139,17 +155,17 @@ This topology makes it impossible for user code to reach the platform's database
 
 ## 7. Technology stack (final list)
 
-| Component        | Technology                          |
-| ---------------- | ----------------------------------- |
-| Frontend         | React 18, Next.js, Tailwind, Monaco |
-| Backend          | Next.js API Routes, WebSocket       |
-| Authentication   | NextAuth (Email, OAuth)             |
-| Database         | PostgreSQL 16 + Prisma              |
-| Queues           | BullMQ + Redis 7                    |
-| File storage     | MinIO                               |
-| Git              | Gitea                               |
-| Sandboxes        | Docker Engine API (dockerode)       |
-| Coder            | Aider (pinned version)              |
-| AI routing       | In-house ModelRouter (Express)      |
-| Queue monitoring | Bull Board                          |
-| Deployment       | Docker Compose                      |
+| Component        | Technology                                       |
+| ---------------- | ------------------------------------------------ |
+| Frontend         | React 18, Next.js, Tailwind, Monaco              |
+| Backend          | Next.js API Routes, WebSocket                    |
+| Authentication   | NextAuth Credentials (MVP); Email/OAuth deferred |
+| Database         | PostgreSQL 16 + Prisma                           |
+| Queues           | BullMQ + Redis 7                                 |
+| File storage     | MinIO                                            |
+| Git              | Gitea                                            |
+| Sandboxes        | Docker Engine API (dockerode)                    |
+| Coder            | Aider (pinned version)                           |
+| AI routing       | In-house ModelRouter (Express)                   |
+| Queue monitoring | Bull Board                                       |
+| Deployment       | Docker Compose                                   |

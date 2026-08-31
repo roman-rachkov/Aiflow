@@ -6,10 +6,13 @@ import type { CodeReviewPayload } from '@aiflow/queue';
 
 vi.mock('@aiflow/db', () => ({
   ensureTaskGitColumns: vi.fn(() => Promise.resolve()),
+  storeLesson: vi.fn(() => Promise.resolve()),
+  retrieveLessons: vi.fn(() => Promise.resolve([])),
 }));
 
 import { applyReviewVerdict, formatReviewLog, REVIEW_LOG_MARKER } from './apply-verdict';
 import { handleCodeReview, type ReviewHandlerDeps } from './handler';
+import { MAX_REVIEW_RETRIES } from './retry';
 
 const PAYLOAD: CodeReviewPayload = {
   projectId: 'proj-1',
@@ -26,6 +29,8 @@ const TASK = {
   description: 'Create Recipe',
   acceptance: 'Table exists',
   status: 'IN_PROGRESS' as const,
+  branchName: 'task/task-1-add',
+  headCommit: 'abc',
 };
 
 const ACCEPTED: ReviewVerdict = {
@@ -53,6 +58,8 @@ function job(data: CodeReviewPayload): Job<CodeReviewPayload> {
   return { data, id: data.taskId } as Job<CodeReviewPayload>;
 }
 
+const GITEA = { giteaOwner: 'aistudio', giteaRepo: 'demo', giteaDefaultBranch: 'main' };
+
 function mockDeps(overrides: Partial<ReviewHandlerDeps> = {}): ReviewHandlerDeps {
   const applyVerdict = {
     appendTaskLog: vi.fn(() => Promise.resolve()),
@@ -67,15 +74,23 @@ function mockDeps(overrides: Partial<ReviewHandlerDeps> = {}): ReviewHandlerDeps
       mergeTaskBranch: vi.fn(() => Promise.resolve('sha-main')),
       recordTaskGit: vi.fn(() => Promise.resolve()),
       enqueueReadyTasks: vi.fn(() => Promise.resolve([])),
-      loadGitea: vi.fn(() =>
-        Promise.resolve({
-          giteaOwner: 'aistudio',
-          giteaRepo: 'demo',
-          giteaDefaultBranch: 'main',
-        }),
-      ),
+      loadGitea: vi.fn(() => Promise.resolve(GITEA)),
       applyVerdict,
     },
+    enqueueCodeExecute: vi.fn(() => Promise.resolve()),
+    recordAudit: vi.fn(() => Promise.resolve({})),
+    lessonStore: {
+      storeLesson: vi.fn(() =>
+        Promise.resolve({
+          id: 'x',
+          taskId: TASK.id,
+          role: 'REVIEWER' as const,
+          lesson: '',
+          createdAt: new Date(),
+        }),
+      ),
+    },
+    retrieveLessons: vi.fn(() => Promise.resolve([])),
     ...overrides,
   };
 }
@@ -116,6 +131,12 @@ describe('handleCodeReview', () => {
       expect.objectContaining({ status: 'DONE' }),
     );
     expect(deps.finishAccepted.mergeTaskBranch).toHaveBeenCalled();
+    expect(deps.recordAudit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'reviewer.verdict',
+        metadata: expect.objectContaining({ verdict: 'ACCEPTED' }),
+      }),
+    );
   });
 
   it('throws when task is missing', async () => {
@@ -140,5 +161,85 @@ describe('handleCodeReview', () => {
     expect(deps.applyVerdict.setTaskStatus).toHaveBeenCalledWith(
       expect.objectContaining({ status: 'FAILED' }),
     );
+  });
+});
+
+describe('handleCodeReview — Self-Refine (MVP-3 C1)', () => {
+  it('REJECTED on first attempt re-enqueues code-execute with retryCount=1', async () => {
+    const deps = mockDeps({ generateVerdict: vi.fn(() => Promise.resolve(REJECTED)) });
+    await handleCodeReview(job(PAYLOAD), deps);
+    expect(deps.enqueueCodeExecute).toHaveBeenCalledOnce();
+    const enqueued = vi.mocked(deps.enqueueCodeExecute).mock.calls[0][0];
+    expect(enqueued.retryCount).toBe(1);
+    expect(enqueued.reviewFeedback).toContain('Missing search');
+    expect(enqueued.giteaOwner).toBe(GITEA.giteaOwner);
+  });
+
+  it('REJECTED carries retryCount through from payload', async () => {
+    const payloadRetry1: CodeReviewPayload = { ...PAYLOAD, retryCount: 1 };
+    const deps = mockDeps({ generateVerdict: vi.fn(() => Promise.resolve(REJECTED)) });
+    await handleCodeReview(job(payloadRetry1), deps);
+    const enqueued = vi.mocked(deps.enqueueCodeExecute).mock.calls[0][0];
+    expect(enqueued.retryCount).toBe(2);
+  });
+
+  it('REJECTED at cap → FAILED, no re-enqueue', async () => {
+    const payloadCapped: CodeReviewPayload = { ...PAYLOAD, retryCount: MAX_REVIEW_RETRIES };
+    const deps = mockDeps({ generateVerdict: vi.fn(() => Promise.resolve(REJECTED)) });
+    await handleCodeReview(job(payloadCapped), deps);
+    expect(deps.enqueueCodeExecute).not.toHaveBeenCalled();
+    expect(deps.applyVerdict.setTaskStatus).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'FAILED' }),
+    );
+  });
+
+  it('REJECTED with missing Gitea info → FAILED', async () => {
+    const deps = mockDeps({ generateVerdict: vi.fn(() => Promise.resolve(REJECTED)) });
+    vi.mocked(deps.finishAccepted.loadGitea).mockResolvedValue(null);
+    await handleCodeReview(job(PAYLOAD), deps);
+    expect(deps.enqueueCodeExecute).not.toHaveBeenCalled();
+    expect(deps.applyVerdict.setTaskStatus).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'FAILED' }),
+    );
+  });
+
+  it('REJECTED still writes PENDING status before re-enqueue', async () => {
+    const deps = mockDeps({ generateVerdict: vi.fn(() => Promise.resolve(REJECTED)) });
+    await handleCodeReview(job(PAYLOAD), deps);
+    expect(deps.applyVerdict.setTaskStatus).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'PENDING' }),
+    );
+  });
+});
+
+describe('handleCodeReview — Reflexion memory (MVP-3 C2)', () => {
+  it('stores a lesson after ACCEPTED verdict', async () => {
+    const deps = mockDeps();
+    await handleCodeReview(job(PAYLOAD), deps);
+    expect(deps.lessonStore.storeLesson).toHaveBeenCalledOnce();
+  });
+
+  it('stores a lesson after REJECTED verdict', async () => {
+    const deps = mockDeps({ generateVerdict: vi.fn(() => Promise.resolve(REJECTED)) });
+    await handleCodeReview(job(PAYLOAD), deps);
+    expect(deps.lessonStore.storeLesson).toHaveBeenCalledOnce();
+  });
+
+  it('passes retrieved lessons to generateVerdict', async () => {
+    const lessons = ['Do not forget to handle null', 'Always validate input'];
+    const deps = mockDeps({
+      retrieveLessons: vi.fn(() => Promise.resolve(lessons)),
+    });
+    await handleCodeReview(job(PAYLOAD), deps);
+    expect(deps.generateVerdict).toHaveBeenCalledWith(
+      expect.objectContaining({ pastLessons: lessons }),
+    );
+  });
+
+  it('omits pastLessons when none exist', async () => {
+    const deps = mockDeps({ retrieveLessons: vi.fn(() => Promise.resolve([])) });
+    await handleCodeReview(job(PAYLOAD), deps);
+    const call = vi.mocked(deps.generateVerdict).mock.calls[0][0];
+    expect(call.pastLessons).toBeUndefined();
   });
 });

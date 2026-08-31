@@ -128,7 +128,9 @@ apps/
 │     ├── deploy/         Manual deploy: templates, enqueue, UI (Task 2.3)
 │     │                     └── public: `index.ts` (server) + `client.ts` (panel)
 │     │                         model/templates.ts — Dockerfile + compose render
-│     │                           (`aistudio-project-{shortId}`, port 3000)
+│     │                           (`aistudio-project-{shortId}`, port 3000);
+│     │                           `SUPPORT_BOT_ENABLED` env / `options.includeSupportBot`
+│     │                           appends `support-bot` sidecar (MVP2-42-COMPOSE)
 │     │                         model/export.ts — optional Gitea Contents commit
 │     │                         model/service.ts — create Deployment+Meta (same
 │     │                           uuid), getDeployQueue().add — **no dockerode**
@@ -144,7 +146,23 @@ apps/
 │     │                         model/access.ts — assertProPlan / assertProCode
 │     │                         model/ws-attach.ts — Redis `sandbox:logs:{taskId}`
 │     │                         ui/TasksPanel + ExecuteControls + TaskLogPanel +
-│     │                           ReviewVerdictCard (parses `=== REVIEW ===` log)
+│     │                           ReviewVerdictCard (parses `=== REVIEW ===` log);
+│     │                           `renderTaskExtras` slot for app-composed feeds
+│     ├── audit/          Pro AuditEvent feed (MVP-3 A3)
+│     │                     └── public: `index.ts` (server) + `client.ts` (feed)
+│     │                         model/service.ts — listProjectAudit via
+│     │                           `@aiflow/db` `listAuditEvents`; assertProAudit
+│     │                         ui/AuditEventFeed — chronological role actions
+│     │                           (composed from tasks page via renderTaskExtras)
+│     ├── support-bot/    Support Bot: RAG-backed Q&A for deployed apps (MVP-2 4.2)
+│     │                     └── public: `index.ts` (server + panel)
+│     │                         model/prompt.ts — base system prompt (English)
+│     │                         model/service.ts — `streamSupportAnswer(schema,msg,deps)`
+│     │                           with injected `retrieveChunks` (DI avoids boundary rule)
+│     │                         model/types.ts — wire types (SupportChatRequest/Delta/Done)
+│     │                         ui/SupportBotPanel.tsx — Pro "Агенты" route panel with
+│     │                           SSE streaming + source citation
+│     │                         API: POST /api/projects/[id]/support/chat (SSE)
 │     └── editor/         Pro code editor over Gitea (Task 2.2)
 │                           └── public: `index.ts` (server) + `client.ts` (EditorShell)
 │                               model/access.ts — resolveEditorContext (owner +
@@ -168,7 +186,8 @@ apps/
 │                                 useEditorDialogs / useEditorWsSideEffects /
 │                                 useTabs); client fetch in ui/api.ts
 │   shared:
-│     ├── ui/             AppHeader + AppNav (horizontal top nav; Task 1.2a / UX)
+│     ├── ui/             AppHeader + AppNav (horizontal nav for `(app)` layout
+│     │                    only — project list/create; links to legacy deep routes)
 │     ├── hooks/          usePollWhile + useProjectResourceList (D0f islands)
 │     ├── minio/          MinIO client: putObject/getObject/ensureBucket, lazy
 │     │                    singleton, scheme-less S3_ENDPOINT tolerated (Task 2.1)
@@ -221,6 +240,7 @@ apps/
 │     /api/projects/[id]/tasks/[taskId] (GET detail+logs — Task 3.3)
 │     /api/projects/[id]/tasks/[taskId]/execute (POST dryRun? — Pro, 3.3)
 │     /api/projects/[id]/tasks/[taskId]/confirm (POST after dry-run — Pro, 3.3)
+│     /api/projects/[id]/audit (GET — Pro AuditEvent feed, optional ?taskId=, A3)
 │     /api/projects/[id]/editor/{tree,file,commits,diff} (GET — Task 2.2)
 │     /api/projects/[id]/editor/commit (POST), /editor/files (POST/DELETE),
 │       /editor/files/rename (POST — Task 2.2)
@@ -239,13 +259,21 @@ apps/
           dockerode.buildImage → DEPLOYED|FAILED; url `docker://{tag}` + run hint
         src/plan/handler.ts — load approved Specification → generatePlanTasks
           (env provider) → soft-delete replaceable tasks → Task+deps+TaskLog
-        src/code/handler.ts — code:execute: Task status/logs, dry-run →
-          AWAITING_REVIEW, live → seed template if empty + sandbox + push +
-          record branch/head + enqueue code-review
+        src/code/handler.ts — code:execute: claim/resume (MVP-3 A1/A2) + dry-run →
+          AWAITING_REVIEW, live → step pipeline (CLONE…DONE) + sandbox + PARSE
+          checkpoint ref then push + enqueue code-review
+        src/code/claim.ts — resolveCodeClaim (skip DONE, pipeline-complete,
+          resumeFrom from TaskLog+headCommit, fresh claim → CLONE)
+        src/code/pipeline{,-live,-steps}.ts — step encoding + live runner
+        src/code/git-checkpoint.ts — refs/aistudio/task/{id} push/restore (A2)
         src/review/handler.ts — code-review one-shot LLM Reviewer (MVP-2 4.1):
           generateReviewVerdict → TaskLog `=== REVIEW ===` JSON;
           ACCEPTED → FF into main → DONE → enqueue next ready tasks;
-          REJECTED→PENDING (Self-Refine → MVP-3 C1)
+          REJECTED→PENDING (Self-Refine → MVP-3 C1); AuditEvent on settle (A3)
+        src/audit.ts — recordAudit wrappers (coder.push / reviewer.verdict /
+          deploy.finish) → public.AuditEvent (MVP-3 A3)
+        src/deploy/claim.ts — resolveDeployClaim (skip DEPLOYED, reject FAILED)
+        src/deploy/status.ts — finishDeploy only from BUILDING (A1 dedup)
         src/chat/ — chat-run multi-turn AG-UI tool loop; Redis publish
           `chat:run:{runId}`; tools via db+queue+crypto (no apps/web imports)
         src/gitea-token.ts — GITEA_ADMIN_TOKEN_FILE then GITEA_ADMIN_TOKEN
@@ -254,10 +282,10 @@ apps/
           secret-file api_key bind, SANDBOX_NETWORK / AIDER_SANDBOX_IMAGE)
 
 services/
-├── model-router/         Express, port 3001. OpenAI-compatible facade over
-│                         routerai/OpenAI/Anthropic, fallback chain, Redis cache.
-│                         Stores no keys. Declared deps: express, ioredis (stub;
-│                         `src/index.ts` is `export {};`, no crypto consumer yet)
+├── model-router/         Express, port 3001. OpenAI-compatible proxy +
+│                         `/v1/escalate` advisor route; Redis 1h cache for
+│                         non-streaming chat. `src/index.ts` createApp();
+│                         planner escalation via `PLANNER_ADVISOR_MODEL`.
 └── registry-proxy/       Sandbox egress allowlist proxy (Task 3.1). Express +
                           CONNECT; ALLOWED_HOSTS; GET /health; PORT 3128.
                           public entry: src/index.ts
@@ -267,10 +295,13 @@ packages/
 │                         ├── prisma/schema.prisma        → public schema
 │                         │     ProjectMeta holds nullable Gitea identity
 │                         │     (giteaOwner/giteaRepo/giteaDefaultBranch; Task 2.2)
+│                         │     AuditEvent append-only trail (MVP-3 A3; no deletedAt)
 │                         ├── prisma/schema_project_template.prisma → project schemas
 │                         ├── generated/public, generated/project (build artifacts)
 │                         ├── src/index.ts  — the Prisma client factory:
 │                         │     getPublicClient(), getProjectClient(schemaName)
+│                         ├── src/audit.ts — recordAudit / listAuditEvents (A3)
+│                         ├── src/public-client.ts — public Prisma singleton
 │                         │     Map-cached + name-validated, evictProjectClient()
 │                         │     on archive/delete, disconnectAll() on shutdown (C1)
 │                         └── scripts/generate-project-sql.ts — renders the
@@ -316,7 +347,14 @@ packages/
 │                             openai-compatible.ts — createOpenAICompatibleProvider:
 │                               parameterized ${baseURL}/chat/completions streaming +
 │                               /embeddings; mock path when no key (canned chat,
-│                               deterministic 768-dim embeddings)
+│                               Langfuse tracing when LANGFUSE_* keys set (B2)
+│                             traced-provider.ts / tracer.ts / langfuse-tracer.ts /
+│                               trace-context.ts — ALS context + noop/ingest tracer
+│                             rag-safety.ts — withRagContext untrusted wrap +
+│                               allowMutatingTool (MVP-3 B4 red-team guard)
+│                             policy.ts / policy-guard.ts — role capability sets +
+│                               withPolicyGuard on provider (MVP-3 A4); Reviewer
+│                               lacks write-commit
 │                             env-provider.ts — createProviderFromEnv() /
 │                               readProviderConfigFromEnv(): the app seam; one
 │                               OpenAI-compatible provider from OPENAI_* env
@@ -346,18 +384,45 @@ packages/
 tools/                    Dev-only workspaces. Ship nowhere; still gated by
 │                         `yarn verify` — an unverified self-analysis tool
 │                         would be worth less than none.
-└── session-analyzer/     Tool-flow analytics over ~/.claude transcripts.
-                          └── public entry: src/cli.ts (via tsx), consumed by
-                              /session-review. deps: none (Node built-ins only)
-                              src/transcript.ts is the only parse boundary;
-                              src/taxonomy.ts owns the ourProblem split.
-                              Complements Anthropic's session-report (cost),
-                              deliberately not a fork of it — conventions § 8.3
+├── session-analyzer/     Tool-flow analytics over ~/.claude transcripts.
+│                         └── public entry: src/cli.ts (via tsx), consumed by
+│                             /session-review. deps: none (Node built-ins only)
+│                             src/transcript.ts is the only parse boundary;
+│                             src/taxonomy.ts owns the ourProblem split.
+│                             Complements Anthropic's session-report (cost),
+│                             deliberately not a fork of it — conventions § 8.3
+├── bull-board/           BullMQ dashboard (MVP2-52). Express + @bull-board/express
+│                         on host port 3030 (compose service `bull-board`).
+│                         All 6 queues registered. Optional Basic auth via
+│                         BULL_BOARD_USER / BULL_BOARD_PASSWORD (dev: leave empty).
+│                         └── public entry: src/index.ts (`tsx src/index.ts`)
+├── load-test/            Concurrency + isolation load test (MVP2-52).
+│                         Creates N=3 project schemas concurrently, verifies
+│                         cross-schema isolation, tears down. `yarn load-test`.
+│                         Vitest smoke: unit always; DB integration skipIf no
+│                         DATABASE_URL.
+│                         └── public entry: src/run.mts (`tsx src/run.mts`)
+├── dogfood-smoke/        Automated slim-MVP-1 wiring gate (R01/R05 partial).
+│                         `yarn dogfood-smoke` — vitest pipeline smoke + appends
+│                         `specs/slim-mvp1-dogfood/EVIDENCE.md`.
+├── dogfood-live/         Live compose dogfood orchestrator (`bash run.sh` or
+│                         `yarn dogfood-live` inside app). Todo-crud SPEC path.
+├── prod-check/           Offline prod readiness gate (`yarn prod-check`).
+├── stabilization/        MVP-3 D4 offline bundle: `yarn stabilization` runs
+│                         evals + load isolation vitest + dogfood-smoke.
+└── evals/                Golden SPEC→plan→code evals (MVP-3 B3) +
+                          prompt-injection red-team (B4).
+                          └── public entry: src/cli.ts (`yarn evals`);
+                              cases/{todo-crud,non-goals}/ + prompt contracts +
+                              scoreRedTeam; offline fixtures default;
+                              EVALS_LIVE=1 for LLM; Langfuse score report noop
+                              without keys. deps: @aiflow/ai-roles. CI:
+                              `.github/workflows/evals.yml` on agent/prompt/RAG paths.
 
 .cursor/                  Cursor Cloud Agent parity + desktop rules (dev-only).
-├── skills/               Vendored personal/global skills (59 dirs): copied from
-│                         `~/.agents/skills`, `~/.cursor/skills`, Cursor
-│                         `skills-cursor`, and the Atlassian plugin cache.
+├── skills/               Vendored personal/global skills (~60 top-level dirs):
+│                         copied from `~/.agents/skills`, `~/.cursor/skills`,
+│                         Cursor `skills-cursor`, and the Atlassian plugin cache.
 │                         Cloud Agents read this tree from checkout, not
 │                         `~/.cursor/skills/`. Mirrored under `.claude/skills/`
 │                         for Claude Code.
@@ -385,8 +450,11 @@ templates/                User-project scaffolds (not Yarn workspaces).
                           repo is still README-only) (OQ #1).
 
 compose topology          `docker compose up` (no `--build`): postgres, redis,
-                          minio, gitea, **gitea-init** (idempotent admin user +
-                          token → volume `gitea_bootstrap` `/run/gitea/token`) +
+                          minio, gitea, **gitea-init**, **traefik** (:8090 HTTP,
+                          :8091 dashboard; Docker provider, `exposedByDefault=false`;
+                          routes user-app containers via Host label; DEV-ONLY
+                          docker.sock:ro — OQ #4; MVP-2 4.3), Langfuse (`langfuse-web`
+                          :3100 + worker + clickhouse + langfuse-redis; B1) +
                           four Node services on node:22-bookworm. Bind mount
                           `.` → `/workspace`; named volumes for each workspace
                           `node_modules` + Yarn/Corepack cache. App binds via
@@ -398,32 +466,32 @@ compose topology          `docker compose up` (no `--build`): postgres, redis,
 
 ## Cross-cutting
 
-| Concern                                                            | Where                                                                  |
-| ------------------------------------------------------------------ | ---------------------------------------------------------------------- |
-| Auth helpers (`requireUser`, `requireProMode`, `canAccessProject`) | `apps/web/src/features/auth` (Task 1.2a)                               |
-| Per-route project access gate (`resolveProjectSchema`)             | `apps/web/src/features/projects/model/access.ts` (Task 2.1)            |
-| Projects CRUD + schema provisioning                                | `apps/web/src/features/projects` (Task 1.2b)                           |
-| Analyst chat (SSE streaming + history, RAG-augmented)              | `apps/web/src/features/chat` (Task 1.3; RAG in Task 2.1)               |
-| File upload + RAG indexing + retrieval                             | `apps/web/src/features/files` (Task 2.1)                               |
-| Dev-time repo RAG MCP (`aiflow-rag` search/status)                 | `apps/web/scripts/{ingest-repo,rag-mcp,rag-query,dev-rag-shared}.ts`   |
-| SPEC.md version list, view, generation                             | `apps/web/src/features/specifications` (Task 2.1)                      |
-| Analyst ModelConfig (encrypt, API, settings UI)                    | `apps/web/src/features/model-config` (Task 2.3)                        |
-| Manual deploy (templates, enqueue, deployments UI)                 | `apps/web/src/features/deploy` (Task 2.3); worker `deploy:run`         |
-| Roadmap tasks + plan/code enqueue + live sandbox logs WS           | `apps/web/src/features/tasks` (3.2–3.3); worker `plan`/`code`          |
-| Model provider adapter (universal OpenAI-compatible, chat+embed)   | `packages/ai-roles/src` (Task 1.3; universal + embeddings in Task 2.1) |
-| App shell (header, top nav)                                        | `apps/web/src/shared/ui` (AppHeader, AppNav)                           |
-| MinIO object storage client                                        | `apps/web/src/shared/minio` (Task 2.1)                                 |
-| Gitea HTTP client (REST v1, fetch-only; token file or env)         | `apps/web/src/shared/gitea` (Task 2.2); worker `gitea-token.ts`        |
-| Gitea bootstrap after volume wipe                                  | `docker/gitea/bootstrap.sh` + compose `gitea-init`                     |
-| App HTTP bind (`LISTEN_HOST` / `HOST`, never Docker `HOSTNAME`)    | `apps/web/server.ts`                                                   |
-| Pro code editor (Monaco + Gitea files/git + in-memory WS hub)      | `apps/web/src/features/editor` (Task 2.2); WS via `apps/web/server.ts` |
-| UI primitives + design tokens (OpenUI-backed)                      | `packages/ui/src` (Task 1.2d; OpenUI D0a)                              |
-| OpenUI brand tokens (CSS `:root` overrides)                        | `apps/web/src/app/globals.css` (D0a; no ThemeProvider)                 |
-| Prisma client factory                                              | `packages/db/src/index.ts`                                             |
-| Queue definitions                                                  | `packages/queue/src`                                                   |
-| Encryption helpers (AES-256-GCM + envelope typing)                 | `packages/crypto` + `packages/db/src/config-types.ts`                  |
-| Gitea identity on `ProjectMeta` (owner/repo/branch)                | `packages/db` public schema (Task 2.2)                                 |
-| Env validation                                                     | `.env.example` + `apps/web/src/shared/env` (planned)                   |
+| Concern                                                            | Where                                                                     |
+| ------------------------------------------------------------------ | ------------------------------------------------------------------------- |
+| Auth helpers (`requireUser`, `requireProMode`, `canAccessProject`) | `apps/web/src/features/auth` (Task 1.2a)                                  |
+| Per-route project access gate (`resolveProjectSchema`)             | `apps/web/src/features/projects/model/access.ts` (Task 2.1)               |
+| Projects CRUD + schema provisioning                                | `apps/web/src/features/projects` (Task 1.2b)                              |
+| Analyst chat (SSE streaming + history, RAG-augmented)              | `apps/web/src/features/chat` (Task 1.3; RAG in Task 2.1)                  |
+| File upload + RAG indexing + retrieval                             | `apps/web/src/features/files` (Task 2.1)                                  |
+| Dev-time repo RAG MCP (`aiflow-rag` search/status)                 | `apps/web/scripts/{ingest-repo,rag-mcp,rag-query,dev-rag-shared}.ts`      |
+| SPEC.md version list, view, generation                             | `apps/web/src/features/specifications` (Task 2.1)                         |
+| Analyst ModelConfig (encrypt, API, settings UI)                    | `apps/web/src/features/model-config` (Task 2.3)                           |
+| Manual deploy (templates, enqueue, deployments UI)                 | `apps/web/src/features/deploy` (Task 2.3); worker `deploy:run`            |
+| Roadmap tasks + plan/code enqueue + live sandbox logs WS           | `apps/web/src/features/tasks` (3.2–3.3); worker `plan`/`code`             |
+| Model provider adapter (universal OpenAI-compatible, chat+embed)   | `packages/ai-roles/src` (Task 1.3; universal + embeddings in Task 2.1)    |
+| App shell (list-layout header nav; project shell = `_shell/`)      | `apps/web/src/shared/ui` (AppHeader, AppNav); `ProjectShell` in `_shell/` |
+| MinIO object storage client                                        | `apps/web/src/shared/minio` (Task 2.1)                                    |
+| Gitea HTTP client (REST v1, fetch-only; token file or env)         | `apps/web/src/shared/gitea` (Task 2.2); worker `gitea-token.ts`           |
+| Gitea bootstrap after volume wipe                                  | `docker/gitea/bootstrap.sh` + compose `gitea-init`                        |
+| App HTTP bind (`LISTEN_HOST` / `HOST`, never Docker `HOSTNAME`)    | `apps/web/server.ts`                                                      |
+| Pro code editor (Monaco + Gitea files/git + in-memory WS hub)      | `apps/web/src/features/editor` (Task 2.2); WS via `apps/web/server.ts`    |
+| UI primitives + design tokens (OpenUI-backed)                      | `packages/ui/src` (Task 1.2d; OpenUI D0a)                                 |
+| OpenUI brand tokens (CSS `:root` overrides)                        | `apps/web/src/app/globals.css` (D0a; no ThemeProvider)                    |
+| Prisma client factory                                              | `packages/db/src/index.ts`                                                |
+| Queue definitions                                                  | `packages/queue/src`                                                      |
+| Encryption helpers (AES-256-GCM + envelope typing)                 | `packages/crypto` + `packages/db/src/config-types.ts`                     |
+| Gitea identity on `ProjectMeta` (owner/repo/branch)                | `packages/db` public schema (Task 2.2)                                    |
+| Env validation                                                     | `.env.example` + `apps/web/src/shared/env` (planned)                      |
 
 ## Rules that keep it readable
 
@@ -451,24 +519,25 @@ compose topology          `docker compose up` (no `--build`): postgres, redis,
 ## Planned — MVP-3 (not yet in the tree)
 
 The agent-maturity phase ([04-roadmap.md](04-roadmap.md) § 5; decisions E1–E4 in
-[14-decisions-needed.md](14-decisions-needed.md)) will add these. They are
-**not** in the code yet — this section exists so the next session does not
-re-derive the integration points. Each lands in its own `task/*` branch.
+[14-decisions-needed.md](14-decisions-needed.md)) will add these. Rows marked
+**done** are already in the tree; the rest are not — this section exists so the
+next session does not re-derive the integration points. Each lands in its own
+branch.
 
-| Planned entity / change                                                 | Track | Where it will live                                                                                       |
-| ----------------------------------------------------------------------- | ----- | -------------------------------------------------------------------------------------------------------- |
-| Idempotent `code:execute` / `deploy:run` (attempt tokens, dedup guards) | A1    | `apps/worker/src/code/handler.ts` (`CodeHandlerDeps` DI seam), `apps/worker/src/deploy/handler.ts`       |
-| Step-encoded resumable pipeline                                         | A2    | `apps/worker/src/code/pipeline.ts`, `TaskLog` (already the checkpoint)                                   |
-| `AuditEvent` model (append-only, role/action/target/traceId)            | A3    | `packages/db/prisma/schema.prisma` (public); `recordAudit()` in worker; Pro UI event feed in `apps/web`  |
-| Role policy guard (capability set)                                      | A4    | `packages/ai-roles/src/policy.ts`; enforced inside the provider wrapper                                  |
-| Langfuse service                                                        | B1    | `docker-compose.yml` (new service, Postgres-backed)                                                      |
-| LLM-call tracing wrapper                                                | B2    | `packages/ai-roles/src/openai-compatible.ts` (the single chokepoint); `traceId` → `TaskLog`/`AuditEvent` |
-| Evals framework + CI job on prompt change                               | B3    | Promptfoo or Langfuse datasets; CI fires on `.claude/agents/**` change                                   |
-| Prompt-injection red-team set                                           | B4    | CI red-team (AgentDojo/InjecAgent-style) against the Analyst `withRagContext` surface                    |
-| `code:review` Self-Refine loop (retry cap + AgentMemory feedback)       | C1    | `apps/worker/src/review/` already one-shot (4.1); C1 adds auto re-enqueue code-execute ≤N                |
-| `AgentMemory` model (task/role/lesson)                                  | C2    | `packages/db/prisma/schema_project_template.prisma`; mixed into Coder + Reviewer prompts                 |
-| `services/model-router` runtime (escalation as 2nd routed request)      | C3    | `services/model-router/src` (currently `export {};` stub); `ModelConfig.config` gains `advisor` per role |
-| Optional Planner Tree-of-Thoughts mode                                  | C4    | `packages/ai-roles/src/planner.ts`; behind a flag                                                        |
-| Reviewer verdict UI                                                     | D1    | `apps/web/src/features/tasks` (verdict list, issues, auto-approve threshold)                             |
-| Support Bot (embed widget + final-compose inclusion)                    | D2    | Dify/lightweight RAG on SPEC + docs; reuses `features/files` pgvector stack                              |
-| Automatic domain deploy (Traefik/nginx)                                 | D3    | `apps/worker/src/deploy/handler.ts`; real URL over `deploy:run`; auditable (A3), idempotent (A1)         |
+| Planned entity / change                                                     | Track                  | Where it will live                                                                                                                                                                |
+| --------------------------------------------------------------------------- | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Idempotent `code:execute` / `deploy:run` (claim + headCommit/finish dedup)  | A1 **done 2026-08-23** | `apps/worker/src/code/{handler,claim,status}.ts`, `apps/worker/src/deploy/{handler,claim,status}.ts`                                                                              |
+| Step-encoded resumable pipeline (`CLONE…DONE` + checkpoint ref)             | A2 **done 2026-08-23** | `apps/worker/src/code/pipeline{,-live,-steps,}.ts`, `git-checkpoint.ts`; TaskLog step markers                                                                                     |
+| `AuditEvent` model (append-only, role/action/target/traceId)                | A3 **done 2026-08-23** | `packages/db` (`AuditEvent` + `recordAudit`/`listAuditEvents`); worker `src/audit.ts`; Pro feed `features/audit` + `/api/.../audit`                                               |
+| Role policy guard (capability set)                                          | A4 **done 2026-08-23** | `packages/ai-roles` `policy.ts` + `policy-guard.ts`; PUSH asserts `write-commit`; violation → AuditEvent                                                                          |
+| Langfuse self-host (UI :3100; ClickHouse + langfuse-redis; shared PG/MinIO) | B1 **done 2026-08-23** | `docker-compose.yml` (`langfuse-web`/`worker`/`clickhouse`/`langfuse-redis`); `docker/postgres/init/02-langfuse-db.sql`; `docker/minio/ensure-langfuse-bucket.sh`                 |
+| LLM-call tracing wrapper                                                    | B2 **done 2026-08-23** | `packages/ai-roles` (`traced-provider` + `langfuse-tracer`); `runWithTraceContext`; Reviewer `TaskLog` `langfuseTraceId=`; noop without keys                                      |
+| Evals framework + CI job on prompt change                                   | B3 **done 2026-08-23** | `tools/evals` (`yarn evals`); golden cases + prompt contracts; `.github/workflows/evals.yml`; Langfuse scores noop without keys                                                   |
+| Prompt-injection red-team set                                               | B4 **done 2026-08-23** | `packages/ai-roles` `rag-safety` (untrusted wrap + `allowMutatingTool`); worker tool guard; `tools/evals` `scoreRedTeam`                                                          |
+| `code:review` Self-Refine loop (retry cap + AgentMemory feedback)           | C1                     | `apps/worker/src/review/` already one-shot (4.1); C1 adds auto re-enqueue code-execute ≤N                                                                                         |
+| `AgentMemory` model (task/role/lesson)                                      | C2                     | `packages/db/prisma/schema_project_template.prisma`; mixed into Coder + Reviewer prompts                                                                                          |
+| `services/model-router` runtime (escalation as 2nd routed request)          | C3                     | `services/model-router/src` + `packages/ai-roles/src/escalation.ts`; `PLANNER_ADVISOR_MODEL` env                                                                                  |
+| Optional Planner Tree-of-Thoughts mode                                      | C4                     | `packages/ai-roles/src/planner.ts`; behind a flag                                                                                                                                 |
+| Reviewer verdict UI                                                         | D1                     | `apps/web/src/features/tasks` (verdict list, issues, auto-approve threshold)                                                                                                      |
+| Support Bot (embed widget + final-compose inclusion)                        | D2 ✅                  | `features/support-bot/`; `/api/projects/[id]/support/chat` (SSE); Pro "Агенты" panel; compose sidecar via `SUPPORT_BOT_ENABLED`                                                   |
+| Automatic domain deploy (Traefik/nginx)                                     | D3 **done 2026-08-31** | `apps/worker/src/deploy/run-container.ts`; Traefik v3 in compose; real URL `http://app-{hex}.localhost:8090`; idempotent remove-before-create; fallback `docker://` when disabled |

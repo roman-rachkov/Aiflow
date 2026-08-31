@@ -21,17 +21,17 @@ import { specArtifactRenderer } from '@/shared/spec-artifact-renderer';
 import { ProjectIdContext } from '@/shared/chat-project-context';
 import type { FileListItemView } from '@/features/files';
 import type { SpecificationListItemView } from '@/features/specifications';
-import { AguiAssistantMessage } from '@/features/chat/ui/agui/messages/AguiAssistantMessage';
-import { AguiUserMessage } from '@/features/chat/ui/agui/messages/AguiUserMessage';
-import { AguiThreadList } from '@/features/chat/ui/agui/threads/AguiThreadList';
-import { createProjectChatLLm } from '@/features/chat/ui/agui/llm';
-import { createThreadStorage } from '@/features/chat/ui/agui/storage';
 import {
+  AguiAssistantMessage,
+  AguiUserMessage,
+  AguiThreadList,
+  createProjectChatLLm,
+  createThreadStorage,
   CHAT_LABELS,
   COMPOSER_PLACEHOLDER,
   STARTERS,
   SPEC_STARTER,
-} from '@/features/chat/ui/agui/labels';
+} from '@/features/chat/client';
 
 import { buildProjectRoutes } from './ProjectRoutes';
 import { SidebarNav } from './SidebarNav';

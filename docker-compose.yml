@@ -8,8 +8,8 @@
 # Prerequisites: copy .env.example → .env and set AUTH_SECRET / ENCRYPTION_KEY /
 # OPENAI_* (empty OPENAI_API_KEY = MOCK provider).
 # Start:  docker compose up
-# Ports:  3000 app, 3001 model-router, 3002 Gitea, 5432 pg, 6379 redis,
-#         9000/9001 MinIO.
+# Ports:  3000 app, 3001 model-router, 3002 Gitea, 3030 Bull Board, 8090 Traefik HTTP,
+#         8091 Traefik dashboard, 3100 Langfuse UI, 5432 pg, 6379 redis, 9000/9001 MinIO.
 
 x-healthcheck-defaults: &healthcheck-defaults
   interval: 10s
@@ -184,6 +184,10 @@ services:
       GITEA_ADMIN_TOKEN_FILE: /run/gitea/token
       # Override host-side .env (localhost) so migrate/app reach compose DNS.
       DATABASE_URL: postgresql://${POSTGRES_USER:-ai_studio}:${POSTGRES_PASSWORD:-ai_studio}@postgres:5432/ai_studio?schema=public
+      # Langfuse SDK (B2): reach langfuse-web on the compose network, not host :3100.
+      LANGFUSE_BASE_URL: http://langfuse-web:3000
+      LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-pk-lf-dev}
+      LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-sk-lf-dev}
     command: ['yarn', 'workspace', '@aiflow/web', 'dev']
     ports:
       - '3000:3000'
@@ -224,6 +228,14 @@ services:
       # docker build -t aistudio/aider-sandbox:latest -f docker/aider-sandbox/Dockerfile docker/aider-sandbox
       AIDER_SANDBOX_IMAGE: aistudio/aider-sandbox:latest
       USER_TEMPLATE_DIR: /workspace/templates/user-nextjs
+      # Langfuse SDK (B2): same as app — compose DNS, not host port.
+      LANGFUSE_BASE_URL: http://langfuse-web:3000
+      LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-pk-lf-dev}
+      LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-sk-lf-dev}
+      # Domain deploy (MVP-2 4.3): Traefik routes app-{hex}.localhost → user container.
+      DEPLOY_DOMAIN_ENABLED: ${DEPLOY_DOMAIN_ENABLED:-false}
+      DEPLOY_PUBLIC_BASE: ${DEPLOY_PUBLIC_BASE:-http://localhost:8090}
+      TRAEFIK_NETWORK: ${COMPOSE_PROJECT_NAME:-aiflow}_internal
     command: ['yarn', 'workspace', '@aiflow/worker', 'dev']
     volumes:
       - .:/workspace
@@ -271,7 +283,16 @@ services:
     depends_on:
       redis:
         condition: service_healthy
-    # No healthcheck: stub has no HTTP /health yet.
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3001/health').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      <<: *healthcheck-defaults
+      start_period: 60s
 
   registry-proxy:
     <<: *node-service
@@ -296,6 +317,186 @@ services:
       - sandbox
     # Sandbox-only: no internal network, no published ports, no healthcheck.
 
+  # ---------------------------------------------------------------------------
+  # Langfuse (MVP-3 B1) — LLM observability UI. Dedicated Redis + ClickHouse;
+  # OLTP DB `langfuse` on shared Postgres; events/media on shared MinIO.
+  # UI: http://localhost:3100  (SDK tracing via @aiflow/ai-roles → B2)
+  # ---------------------------------------------------------------------------
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.8
+    environment:
+      CLICKHOUSE_DB: default
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-clickhouse}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-clickhouse}
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+      - clickhouse_logs:/var/log/clickhouse-server
+    # Do not publish 9000 — host 9000 is MinIO. HTTP stays internal-only.
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:8123/ping || exit 1']
+      <<: *healthcheck-defaults
+    networks:
+      - internal
+    restart: unless-stopped
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+
+  # Traefik — reverse proxy for domain deploy (MVP-2 4.3). Routes Host app-{hex}.localhost.
+  traefik:
+    image: traefik:v3.0
+    command:
+      - --api.insecure=true
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+    ports:
+      - '8090:80'
+      - '8091:8080'
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - internal
+    restart: unless-stopped
+
+  # Bull Board — dev-only BullMQ dashboard on host port 3030.
+  # Set BULL_BOARD_USER / BULL_BOARD_PASSWORD in .env to enable Basic auth.
+  bull-board:
+    <<: *node-service
+    command: ['bash', '-c', 'node_modules/.bin/tsx tools/bull-board/src/index.ts']
+    environment:
+      <<: *node-env
+      ROLE: bull-board
+      BULL_BOARD_PORT: '3030'
+      # Optional: set to enable Basic auth (dev can leave empty).
+      BULL_BOARD_USER: ${BULL_BOARD_USER:-}
+      BULL_BOARD_PASSWORD: ${BULL_BOARD_PASSWORD:-}
+    ports:
+      - '3030:3030'
+    volumes:
+      - .:/workspace
+      - node_modules:/workspace/node_modules
+      - bull_board_node_modules:/workspace/tools/bull-board/node_modules
+      - queue_node_modules:/workspace/packages/queue/node_modules
+      - yarn_cache:/root/.yarn/berry/cache
+      - yarn_install_stamp:/var/cache/aiflow-yarn
+      - corepack_home:/root/.cache/node/corepack
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - internal
+    restart: unless-stopped
+
+  langfuse-redis:
+    image: redis:7-alpine
+    command:
+      - redis-server
+      - --requirepass
+      - ${LANGFUSE_REDIS_AUTH:-langfuse-dev-redis}
+      - --maxmemory-policy
+      - noeviction
+    volumes:
+      - langfuse_redis_data:/data
+    healthcheck:
+      test: ['CMD-SHELL', 'REDISCLI_AUTH="$$LANGFUSE_REDIS_AUTH" redis-cli ping | grep -q PONG']
+      <<: *healthcheck-defaults
+    environment:
+      LANGFUSE_REDIS_AUTH: ${LANGFUSE_REDIS_AUTH:-langfuse-dev-redis}
+    networks:
+      - internal
+    restart: unless-stopped
+
+  minio-langfuse-init:
+    image: minio/mc:latest
+    environment:
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-minioadmin}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-minioadmin}
+      LANGFUSE_S3_BUCKET: ${LANGFUSE_S3_BUCKET:-langfuse}
+    volumes:
+      - ./docker/minio/ensure-langfuse-bucket.sh:/ensure-langfuse-bucket.sh:ro
+    entrypoint: ['sh', '/ensure-langfuse-bucket.sh']
+    depends_on:
+      minio:
+        condition: service_healthy
+    networks:
+      - internal
+    restart: 'no'
+
+  langfuse-worker:
+    image: langfuse/langfuse-worker:3
+    depends_on: &langfuse-depends-on
+      postgres:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+      langfuse-redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      minio-langfuse-init:
+        condition: service_completed_successfully
+    environment: &langfuse-env
+      DATABASE_URL: postgresql://${POSTGRES_USER:-ai_studio}:${POSTGRES_PASSWORD:-ai_studio}@postgres:5432/langfuse
+      NEXTAUTH_URL: ${LANGFUSE_NEXTAUTH_URL:-http://localhost:3100}
+      NEXTAUTH_SECRET: ${LANGFUSE_NEXTAUTH_SECRET:-langfuse-dev-nextauth-secret-change-me}
+      SALT: ${LANGFUSE_SALT:-langfuse-dev-salt-change-me}
+      # Must be 64 hex chars (openssl rand -hex 32) — not AI Studio ENCRYPTION_KEY.
+      ENCRYPTION_KEY: ${LANGFUSE_ENCRYPTION_KEY:-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}
+      TELEMETRY_ENABLED: 'false'
+      CLICKHOUSE_MIGRATION_URL: clickhouse://clickhouse:9000
+      CLICKHOUSE_URL: http://clickhouse:8123
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-clickhouse}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-clickhouse}
+      CLICKHOUSE_CLUSTER_ENABLED: 'false'
+      REDIS_HOST: langfuse-redis
+      REDIS_PORT: '6379'
+      REDIS_AUTH: ${LANGFUSE_REDIS_AUTH:-langfuse-dev-redis}
+      LANGFUSE_S3_EVENT_UPLOAD_BUCKET: ${LANGFUSE_S3_BUCKET:-langfuse}
+      LANGFUSE_S3_EVENT_UPLOAD_REGION: auto
+      LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID: ${S3_ACCESS_KEY:-minioadmin}
+      LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY: ${S3_SECRET_KEY:-minioadmin}
+      LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT: http://minio:9000
+      LANGFUSE_S3_EVENT_UPLOAD_FORCE_PATH_STYLE: 'true'
+      LANGFUSE_S3_EVENT_UPLOAD_PREFIX: events/
+      LANGFUSE_S3_MEDIA_UPLOAD_BUCKET: ${LANGFUSE_S3_BUCKET:-langfuse}
+      LANGFUSE_S3_MEDIA_UPLOAD_REGION: auto
+      LANGFUSE_S3_MEDIA_UPLOAD_ACCESS_KEY_ID: ${S3_ACCESS_KEY:-minioadmin}
+      LANGFUSE_S3_MEDIA_UPLOAD_SECRET_ACCESS_KEY: ${S3_SECRET_KEY:-minioadmin}
+      LANGFUSE_S3_MEDIA_UPLOAD_ENDPOINT: http://minio:9000
+      LANGFUSE_S3_MEDIA_UPLOAD_FORCE_PATH_STYLE: 'true'
+      LANGFUSE_S3_MEDIA_UPLOAD_PREFIX: media/
+    networks:
+      - internal
+    restart: unless-stopped
+
+  langfuse-web:
+    image: langfuse/langfuse:3
+    depends_on: *langfuse-depends-on
+    ports:
+      - '3100:3000'
+    environment:
+      <<: *langfuse-env
+      # Browser-reachable MinIO for media (host publish 9000).
+      LANGFUSE_S3_MEDIA_UPLOAD_ENDPOINT: http://localhost:9000
+      LANGFUSE_INIT_ORG_ID: ${LANGFUSE_INIT_ORG_ID:-aistudio}
+      LANGFUSE_INIT_ORG_NAME: ${LANGFUSE_INIT_ORG_NAME:-AI Studio}
+      LANGFUSE_INIT_PROJECT_ID: ${LANGFUSE_INIT_PROJECT_ID:-aistudio-dev}
+      LANGFUSE_INIT_PROJECT_NAME: ${LANGFUSE_INIT_PROJECT_NAME:-AI Studio Dev}
+      LANGFUSE_INIT_PROJECT_PUBLIC_KEY: ${LANGFUSE_INIT_PROJECT_PUBLIC_KEY:-pk-lf-dev}
+      LANGFUSE_INIT_PROJECT_SECRET_KEY: ${LANGFUSE_INIT_PROJECT_SECRET_KEY:-sk-lf-dev}
+      LANGFUSE_INIT_USER_EMAIL: ${LANGFUSE_INIT_USER_EMAIL:-langfuse@localhost}
+      LANGFUSE_INIT_USER_NAME: ${LANGFUSE_INIT_USER_NAME:-Langfuse Admin}
+      LANGFUSE_INIT_USER_PASSWORD: ${LANGFUSE_INIT_USER_PASSWORD:-langfuselangfuse}
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:3000/api/public/health || exit 1']
+      <<: *healthcheck-defaults
+      start_period: 90s
+    networks:
+      - internal
+    restart: unless-stopped
+
 networks:
   internal:
     driver: bridge
@@ -312,6 +513,9 @@ volumes:
   gitea_data:
   gitea_bootstrap:
   worker_temp:
+  clickhouse_data:
+  clickhouse_logs:
+  langfuse_redis_data:
   node_modules:
   web_node_modules:
   worker_node_modules:
@@ -323,6 +527,7 @@ volumes:
   queue_node_modules:
   crypto_node_modules:
   session_analyzer_node_modules:
+  bull_board_node_modules:
   yarn_cache:
   yarn_install_stamp:
   corepack_home:

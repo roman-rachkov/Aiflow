@@ -1,0 +1,8 @@
+{
+  "minTasks": 3,
+  "maxTasks": 10,
+  "mustIncludeTitleSubstrings": ["Recipe", "Smoke"],
+  "mustNotIncludeSubstrings": ["Stripe", "payment", "OAuth", "public gallery", "social sharing"],
+  "requireSmokeTest": true,
+  "requiredMentions": ["Recipe", "Prisma"]
+}

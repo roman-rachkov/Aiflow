@@ -1,0 +1,51 @@
+# AI Studio — production-oriented compose overlay (MVP2-53-PROD)
+#
+# NOT a drop-in replacement for docker-compose.yml. Documents the prod topology
+# from docs/10-infrastructure.md and OQ #4 (no host docker.sock on worker).
+#
+# Usage (when prod images exist):
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up
+#
+# Today: app/worker still use dev bind-mount entrypoints. This file encodes
+# invariants and env overrides for a future prod cutover.
+
+services:
+  worker:
+    environment:
+      ENVIRONMENT: prod
+      # Remote Docker API — never mount /var/run/docker.sock in prod (OQ #4).
+      # DOCKER_HOST=tcp://sandbox-docker.internal:2376
+      # DOCKER_TLS_VERIFY=1
+      # DOCKER_CERT_PATH=/run/docker-certs
+    volumes: !reset []
+    # Prod worker image would mount only secrets + temp, not the repo bind mount.
+
+  app:
+    environment:
+      ENVIRONMENT: prod
+      NODE_ENV: production
+
+  model-router:
+    # Healthcheck added when router ships (MVP-3 C3).
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:3001/health || exit 1']
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  traefik:
+    # In prod, Traefik sits in front of app + deployed user apps with TLS.
+    restart: unless-stopped
+    command:
+      - --api.insecure=false
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+    # ports:
+    #   - '80:80'
+    #   - '443:443'
+
+# Prod secrets (deferred): ENCRYPTION_KEY, AUTH_SECRET, GITEA tokens via
+# Docker secrets or Vault — not committed. See docs/10-infrastructure.md § prod.

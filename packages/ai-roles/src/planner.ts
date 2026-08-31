@@ -5,6 +5,8 @@
 
 import type { ChatConfig, ChatMessage, ModelProvider } from './types';
 import { PLANNER_MAX_TASKS, PLANNER_SYSTEM_PROMPT } from './planner-prompt';
+import { assertCapability, runWithRoleAsync } from './policy';
+import { callPlannerAdvisor, type PlannerAdvisorDeps } from './escalation';
 
 /** Priority strings allowed in planner JSON (lowercase). */
 export type PlanTaskPriority = 'critical' | 'high' | 'medium' | 'low';
@@ -100,6 +102,7 @@ export type GeneratePlanOptions = {
   maxRetries?: number;
   model?: string;
   apiKey?: string;
+  advisorDeps?: PlannerAdvisorDeps;
 };
 
 /**
@@ -110,6 +113,18 @@ export async function generatePlanTasks(
   provider: ModelProvider,
   specMarkdown: string,
   options: GeneratePlanOptions = {},
+): Promise<PlanTask[]> {
+  return runWithRoleAsync('planner', async () => {
+    assertCapability('plan-tasks');
+    assertCapability('read-spec');
+    return generatePlanTasksInner(provider, specMarkdown, options);
+  });
+}
+
+async function generatePlanTasksInner(
+  provider: ModelProvider,
+  specMarkdown: string,
+  options: GeneratePlanOptions,
 ): Promise<PlanTask[]> {
   const maxRetries = options.maxRetries ?? MAX_PARSE_RETRIES;
   const config: ChatConfig = {
@@ -127,6 +142,13 @@ export async function generatePlanTasks(
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(String(err));
     }
+  }
+
+  try {
+    const text = await callPlannerAdvisor(specMarkdown, options.advisorDeps);
+    return parsePlanTasks(text);
+  } catch {
+    // Escalation unavailable — fall through to original error.
   }
 
   throw lastError ?? new Error('Planner parse failed');

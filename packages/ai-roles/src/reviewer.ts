@@ -5,6 +5,7 @@
 
 import type { ChatConfig, ChatMessage, ModelProvider } from './types';
 import { collectChatText } from './planner';
+import { assertCapability, runWithRoleAsync } from './policy';
 import { extractJsonObject, parseReviewVerdict } from './reviewer-parse';
 import { REVIEWER_SYSTEM_PROMPT } from './reviewer-prompt';
 
@@ -42,6 +43,8 @@ export type ReviewTaskInput = {
     eslint?: boolean | null;
     tests?: boolean | null;
   };
+  /** Lessons extracted from prior Reviewer verdicts on the same task (C2 Reflexion). */
+  pastLessons?: string[];
 };
 
 const MAX_PARSE_RETRIES = 2;
@@ -59,6 +62,18 @@ export async function generateReviewVerdict(
   provider: ModelProvider,
   task: ReviewTaskInput,
   options: GenerateReviewOptions = {},
+): Promise<ReviewVerdict> {
+  return runWithRoleAsync('reviewer', async () => {
+    assertCapability('verdict');
+    assertCapability('read-diff');
+    return generateReviewVerdictInner(provider, task, options);
+  });
+}
+
+async function generateReviewVerdictInner(
+  provider: ModelProvider,
+  task: ReviewTaskInput,
+  options: GenerateReviewOptions,
 ): Promise<ReviewVerdict> {
   const maxRetries = options.maxRetries ?? MAX_PARSE_RETRIES;
   const config: ChatConfig = {
@@ -84,14 +99,21 @@ export async function generateReviewVerdict(
 /** Build the USER message body for the Reviewer. */
 export function buildReviewUserPrompt(task: ReviewTaskInput): string {
   const checks = task.checks ?? {};
-  return [
+  const lines: string[] = [
     `Title: ${task.title}`,
     `Description:\n${task.description}`,
     `Acceptance:\n${task.acceptance}`,
     `Automated checks: typescript=${fmtCheck(checks.typescript)}; eslint=${fmtCheck(checks.eslint)}; tests=${fmtCheck(checks.tests)}`,
-    'Diff:',
-    task.diff.trim() === '' ? '(empty diff)' : task.diff,
-  ].join('\n\n');
+  ];
+  if (task.pastLessons && task.pastLessons.length > 0) {
+    lines.push(
+      'Past lessons (avoid repeating these mistakes):\n' +
+        task.pastLessons.map((l, i) => `  ${String(i + 1)}. ${l}`).join('\n'),
+    );
+  }
+  lines.push('Diff:');
+  lines.push(task.diff.trim() === '' ? '(empty diff)' : task.diff);
+  return lines.join('\n\n');
 }
 
 function fmtCheck(value: boolean | null | undefined): string {

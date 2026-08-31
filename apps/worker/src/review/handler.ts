@@ -1,29 +1,48 @@
 /**
- * BullMQ handler for `code-review` — one-shot LLM Reviewer (MVP-2 Task 4.1).
+ * BullMQ handler for `code-review` — LLM Reviewer with Self-Refine loop (MVP-3 C1).
  * ACCEPTED fast-forwards the task branch into main, then enqueues ready tasks.
+ * REJECTED → re-enqueue code-execute with feedback (≤MAX_REVIEW_RETRIES); then FAILED.
  */
 
 import type { Job } from 'bullmq';
 import {
   createProviderFromEnv,
   generateReviewVerdict,
+  getCurrentTraceId,
+  runWithTraceContext,
   type ReviewTaskInput,
   type ReviewVerdict,
 } from '@aiflow/ai-roles';
-import { ensureTaskGitColumns } from '@aiflow/db';
-import { validateReviewPayload, type CodeReviewPayload } from '@aiflow/queue';
+import {
+  ensureTaskGitColumns,
+  retrieveLessons as dbRetrieveLessons,
+  storeLesson,
+} from '@aiflow/db';
+import {
+  getCodeQueue,
+  validateReviewPayload,
+  type CodeExecutePayload,
+  type CodeReviewPayload,
+} from '@aiflow/queue';
 
+import { auditReviewerVerdict, defaultRecordAudit, type RecordAuditFn } from '../audit';
 import { enqueueReadyTasks, loadReadyCtx } from '../code/enqueue-ready';
 import { mergeTaskBranch } from '../code/merge';
 import { appendTaskLog, loadTask, recordTaskGit, setTaskStatus } from '../code/status';
-import { applyReviewVerdict, type ApplyVerdictDeps } from './apply-verdict';
+import type { ApplyVerdictDeps } from './apply-verdict';
 import { finishAcceptedReview, type FinishAcceptedDeps } from './finish-accepted';
+import { storeLessonFromVerdict, type LessonStoreDeps } from './memory';
+import { handleRejectedVerdict } from './retry';
 
 export type ReviewHandlerDeps = {
   loadTask: typeof loadTask;
   generateVerdict: (input: ReviewTaskInput) => Promise<ReviewVerdict>;
   applyVerdict: ApplyVerdictDeps;
   finishAccepted: FinishAcceptedDeps;
+  enqueueCodeExecute: (payload: CodeExecutePayload) => Promise<void>;
+  recordAudit: RecordAuditFn;
+  lessonStore: LessonStoreDeps;
+  retrieveLessons: (schemaName: string, taskId: string) => Promise<string[]>;
 };
 
 const defaultDeps: ReviewHandlerDeps = {
@@ -53,6 +72,15 @@ const defaultDeps: ReviewHandlerDeps = {
       now: () => new Date(),
     },
   },
+  enqueueCodeExecute: async (payload) => {
+    await getCodeQueue().add('code:execute', payload);
+  },
+  recordAudit: defaultRecordAudit,
+  lessonStore: { storeLesson },
+  retrieveLessons: async (schemaName, taskId) => {
+    const rows = await dbRetrieveLessons(schemaName, { taskId, role: 'REVIEWER' });
+    return rows.map((r) => r.lesson);
+  },
 };
 
 /** Process one code-review job. Exported for unit tests with mocked deps. */
@@ -73,27 +101,73 @@ export async function handleCodeReview(
     'LLM-ревью запущено…\n',
   );
 
-  const verdict = await deps.generateVerdict({
-    title: task.title,
-    description: task.description,
-    acceptance: task.acceptance,
-    diff: payload.diff,
-    checks: payload.checks,
-  });
+  let traceId: string | undefined;
+  const pastLessons = await deps.retrieveLessons(payload.schemaName, payload.taskId);
+  const verdict = await runWithTraceContext(
+    {
+      role: 'reviewer',
+      projectId: payload.projectId,
+      taskId: payload.taskId,
+      tags: ['code-review'],
+    },
+    async () => {
+      const result = await deps.generateVerdict({
+        title: task.title,
+        description: task.description,
+        acceptance: task.acceptance,
+        diff: payload.diff,
+        checks: payload.checks,
+        pastLessons: pastLessons.length > 0 ? pastLessons : undefined,
+      });
+      traceId = getCurrentTraceId();
+      return result;
+    },
+  );
 
-  await settleVerdict(payload, verdict, deps);
+  if (traceId) {
+    await deps.applyVerdict.appendTaskLog(
+      payload.schemaName,
+      payload.taskId,
+      `langfuseTraceId=${traceId}\n`,
+    );
+  }
+
+  await settleVerdict(payload, verdict, task, deps);
   return verdict;
 }
 
 async function settleVerdict(
   payload: CodeReviewPayload,
   verdict: ReviewVerdict,
+  task: { title: string },
   deps: ReviewHandlerDeps,
 ): Promise<void> {
-  if (verdict.verdict !== 'ACCEPTED') {
-    await applyReviewVerdict(payload.schemaName, payload.taskId, verdict, deps.applyVerdict);
+  await auditReviewerVerdict(deps.recordAudit, {
+    projectId: payload.projectId,
+    taskId: payload.taskId,
+    verdict: verdict.verdict,
+    confidence: verdict.confidence,
+  });
+  await storeLessonFromVerdict(
+    { schemaName: payload.schemaName, taskId: payload.taskId, taskTitle: task.title, verdict },
+    deps.lessonStore,
+  );
+  if (verdict.verdict === 'ACCEPTED') {
+    await settleAccepted(payload, verdict, deps);
     return;
   }
+  await handleRejectedVerdict(payload, verdict, {
+    applyVerdict: deps.applyVerdict,
+    loadGitea: deps.finishAccepted.loadGitea,
+    enqueueCodeExecute: deps.enqueueCodeExecute,
+  });
+}
+
+async function settleAccepted(
+  payload: CodeReviewPayload,
+  verdict: ReviewVerdict,
+  deps: ReviewHandlerDeps,
+): Promise<void> {
   try {
     await finishAcceptedReview(payload, verdict, {
       ...deps.finishAccepted,
