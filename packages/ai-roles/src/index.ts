@@ -31,6 +31,8 @@ export {
   type PlanTaskEffort,
   type PlanTaskPriority,
 } from './planner';
+export { callPlannerAdvisor, type PlannerAdvisorDeps } from './escalation';
+export { generatePlanTasksWithToT, scorePlanCandidate, type TotOptions } from './planner-tot';
 export { REVIEWER_SYSTEM_PROMPT } from './reviewer-prompt';
 export {
   buildReviewUserPrompt,
