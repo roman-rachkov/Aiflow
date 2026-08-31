@@ -8,8 +8,8 @@
 # Prerequisites: copy .env.example → .env and set AUTH_SECRET / ENCRYPTION_KEY /
 # OPENAI_* (empty OPENAI_API_KEY = MOCK provider).
 # Start:  docker compose up
-# Ports:  3000 app, 3001 model-router, 3002 Gitea, 3030 Bull Board,
-#         3100 Langfuse UI, 5432 pg, 6379 redis, 9000/9001 MinIO.
+# Ports:  3000 app, 3001 model-router, 3002 Gitea, 3030 Bull Board, 8090 Traefik HTTP,
+#         8091 Traefik dashboard, 3100 Langfuse UI, 5432 pg, 6379 redis, 9000/9001 MinIO.
 
 x-healthcheck-defaults: &healthcheck-defaults
   interval: 10s
@@ -232,6 +232,10 @@ services:
       LANGFUSE_BASE_URL: http://langfuse-web:3000
       LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-pk-lf-dev}
       LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-sk-lf-dev}
+      # Domain deploy (MVP-2 4.3): Traefik routes app-{hex}.localhost → user container.
+      DEPLOY_DOMAIN_ENABLED: ${DEPLOY_DOMAIN_ENABLED:-false}
+      DEPLOY_PUBLIC_BASE: ${DEPLOY_PUBLIC_BASE:-http://localhost:8090}
+      TRAEFIK_NETWORK: ${COMPOSE_PROJECT_NAME:-aiflow}_internal
     command: ['yarn', 'workspace', '@aiflow/worker', 'dev']
     volumes:
       - .:/workspace
@@ -330,9 +334,25 @@ services:
         soft: 262144
         hard: 262144
 
+  # Traefik — reverse proxy for domain deploy (MVP-2 4.3). Routes Host app-{hex}.localhost.
+  traefik:
+    image: traefik:v3.0
+    command:
+      - --api.insecure=true
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+    ports:
+      - '8090:80'
+      - '8091:8080'
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - internal
+    restart: unless-stopped
+
   # Bull Board — dev-only BullMQ dashboard on host port 3030.
   # Set BULL_BOARD_USER / BULL_BOARD_PASSWORD in .env to enable Basic auth.
-  # Leave both empty (default) to skip auth — acceptable for local dev only.
   bull-board:
     <<: *node-service
     command: ['bash', '-c', 'node_modules/.bin/tsx tools/bull-board/src/index.ts']

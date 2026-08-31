@@ -31,6 +31,12 @@ function mockDeps(overrides: Partial<DeployHandlerDeps> = {}): DeployHandlerDeps
     ),
     cloneRepo: vi.fn(() => Promise.resolve()),
     buildDockerImage: vi.fn(() => Promise.resolve({ imageTag: 'aistudio/demo:tag' })),
+    runDeployedContainer: vi.fn(() =>
+      Promise.resolve({
+        url: 'docker://aistudio/demo:20260807020000',
+        containerName: 'aistudio-dep-dep-1',
+      }),
+    ),
     pushUserAppSchema: vi.fn(() => Promise.resolve({ appSchema: 'app_aaa', skipped: false })),
     appendDeployLog: vi.fn(() => Promise.resolve()),
     finishDeploy: vi.fn(() => Promise.resolve(true)),
@@ -64,6 +70,7 @@ describe('handleDeployRun success', () => {
 
     expect(deps.cloneRepo).toHaveBeenCalled();
     expect(deps.buildDockerImage).toHaveBeenCalled();
+    expect(deps.runDeployedContainer).toHaveBeenCalled();
     expect(deps.finishDeploy).toHaveBeenCalledWith(
       expect.objectContaining({
         status: 'DEPLOYED',
@@ -111,6 +118,13 @@ describe('handleDeployRun failures', () => {
       }),
     );
     expect(deps.removeWorkDir).toHaveBeenCalled();
+  });
+
+  it('failure on container start → FAILED', async () => {
+    const deps = mockDeps({
+      runDeployedContainer: vi.fn().mockRejectedValue(new Error('container failed')),
+    });
+    await expect(handleDeployRun(job(PAYLOAD), deps)).rejects.toThrow(/container failed/);
   });
 
   it('does not swallow build errors (fail-fast for retries)', async () => {

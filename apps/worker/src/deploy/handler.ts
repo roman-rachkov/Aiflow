@@ -12,12 +12,14 @@ import { resolveDeployClaim } from './claim';
 import { pushUserAppSchema } from './app-schema-push';
 import { cloneRepo, deployWorkDir, removeWorkDir } from './clone';
 import { buildDockerImage, warnIfProdSocket } from './docker';
+import { runDeployedContainer } from './run-container';
 import { appendDeployLog, finishDeploy, loadDeployment } from './status';
 
 export type DeployHandlerDeps = {
   loadDeployment: typeof loadDeployment;
   cloneRepo: typeof cloneRepo;
   buildDockerImage: typeof buildDockerImage;
+  runDeployedContainer: typeof runDeployedContainer;
   pushUserAppSchema: typeof pushUserAppSchema;
   appendDeployLog: typeof appendDeployLog;
   finishDeploy: typeof finishDeploy;
@@ -30,6 +32,7 @@ const defaultDeps: DeployHandlerDeps = {
   loadDeployment,
   cloneRepo,
   buildDockerImage,
+  runDeployedContainer,
   pushUserAppSchema,
   appendDeployLog,
   finishDeploy,
@@ -137,14 +140,40 @@ async function runDeployPipeline(
     onProgress: (line) => deps.appendDeployLog(payload.schemaName, payload.deploymentId, line),
   });
   const pushed = await deps.pushUserAppSchema(workDir, payload.schemaName);
-  const url = `docker://${imageTag}`;
+  const { url } = await publishDeployedApp(payload, imageTag, deps);
+  await markDeploySuccess({ payload, imageTag, url, pushed, deps });
+}
+
+async function publishDeployedApp(
+  payload: DeployRunPayload,
+  imageTag: string,
+  deps: DeployHandlerDeps,
+): Promise<{ url: string }> {
+  await deps.appendDeployLog(payload.schemaName, payload.deploymentId, 'Запуск контейнера…\n');
+  return deps.runDeployedContainer({
+    deploymentId: payload.deploymentId,
+    imageTag,
+    projectSchema: payload.schemaName,
+  });
+}
+
+type DeploySuccessInput = {
+  payload: DeployRunPayload;
+  imageTag: string;
+  url: string;
+  pushed: { appSchema: string; skipped: boolean };
+  deps: DeployHandlerDeps;
+};
+
+async function markDeploySuccess(input: DeploySuccessInput): Promise<void> {
+  const { payload, imageTag, url, pushed, deps } = input;
   const finished = await deps.finishDeploy({
     schemaName: payload.schemaName,
     deploymentId: payload.deploymentId,
     status: 'DEPLOYED',
     imageTag,
     url,
-    logChunk: finishLog(imageTag, pushed.appSchema, pushed.skipped),
+    logChunk: finishLog(imageTag, url, pushed.appSchema, pushed.skipped),
   });
   if (finished) {
     await auditDeployFinish(deps.recordAudit, {
@@ -156,13 +185,14 @@ async function runDeployPipeline(
   }
 }
 
-function finishLog(imageTag: string, appSchema: string, skipped: boolean): string {
+function finishLog(imageTag: string, url: string, appSchema: string, skipped: boolean): string {
   const schemaLine = skipped
     ? 'prisma/schema.prisma нет — db push пропущен\n'
     : `Схема приложения: ${appSchema} (prisma db push выполнен)\n`;
   return (
     `Образ собран: ${imageTag}\n` +
     schemaLine +
-    `Запуск: docker run --rm -p 3100:3000 -e DATABASE_URL=<schema=${skipped ? 'app_…' : appSchema}> ${imageTag}\n`
+    `URL: ${url}\n` +
+    `Запуск вручную: docker run --rm -p 3100:3000 -e DATABASE_URL=<schema=${skipped ? 'app_…' : appSchema}> ${imageTag}\n`
   );
 }

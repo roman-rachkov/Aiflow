@@ -37,6 +37,7 @@ describe('Task 2.3 smoke (mocked)', () => {
       }),
       cloneRepo: vi.fn().mockResolvedValue(undefined),
       buildDockerImage: vi.fn().mockResolvedValue({ imageTag: 't' }),
+      runDeployedContainer: vi.fn().mockResolvedValue({ url: 'docker://t', containerName: 'c' }),
       pushUserAppSchema: vi.fn().mockResolvedValue({ appSchema: 'app_aaa', skipped: false }),
       appendDeployLog: vi.fn().mockResolvedValue(undefined),
       finishDeploy,

@@ -54,7 +54,7 @@ Statuses: `done` | `open` | `forever-waive`.
 | MVP2-43-LOGS                                       | Deployment logs surfaced in project UI                                                | `docs/04-roadmap.md` §3.3 Task 4.3           | done          | `features/deploy/ui/DeploymentsPanel.tsx`; `Deployment.log` polling                                                                                                                                                                                            |
 | **MVP-2 — Tasks 5.1–5.3**                          |
 | MVP2-51                                            | Full dogfooding: AI Studio project through full cycle inside platform                 | `docs/04-roadmap.md` §3.3 Task 5.1           | open          | No recorded dogfood run in repo; dev RAG index (`docs:ingest`) is tooling-only                                                                                                                                                                                 |
-| MVP2-52                                            | Load testing: ~3 concurrent projects, isolation, Bull Board                           | `docs/04-roadmap.md` §3.3 Task 5.2           | open          | No load-test scripts; Bull Board not in `docker-compose.yml`                                                                                                                                                                                                   |
+| MVP2-52                                            | Load testing: ~3 concurrent projects, isolation, Bull Board                           | `docs/04-roadmap.md` §3.3 Task 5.2           | done          | `tools/load-test/run.mts` + `yarn load-test`; `tools/bull-board` on port 3030 in compose; isolation vitest in `tools/load-test/src/isolation.test.ts`                                                                                                          |
 | MVP2-53-README                                     | README + first-user guide                                                             | `docs/04-roadmap.md` §3.3 Task 5.3           | done          | Root `README.md` added: quick start, prerequisites, yarn verify, link to `docs/README.md`                                                                                                                                                                      |
 | MVP2-53-PROD                                       | Production environment prep                                                           | `docs/04-roadmap.md` §3.3 Task 5.3           | open          | Dev-only docker.sock documented OQ #4; no prod compose                                                                                                                                                                                                         |
 | **MVP-3 — Track A (architectural maturity)**       |
@@ -91,8 +91,8 @@ Statuses: `done` | `open` | `forever-waive`.
 
 | Status        | Count |
 | ------------- | ----: |
-| done          |    46 |
-| open          |    17 |
+| done          |    47 |
+| open          |    16 |
 | forever-waive |     4 |
 
 **Total in-scope:** 67
