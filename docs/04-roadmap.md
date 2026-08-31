@@ -283,20 +283,29 @@ decomposition happens per task in its own brainstorm/sprint, on a `task/*` branc
 
 #### Track A — Architectural maturity (durable + audit + policy)
 
-**A1. Idempotent workers (`code:execute`, `deploy:run`).** At-least-once without
-duplicate effect (double commit/deploy/`markInProgress`). Integration:
-`apps/worker/src/code/handler.ts` (the `CodeHandlerDeps` DI seam already exists),
-`apps/worker/src/deploy/handler.ts`. Approach: DB attempt tokens, status-machine
-transition guards (`IN_PROGRESS` only from `PENDING`/`AWAITING_REVIEW`),
-`pushBranch`/`finishDeploy` dedup by `taskId+attempt`, dead-letter for stuck jobs.
-Done when a worker killed mid-job and restarted produces exactly one commit/deploy.
+**A1. Idempotent workers (`code:execute`, `deploy:run`).** — done (2026-08-23)
 
-**A2. Status machine as source of truth + resumability.** A crashed worker resumes
-from the last checkpoint, not from zero. Integration: `TaskLog` (already the
-checkpoint), `apps/worker/src/code/pipeline.ts`. Approach: explicit step encoding
-(`CLONE→CHECKOUT→SANDBOX→PARSE→PUSH→DONE`), each step idempotent by
-`(taskId, step)`; BullMQ resume replays from the first unfinished step. Done when
-the "crashed on PUSH → restart → commit lands once" doc-test passes.
+At-least-once without duplicate effect (double commit/deploy/`markInProgress`).
+Integration: `apps/worker/src/code/handler.ts` + `claim.ts`,
+`apps/worker/src/deploy/handler.ts` + `claim.ts`. Shipped: conditional
+`claimInProgress` (`PENDING`|`AWAITING_REVIEW`|`FAILED` → `IN_PROGRESS`, clears
+git checkpoint); stalled `IN_PROGRESS` resumes; `headCommit` recorded **before**
+push so crash mid-push → `resume-after-push` (skip sandbox, re-push + re-enqueue
+review); DONE / DEPLOYED are no-op skips; `finishDeploy` only transitions from
+`BUILDING`. BullMQ still fail-fast (`attempts: 1`); operator re-enqueues after
+FAILED. Step-encoded pipeline resume shipped in A2.
+
+**A2. Status machine as source of truth + resumability.** — done (2026-08-23)
+
+A crashed worker resumes from the last durable checkpoint, not from zero.
+Integration: `TaskLog` step markers + `headCommit` / git checkpoint ref,
+`apps/worker/src/code/pipeline{,-live,-steps}.ts`, `git-checkpoint.ts`.
+Steps: `CLONE→CHECKOUT→SANDBOX→PARSE→PUSH→DONE` (DONE = enqueue
+`code-review`). PARSE pushes `refs/aistudio/task/{taskId}` before recording
+`headCommit` so a mid-PUSH crash restores the commit after workDir wipe.
+Resume: no `headCommit` → restart at CLONE; with `headCommit` → PUSH or DONE
+from TaskLog; all steps done → no-op wait for review. Doc-test: crashed on
+PUSH → restart → sandbox skipped, push once.
 
 **A3. Audit trails.** Every significant role action (Coder commit, Reviewer
 verdict, deploy) is an audit event. Integration: new `AuditEvent` model in the
@@ -313,27 +322,52 @@ physically cannot commit even under injection.
 
 #### Track B — Observability & Evals (Langfuse)
 
-**B1. Langfuse self-host in compose.** Service in `docker-compose.yml`,
-Postgres-backed, OTLP receiver. Done when `docker compose up` brings up the
-Langfuse UI on a dedicated port.
+**B1. Langfuse self-host in compose.** — done (2026-08-23)
 
-**B2. Trace every LLM call.** Prompt/tokens/latency/cost/errors for
-Analyst/Planner/Coder/Reviewer, linked to project/task. Integration: the wrapper
-in `packages/ai-roles/src/openai-compatible.ts`
-(`createOpenAICompatibleProvider`) — the single chokepoint of all roles. Approach:
-OTel/Langfuse-SDK spans; `traceId` propagates into `TaskLog`/`AuditEvent` for
-cross-link. Done when a single Coder attempt is visible end-to-end in Langfuse.
+`langfuse-web` + `langfuse-worker` (`langfuse/langfuse:3`) in
+`docker-compose.yml`, UI on host **3100**. Shared Postgres DB `langfuse`
+(`docker/postgres/init/02-langfuse-db.sql`), shared MinIO bucket (init script),
+dedicated `clickhouse` + `langfuse-redis` (BullMQ redis stays untouched).
+Secrets via `LANGFUSE_*` / `CLICKHOUSE_*` in `.env.example`. OTLP/SDK tracing
+of role calls → B2. Done criterion: `docker compose up` serves Langfuse UI
+at `http://localhost:3100` (verify on a host with Docker; this agent env had
+no docker daemon).
 
-**B3. Evals framework (golden set + regression).** A SPEC→plan→code case set;
-prompt/model regression on change. Approach: Promptfoo or Langfuse datasets; a CI
-job fires when a prompt in `.claude/agents/` changes. Done when a Coder prompt
-change cannot merge without an evals run.
+**B2. Trace every LLM call.** — done (2026-08-23)
 
-**B4. Prompt-injection red-team.** Uploaded RAG documents must not break policy or
-exfiltrate the key. Integration: the Analyst mixes user content into its system
-prompt via `withRagContext` — the known surface. Approach: an AgentDojo/
-InjecAgent-style red-team set, auto-run in CI. Done when an injected document
-never triggers a role's write action.
+Prompt/tokens/latency/cost/errors for Analyst/Planner/Reviewer (and any
+caller of `createOpenAICompatibleProvider`), linked to project/task via
+`runWithTraceContext`. Integration: wrapper in `packages/ai-roles` around the
+OpenAI-compatible provider (single chokepoint). Thin Langfuse public-ingestion
+client (fetch + Basic auth); noop when `LANGFUSE_PUBLIC_KEY` /
+`LANGFUSE_SECRET_KEY` unset. Reviewer jobs append `langfuseTraceId=` to
+`TaskLog` for cross-link (AuditEvent → A3). Sandbox Aider (Coder) stays outside
+this wrapper — Reviewer traces cover the code-execute → review path.
+Done criterion: with Langfuse up and keys set, a Reviewer/Planner/Analyst call
+appears in the Langfuse UI; without keys, chat/embed behave as before.
+
+**B3. Evals framework (golden set + regression).** — done (2026-08-23)
+
+A SPEC→plan→code golden set under `tools/evals/cases/` plus prompt-contract
+checks for Planner/Reviewer/Coder (`.claude/agents/*` + sandbox
+`CODER_CORE_PROMPT` + runtime prompts in `@aiflow/ai-roles`). Offline fixtures
+are the default CI path (`yarn evals`); `EVALS_LIVE=1` optionally calls the env
+LLM provider. Langfuse score upload via the same public ingestion API as B2 —
+noop when `LANGFUSE_*` keys unset. GitHub Actions workflow
+`.github/workflows/evals.yml` path-filters on `.claude/agents/**`,
+`docker/aider-sandbox/**`, planner/reviewer sources, and `tools/evals/**`, so a
+Coder prompt change cannot merge without an evals run.
+
+**B4. Prompt-injection red-team.** — done (2026-08-23)
+
+Uploaded RAG documents must not break policy or exfiltrate keys / trigger writes.
+`@aiflow/ai-roles` `withRagContext` wraps retrieval in untrusted delimiters;
+`allowMutatingTool` blocks `spec:generate` / `run_planner` / `run_coder` / `deploy`
+when RAG looks injected unless the user explicitly requests that action. Worker
+`executeTool` enforces the guard. AgentDojo-style cases live in
+`tools/evals` (`scoreRedTeam`) and run under `yarn evals` +
+`.github/workflows/evals.yml`. Done criterion: an injected document never
+triggers a mutating tool without explicit user intent.
 
 #### Track C — Agent intelligence (Self-Refine, memory, escalation)
 

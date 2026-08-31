@@ -28,14 +28,7 @@ export async function runChatJob(payload: ChatRunPayload): Promise<void> {
 async function runWithPublisher(payload: ChatRunPayload, publisher: AguiEmitter): Promise<void> {
   const { schemaName, threadId, runId, userMessage } = payload;
   const emit = publisher.emit;
-
-  let ragContext = '';
-  try {
-    ragContext = await retrieveContext(schemaName, userMessage);
-  } catch {
-    ragContext = '';
-  }
-
+  const ragContext = await safeRetrieve(schemaName, userMessage);
   const history = await listMessagesByThread(schemaName, threadId);
   const resolved = await resolveAnalystProvider(schemaName);
   const config: ChatConfig = {
@@ -44,29 +37,19 @@ async function runWithPublisher(payload: ChatRunPayload, publisher: AguiEmitter)
     systemPrompt: withRagContext(readSystemPrompt(), ragContext),
     tools: TOOL_DEFINITIONS,
   };
-
   const messageId = crypto.randomUUID();
   await emit({ type: 'RUN_STARTED', threadId, runId });
   await emit({ type: 'TEXT_MESSAGE_START', messageId, role: 'assistant' });
-
-  let fullText = '';
-  let usage: ChatResult = { tokensIn: null, tokensOut: null };
-
   try {
-    for (let iter = 0; iter < MAX_TOOL_ITERS; iter++) {
-      const turn = await drainModelTurn({
-        payload,
-        history,
-        config,
-        resolved,
-        emit,
-        messageId,
-      });
-      fullText += turn.text;
-      usage = sumUsage(usage, turn.usage);
-      if (turn.completed.length === 0) break;
-      appendToolTurn(history, turn.text, turn.completed);
-    }
+    const { fullText, usage } = await runToolLoop({
+      payload,
+      history,
+      config,
+      resolved,
+      emit,
+      messageId,
+      ragContext,
+    });
     await emit({ type: 'TEXT_MESSAGE_END', messageId });
     await saveAssistantMessage(schemaName, {
       content: fullText,
@@ -81,6 +64,27 @@ async function runWithPublisher(payload: ChatRunPayload, publisher: AguiEmitter)
   }
 }
 
+async function safeRetrieve(schemaName: string, userMessage: string): Promise<string> {
+  try {
+    return await retrieveContext(schemaName, userMessage);
+  } catch {
+    return '';
+  }
+}
+
+async function runToolLoop(args: DrainArgs): Promise<{ fullText: string; usage: ChatResult }> {
+  let fullText = '';
+  let usage: ChatResult = { tokensIn: null, tokensOut: null };
+  for (let iter = 0; iter < MAX_TOOL_ITERS; iter++) {
+    const turn = await drainModelTurn(args);
+    fullText += turn.text;
+    usage = sumUsage(usage, turn.usage);
+    if (turn.completed.length === 0) break;
+    appendToolTurn(args.history, turn.text, turn.completed);
+  }
+  return { fullText, usage };
+}
+
 interface DrainArgs {
   payload: ChatRunPayload;
   history: ChatMessage[];
@@ -88,12 +92,13 @@ interface DrainArgs {
   resolved: ResolvedAnalystProvider;
   emit: AguiEmitter['emit'];
   messageId: string;
+  ragContext: string;
 }
 
 async function drainModelTurn(
   args: DrainArgs,
 ): Promise<{ text: string; usage: ChatResult; completed: CompletedToolTurn[] }> {
-  const { payload, history, config, resolved, emit, messageId } = args;
+  const { payload, history, config, resolved, emit, messageId, ragContext } = args;
   const pending = new Map<number, { id: string; name: string; args: string }>();
   let text = '';
   let completed: CompletedToolTurn[] = [];
@@ -103,6 +108,8 @@ async function drainModelTurn(
     ownerId: payload.ownerId,
     uiMode: payload.uiMode,
     resolved,
+    userMessage: payload.userMessage,
+    ragContext,
   };
 
   const { stream, usage: usageP } = await resolved.provider.chatWithTools(history, config);

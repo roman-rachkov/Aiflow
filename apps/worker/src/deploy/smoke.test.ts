@@ -27,8 +27,14 @@ describe('Task 2.3 smoke (mocked)', () => {
       giteaDefaultBranch: 'main',
     };
 
-    const finishDeploy = vi.fn().mockResolvedValue(undefined);
+    const finishDeploy = vi.fn().mockResolvedValue(true);
     const deps: DeployHandlerDeps = {
+      loadDeployment: vi.fn().mockResolvedValue({
+        id: 'd1',
+        status: 'BUILDING',
+        imageTag: null,
+        url: null,
+      }),
       cloneRepo: vi.fn().mockResolvedValue(undefined),
       buildDockerImage: vi.fn().mockResolvedValue({ imageTag: 't' }),
       pushUserAppSchema: vi.fn().mockResolvedValue({ appSchema: 'app_aaa', skipped: false }),

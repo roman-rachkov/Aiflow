@@ -2,12 +2,19 @@
  * Injectable deps for code:execute handler (unit-test seam).
  */
 
-import type { CodeReviewPayload } from '@aiflow/queue';
+import type { CodeExecutePayload, CodeReviewPayload } from '@aiflow/queue';
 
-import type { CodeTaskStatus, TaskRow } from './status';
+import type { TaskRowWithGit } from './claim';
+import type { PipelineStep } from './pipeline-steps';
+import type { CodeTaskStatus } from './status';
 
 export type CodeHandlerDeps = {
-  loadTask: (schemaName: string, taskId: string) => Promise<TaskRow | null>;
+  loadTask: (schemaName: string, taskId: string) => Promise<TaskRowWithGit | null>;
+  claimInProgress: (input: {
+    schemaName: string;
+    taskId: string;
+    startedAt: Date;
+  }) => Promise<boolean>;
   setTaskStatus: (input: {
     schemaName: string;
     taskId: string;
@@ -21,6 +28,7 @@ export type CodeHandlerDeps = {
     message: string,
     level?: 'INFO' | 'WARN' | 'ERROR',
   ) => Promise<void>;
+  listTaskLogMessages: (schemaName: string, taskId: string) => Promise<string[]>;
   cloneRepo: (args: {
     owner: string;
     repo: string;
@@ -30,6 +38,8 @@ export type CodeHandlerDeps = {
   ensureUserTemplate: (workDir: string, projectName: string) => Promise<boolean>;
   checkoutTaskBranch: (workDir: string, branchName: string) => Promise<void>;
   pushBranch: (workDir: string, branchName: string) => Promise<void>;
+  pushCheckpointRef: (workDir: string, taskId: string) => Promise<void>;
+  restoreCheckpointCommit: (workDir: string, taskId: string, headCommit: string) => Promise<void>;
   readHeadCommit: (workDir: string) => Promise<string>;
   recordTaskGit: (input: {
     schemaName: string;
@@ -59,4 +69,13 @@ export type CodeHandlerDeps = {
     logs: string;
   }>;
   now: () => Date;
+};
+
+export type LivePipelineCtx = {
+  payload: CodeExecutePayload;
+  task: TaskRowWithGit;
+  branch: string;
+  workDir: string;
+  deps: CodeHandlerDeps;
+  resumeFrom: PipelineStep;
 };
