@@ -122,6 +122,16 @@ documented public seams (`client.ts`, `rag.ts`). Mark `ENG-T02` **done**.
 
 ---
 
+### R-C7-04 — Live dogfood automation + prod runbook
+
+**Context:** MVP1-R01/R05/MVP2-51 require compose evidence; cloud agent VM has no Docker.
+
+**Decision:** Ship `yarn dogfood-live` (in-app pipeline) + `tools/dogfood-live/run.sh`
+(host orchestrator). Mark MVP2-51 **partial** until live PASS in EVIDENCE.md.
+MVP2-53-PROD **done** with overlay + `docs/prod-deployment.md` + `yarn prod-check`.
+
+---
+
 ### R-B-08 — Next implementation priority order
 
 **Decision:** Foundation first (A1, A2, B1, B2), then close slim MVP-1 dogfood

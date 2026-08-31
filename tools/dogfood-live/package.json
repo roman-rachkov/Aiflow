@@ -1,0 +1,8 @@
+{
+  "name": "@aiflow/dogfood-live",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "run": "bash run.sh"
+  }
+}

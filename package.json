@@ -20,6 +20,8 @@
     "evals": "yarn workspace @aiflow/evals evals",
     "load-test": "yarn workspace @aiflow/load-test load-test",
     "dogfood-smoke": "yarn workspace @aiflow/dogfood-smoke smoke",
+    "dogfood-live": "yarn workspace @aiflow/web dogfood-live",
+    "prod-check": "yarn workspace @aiflow/prod-check prod-check",
     "stabilization": "yarn workspace @aiflow/stabilization stabilization",
     "verify": "yarn typecheck && yarn lint && yarn format:check && yarn test",
     "prepare": "husky"

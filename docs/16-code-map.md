@@ -405,6 +405,9 @@ tools/                    Dev-only workspaces. Ship nowhere; still gated by
 ├── dogfood-smoke/        Automated slim-MVP-1 wiring gate (R01/R05 partial).
 │                         `yarn dogfood-smoke` — vitest pipeline smoke + appends
 │                         `specs/slim-mvp1-dogfood/EVIDENCE.md`.
+├── dogfood-live/         Live compose dogfood orchestrator (`bash run.sh` or
+│                         `yarn dogfood-live` inside app). Todo-crud SPEC path.
+├── prod-check/           Offline prod readiness gate (`yarn prod-check`).
 ├── stabilization/        MVP-3 D4 offline bundle: `yarn stabilization` runs
 │                         evals + load isolation vitest + dogfood-smoke.
 └── evals/                Golden SPEC→plan→code evals (MVP-3 B3) +

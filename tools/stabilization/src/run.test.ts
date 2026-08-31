@@ -8,5 +8,6 @@ describe('stabilization runner', () => {
     expect(src).toContain("'evals'");
     expect(src).toContain('isolation.test.ts');
     expect(src).toContain('dogfood-smoke');
+    expect(src).toContain('prod-check');
   });
 });

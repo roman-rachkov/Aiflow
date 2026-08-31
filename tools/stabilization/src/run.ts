@@ -19,6 +19,7 @@ const STEPS: Step[] = [
     args: ['vitest', 'run', 'tools/load-test/src/isolation.test.ts'],
   },
   { name: 'dogfood-smoke', cmd: 'yarn', args: ['dogfood-smoke'] },
+  { name: 'prod-check', cmd: 'yarn', args: ['prod-check'] },
 ];
 
 function runStep(step: Step): void {

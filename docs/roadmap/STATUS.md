@@ -11,9 +11,17 @@ Updated by each docs-autopilot wave. Orchestrator reads this before code waves.
 
 ## Phase
 
-- **Current:** Wave C7 partial — ENG-T02 barrel ESLint, stabilization gate, waivers.
-- **Next:** Wave C7 continued — MVP2-51 live dogfood (compose), close partial R01/R05/D4.
-- **Blocked:** `APP_COMPLETE` — 1 open + 4 partial in `REQUIREMENTS.md`.
+- **Current:** Wave C7 partial — live dogfood tooling + prod runbook.
+- **Next:** Operator `yarn dogfood-live` on compose → close R01/R05/MVP2-51 partials.
+- **Blocked:** `APP_COMPLETE` — 5 partial requirements (live dogfood evidence).
+
+## Wave C7 summary (2026-08-31, continued)
+
+- `yarn dogfood-live` + `tools/dogfood-live/run.sh`: compose orchestrator + in-app
+  pipeline (todo-crud SPEC → plan → code:execute → EVIDENCE.md).
+- `docs/prod-deployment.md` + `yarn prod-check`; stabilization gate extended.
+- MVP2-53-PROD → done; MVP2-51 → partial (automation + checklist).
+- `yarn verify` green (483 tests).
 
 ## Wave C7 summary (2026-08-31)
 

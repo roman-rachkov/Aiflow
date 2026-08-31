@@ -43,7 +43,11 @@ Run the quality gate before every commit:
 
 ```bash
 yarn verify   # typecheck → lint → format:check → test
+yarn stabilization   # evals + load isolation + dogfood-smoke + prod-check
+yarn dogfood-live    # live compose dogfood (requires Docker + LLM keys)
 ```
+
+Production overlay: see `docs/prod-deployment.md` and `docker-compose.prod.yml`.
 
 Individual checks: `yarn typecheck`, `yarn lint`, `yarn test`, `yarn format`.
 
