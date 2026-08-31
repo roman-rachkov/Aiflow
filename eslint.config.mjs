@@ -26,6 +26,9 @@ export default tseslint.config(
       'docker/aider-sandbox/**',
       // User-project scaffold; linted inside the sandbox, not the monorepo gate.
       'templates/**',
+      // Vendored personal agent skills (Cloud Agent parity); not platform code.
+      '.cursor/skills/**',
+      '.claude/skills/**',
       // Yarn PnP artifacts. PnP is off (see .yarnrc.yml), but a stale
       // .pnp.cjs in a working tree must not fail the gate.
       '.pnp.*',

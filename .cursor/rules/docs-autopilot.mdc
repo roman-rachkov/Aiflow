@@ -1,0 +1,10 @@
+---
+description: Docs Autopilot — full autonomous build from all project docs (waves, commits, continuity). Use when /docs-autopilot or user asks to implement the whole project from specs without PRs.
+alwaysApply: false
+---
+
+When this rule is attached or the user invokes docs-autopilot:
+
+1. Read the full skill: `.cursor/skills/docs-autopilot/SKILL.md`
+2. Follow wave-prompt template: `.cursor/skills/docs-autopilot/wave-prompt.md`
+3. Defaults: local commits only, no PRs, update AGENTS.md + docs/roadmap/STATUS.md each milestone, implement until APP_COMPLETE=yes with evidence.

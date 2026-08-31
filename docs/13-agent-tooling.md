@@ -115,6 +115,28 @@ Skills are packaged instruction sets for a specific class of task.
 
 **Observation.** AI Studio's roles are structurally close to skills: the Analyst is an interviewing skill, the Coder a change-application skill. A skill that works well here likely transfers into the product with little rework. That is the main reason to keep this registry from day one.
 
+### 2.0 Cloud Agent personal skills (repo-vendored)
+
+Desktop Cursor loads `~/.cursor/skills/` globally; **Cloud Agent VMs do not**. As of
+2026-08-31 the owner's personal catalog is **committed in-repo** so cloud sessions
+match desktop:
+
+| Location                   | Contents                                                |
+| -------------------------- | ------------------------------------------------------- |
+| `.cursor/skills/`          | Primary — Cloud Agents read this on checkout            |
+| `.claude/skills/`          | Mirror for Claude Code (project skills + vendored copy) |
+| `.cursor/rules/`           | Global rules (`docs-autopilot`, `solo-notebook`)        |
+| `.cursor/commands/`        | Global slash command (`docs-autopilot`)                 |
+| `.cursor/environment.json` | Cloud env manifest                                      |
+
+Sources merged: `~/.agents/skills`, `~/.cursor/skills`, Cursor `skills-cursor`,
+Atlassian plugin skills. Project-native skills (`ai-studio-internals`, `notes`) stay
+authored under `.claude/skills/` only. **Maintenance:** after editing a skill on
+desktop, re-copy into `.cursor/skills/` (and mirror to `.claude/skills/` if needed)
+before pushing — there is no auto-sync yet. Alternative long-term: branch
+`cursor/cloud-agent-tools-sync-4b1a` adds `tools/cloud-agent-sync/` for git-remote
+pull on boot instead of vendoring.
+
 ### 2.1 `frontend-design` — allowlisted licence, rejected on content
 
 Searched 2026-08-04 via `/tool-scout` for a design tool that would make mockups

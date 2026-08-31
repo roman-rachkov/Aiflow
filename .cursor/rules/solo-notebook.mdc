@@ -1,0 +1,15 @@
+---
+description: Detect inline {{note}} blocks; contextual filenames; short chat log
+alwaysApply: true
+---
+
+# Solo notebook inline trigger
+
+If the user message contains `{{note` … `}}` (or a clear multiline personal `{{` … `}}` note, not code):
+
+1. Read and follow the `solo-notebook` skill.
+2. Still execute the rest of the prompt outside the note block.
+3. Resolve notes dir (existing `notes`/`notebook`/`заметки`, else `docs/notes` if `docs/` exists, else create `notes/`; honor `.solo-notebook` override).
+4. Expand → write `заметка_<N>-<slug>.md` (slug from contextual title).
+5. In chat: only `заметка_N-<slug> сохранена → <path>` — no full body unless asked to open it.
+6. Ground advice in the current repo and monetization/earnings for a solo builder.

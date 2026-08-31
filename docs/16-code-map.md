@@ -354,6 +354,18 @@ tools/                    Dev-only workspaces. Ship nowhere; still gated by
                               Complements Anthropic's session-report (cost),
                               deliberately not a fork of it — conventions § 8.3
 
+.cursor/                  Cursor Cloud Agent parity + desktop rules (dev-only).
+├── skills/               Vendored personal/global skills (59 dirs): copied from
+│                         `~/.agents/skills`, `~/.cursor/skills`, Cursor
+│                         `skills-cursor`, and the Atlassian plugin cache.
+│                         Cloud Agents read this tree from checkout, not
+│                         `~/.cursor/skills/`. Mirrored under `.claude/skills/`
+│                         for Claude Code.
+├── rules/                Global Cursor rules (`docs-autopilot`, `solo-notebook`)
+├── commands/             Global slash command (`docs-autopilot`)
+├── environment.json      Cloud Agent env manifest (`name` only — skills in-repo)
+└── mcp.json              Cursor MCP servers (aiflow-rag, context7)
+
 docker/                   Compose helpers (not a Yarn workspace).
 ├── postgres/init/        CREATE EXTENSION vector, pgcrypto (first-boot only)
 ├── aider-sandbox/        Aider sandbox image (Task 3.1): Dockerfile + runner.js
