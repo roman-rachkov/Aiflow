@@ -16,6 +16,18 @@ sandbox checks (LLM Reviewer → MVP-2). Sandbox API key via `/run/secrets/api_k
 User-app bootstrap template: `templates/user-nextjs/`. Details: `docs/04-roadmap.md` § 3,
 `docs/12-open-questions.md` #1/#5/#7/#8.
 
+## Current phase (docs-autopilot)
+
+| Gate            | Status | Notes |
+| --------------- | ------ | ----- |
+| `DOCS_COMPLETE` | see `docs/roadmap/STATUS.md` | Wave A pass 1 (analyst A3–A4) — prompt/UI/code-map/conventions sweep |
+| `APP_COMPLETE`  | `no`   | Implementation waves blocked until `DOCS_COMPLETE=yes` |
+| Roadmap phase   | Wave A | Doc analyst remediation before `REQUIREMENTS.md` / code waves |
+| Next milestone  | Wave B | Code gap audit → `MASTER_ROADMAP.md` + `REQUIREMENTS.md` |
+| Run / verify    | `docker compose up` then `docker compose exec app yarn verify` | Copy `.env.example` → `.env` first |
+
+Continuity artifacts: `docs/roadmap/DOC_GAPS.md`, `DOC_RESOLUTIONS.md`, `STATUS.md`, `docs/glossary.md`.
+
 Real packages today: `apps/web` (Next.js 15 App Router), `packages/db` (Prisma, two schemas),
 `packages/ui` (design system), `packages/ai-roles` (OpenAI-compatible chat+embed),
 `packages/crypto` (AES-256-GCM ModelConfig envelope), `packages/queue` (BullMQ
@@ -104,9 +116,10 @@ workspace with zero tests fails loudly instead of looking green. Pre-commit (`hu
 ## Code organization
 
 Feature-sliced inside `apps/web`: `app/ → features/ → shared/ → packages/`, one-way, enforced by
-ESLint (`import/no-internal-modules`, plus `no-restricted-imports` blocking deep `features/*/*`
-imports from `app/`). `app/` is routing only — no logic there. Each feature slice exposes a single
-`index.ts` public surface; never import another slice's internals.
+ESLint (`eslint-plugin-boundaries` `boundaries/dependencies` for cross-slice isolation;
+`import/no-cycle`). Barrel-only imports (`index.ts` public surface) are convention +
+review, not an active `import/no-internal-modules` rule yet — see `docs/15` § 4.2.
+Each feature slice exposes a single `index.ts` public surface; never import another slice's internals.
 
 **The UI split is load-bearing.** `packages/ui` (`@aiflow/ui`) owns primitives + design tokens
 (`Button`, `Input`/`Field`, `Card`, `Spinner`, plus `styles/theme.css`). `apps/web/src/shared/ui`

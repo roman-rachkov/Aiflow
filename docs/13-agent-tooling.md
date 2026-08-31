@@ -207,6 +207,12 @@ Definitions live in [`.claude/agents/`](../.claude/agents/), and they fall into 
 
 **Gap: the Deployer has no prompt.** The role is declared in [01-system-spec.md](01-system-spec.md) § 2.3 and in the roadmap (Task 4.3), but no `prompt-deployer` document exists. The subagent was deliberately not created — writing a prompt "in the spirit of" the spec would mean inventing specification content. Deferred by decision: revisit once local MVP development is judged satisfactory. Tracked as T3 below.
 
+**Mirror hygiene (T2):** `docs/05`–`08` are source of truth. `.claude/agents/{analyst,planner,coder,reviewer}.md`
+bodies match except for relative doc links and a trailing «mirror note» footer in the agent
+file. The `coder` agent YAML `description` still says «and commits» — misleading (runner
+commits; the Coder never does). Fix the frontmatter when editing agents; do not treat
+description drift as prompt drift.
+
 **Permission rationale.** The Reviewer deliberately has no write access: it issues a verdict, it does not fix code — matching the ACCEPTED/REJECTED loop in [08-prompt-reviewer.md](08-prompt-reviewer.md). The Planner is read-only: its output is JSON, not files. The Coder is the only one with full write and command execution.
 
 The three dev-only agents are read-only for a different reason: they run on a locally-served model. A weaker model with write or exec rights is a bad trade at any price — it reports, the caller applies. This is a standing rule for the free slot, not a per-agent judgement.

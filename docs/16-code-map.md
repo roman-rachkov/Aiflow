@@ -168,7 +168,8 @@ apps/
 │                                 useEditorDialogs / useEditorWsSideEffects /
 │                                 useTabs); client fetch in ui/api.ts
 │   shared:
-│     ├── ui/             AppHeader + AppNav (horizontal top nav; Task 1.2a / UX)
+│     ├── ui/             AppHeader + AppNav (horizontal nav for `(app)` layout
+│     │                    only — project list/create; links to legacy deep routes)
 │     ├── hooks/          usePollWhile + useProjectResourceList (D0f islands)
 │     ├── minio/          MinIO client: putObject/getObject/ensureBucket, lazy
 │     │                    singleton, scheme-less S3_ENDPOINT tolerated (Task 2.1)
@@ -355,9 +356,9 @@ tools/                    Dev-only workspaces. Ship nowhere; still gated by
                               deliberately not a fork of it — conventions § 8.3
 
 .cursor/                  Cursor Cloud Agent parity + desktop rules (dev-only).
-├── skills/               Vendored personal/global skills (59 dirs): copied from
-│                         `~/.agents/skills`, `~/.cursor/skills`, Cursor
-│                         `skills-cursor`, and the Atlassian plugin cache.
+├── skills/               Vendored personal/global skills (~60 top-level dirs):
+│                         copied from `~/.agents/skills`, `~/.cursor/skills`,
+│                         Cursor `skills-cursor`, and the Atlassian plugin cache.
 │                         Cloud Agents read this tree from checkout, not
 │                         `~/.cursor/skills/`. Mirrored under `.claude/skills/`
 │                         for Claude Code.
@@ -411,7 +412,7 @@ compose topology          `docker compose up` (no `--build`): postgres, redis,
 | Manual deploy (templates, enqueue, deployments UI)                 | `apps/web/src/features/deploy` (Task 2.3); worker `deploy:run`         |
 | Roadmap tasks + plan/code enqueue + live sandbox logs WS           | `apps/web/src/features/tasks` (3.2–3.3); worker `plan`/`code`          |
 | Model provider adapter (universal OpenAI-compatible, chat+embed)   | `packages/ai-roles/src` (Task 1.3; universal + embeddings in Task 2.1) |
-| App shell (header, top nav)                                        | `apps/web/src/shared/ui` (AppHeader, AppNav)                           |
+| App shell (list-layout header nav; project shell = `_shell/`)     | `apps/web/src/shared/ui` (AppHeader, AppNav); `ProjectShell` in `_shell/` |
 | MinIO object storage client                                        | `apps/web/src/shared/minio` (Task 2.1)                                 |
 | Gitea HTTP client (REST v1, fetch-only; token file or env)         | `apps/web/src/shared/gitea` (Task 2.2); worker `gitea-token.ts`        |
 | Gitea bootstrap after volume wipe                                  | `docker/gitea/bootstrap.sh` + compose `gitea-init`                     |

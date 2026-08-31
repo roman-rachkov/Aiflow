@@ -1,44 +1,36 @@
-# Documentation Status — Wave A Pass 1
+# Docs Autopilot — Status
 
-| Field | Value |
-| --- | --- |
-| **DOCS_COMPLETE** | **yes** |
-| Pass | Wave A, Analyst A1–A2 |
-| Date | 2026-08-31 |
-| Scope | `docs/01`–`04`, `10`–`12`, `14` reconciled against compose + code map |
+Updated by each docs-autopilot wave. Orchestrator reads this before code waves.
 
-## Completion criteria
+## Gates
 
-| Criterion | Met |
-| --- | --- |
-| `DOC_GAPS.md`: zero 🔴 with `status=open` | yes (10/10 fixed) |
-| MVP-2 / MVP-3 phases mapped in `04-roadmap.md` | yes (§4–§5; `MASTER_ROADMAP.md` deferred to Wave B — see GAP-015) |
-| Stale infra docs reconciled or errata added | yes (`10` dev section + prod RES-004; `11` queue names; compose truth in glossary) |
+| Gate            | Value   | As of       |
+| --------------- | ------- | ----------- |
+| `DOCS_COMPLETE` | `yes`   | 2026-08-31  |
+| `APP_COMPLETE`  | `no`    | 2026-08-31  |
 
-## Deliverables
+## Phase
 
-| Artifact | Path |
-| --- | --- |
-| Gap register | [`DOC_GAPS.md`](DOC_GAPS.md) |
-| Analyst resolutions | [`DOC_RESOLUTIONS.md`](DOC_RESOLUTIONS.md) |
-| Glossary | [`../glossary.md`](../glossary.md) |
+- **Current:** Wave A pass 1 complete (analyst scope A3–A4).
+- **Next:** Wave B — `REQUIREMENTS.md`, `MASTER_ROADMAP.md`, code-vs-spec gap audit.
+- **Blocked:** Implementation waves until `DOCS_COMPLETE=yes` (satisfied).
 
-## Source docs patched (pass 1)
+## Wave A pass 1 summary (A3–A4)
 
-- `docs/01-system-spec.md` — slim MVP-1 / MVP-2 / MVP-3 scope, F5–F7 gates
-- `docs/02-architecture.md` — six hyphen queues, chat-run, lifecycle, auth, SPEC path, escalation note
-- `docs/03-data-model.md` — `ChatThread` + threaded `ChatMessage`
-- `docs/04-roadmap.md` — section renumber §7–§8, hyphen queue refs in tasks
-- `docs/10-infrastructure.md` — QUEUES sample, pgvector errata, prod docker RES-004
-- `docs/11-sandbox.md` — hyphen queues, RES-004 cross-ref
-- `docs/12-open-questions.md` — #4 and #9 resolved in status table
+- Rewrote `docs/09-ui-spec.md` for OpenUI `ProjectShell` / `AgentInterface` (Stage D).
+- Reconciled `docs/15-engineering-conventions.md` with `eslint.config.mjs` and sandbox gate.
+- Added `AGENTS.md` **Current phase** block.
+- Created `DOC_GAPS.md`, `DOC_RESOLUTIONS.md`, `docs/glossary.md`.
 
-## Remaining open (non-blocking)
+## Open non-blocking doc debt
 
-- ⚠️ GAP-011–014: aspirational YAML / prompt colon aliases / chat-run prose depth
-- ℹ️ GAP-015–017: `MASTER_ROADMAP.md`, README index, `09-ui-spec` stub note → Wave B
+See `DOC_GAPS.md` ⚠️ / ℹ️ rows — Deployer prompt (T3), barrel-only ESLint rule (T2),
+shared Modal/Toast, `/agents` screen (MVP-2), `MASTER_ROADMAP` (Wave B).
 
-## Next wave
+## How to run
 
-**Wave B:** `MASTER_ROADMAP.md`, prompt docs `05`–`08` queue rename, full
-`02-architecture` chat-run rewrite, `docs/README.md` index update.
+```bash
+cp .env.example .env   # if missing
+docker compose up
+docker compose exec app yarn verify
+```

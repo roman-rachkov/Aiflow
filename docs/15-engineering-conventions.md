@@ -125,7 +125,11 @@ apps/worker/src/
 
 ### 2.2 The three rules that keep slices small
 
-**Slices do not import each other's internals.** `features/task-board` may import `features/spec-interview` only through its `index.ts`. Reaching into `features/spec-interview/model/parser.ts` is forbidden — enforced by `import/no-internal-modules`.
+**Slices do not import each other's internals.** `features/task-board` may import
+`features/spec-interview` only through its `index.ts`. Reaching into
+`features/spec-interview/model/parser.ts` is forbidden — enforced by
+`boundaries/dependencies` (cross-slice) and convention; barrel-only deep-import
+lint is not wired yet (see § 4.2).
 
 **Dependencies point one way:** `app/` → `features/` → `shared/` → `packages/`. No arrow backwards, no arrow sideways between slices. A slice that needs another slice's logic means that logic belongs in `shared/` or a package.
 
@@ -159,9 +163,14 @@ Per-module budget: a feature slice exceeding **400 lines** across its own files 
 
 ### 3.2 Severity: warning locally, error in CI
 
-Every rule above is configured `warn`. Because both the sandbox and CI run `--max-warnings 0` (`docs/11-sandbox.md:162`), a violation still blocks the merge — but it does not interrupt a work-in-progress file mid-edit. Strictness where it matters, quiet where it does not.
+Every rule above is configured `warn`. Because both the sandbox and CI run
+`eslint . --max-warnings 0` (`docs/11-sandbox.md`, `docker/aider-sandbox/runner.js`),
+a violation still blocks the merge — but it does not interrupt a work-in-progress
+file mid-edit. Strictness where it matters, quiet where it does not.
 
-**One prerequisite: the lint gate is currently fake.** `docs/11-sandbox.md:204-207` catches an ESLint failure, appends a `[WARNING]` line, and leaves `status = 'success'`. So `--max-warnings 0` blocks nothing today, and no size limit will be enforced until `runner.js` treats lint failure as fatal. Fixing that is part of the scaffolding task.
+**Sandbox gate (Task 3.1):** `runner.js` treats TypeScript, ESLint, Prettier, and
+`prisma validate` as fatal before `commitWorkspace`. Lint failure is no longer
+downgraded to a warning line.
 
 ### 3.3 Exemptions
 
@@ -185,14 +194,15 @@ Prettier owns formatting. ESLint owns correctness and structure, and carries no 
 
 ### 4.2 ESLint
 
-Flat config, `eslint.config.mjs` at the repo root, one shared base with per-package overrides. No config content existed before — only the bare command — so this is the whole specification.
+Flat config, `eslint.config.mjs` at the repo root, one shared base with per-package overrides.
 
 ```
-next/core-web-vitals          Next.js + React + a11y
-@typescript-eslint            strict-type-checked, requires a project reference
-eslint-plugin-import          resolution, cycles, boundaries
+@eslint/js recommended
+typescript-eslint strictTypeChecked (projectService + allowDefaultProject for root configs)
+eslint-plugin-import          no-cycle + TS resolver for path aliases
+eslint-plugin-boundaries      FSD layer policies (apps/web — see settings.boundaries/elements)
 eslint-plugin-unused-imports  auto-removable dead imports
-eslint-comments               disable directives must be justified
+@eslint-community/eslint-comments  disable directives must be justified
 eslint-config-prettier        last — disables conflicting stylistic rules
 ```
 
@@ -200,12 +210,18 @@ Rules that matter beyond the presets:
 
 | Rule                                      | Setting | Why                                                           |
 | ----------------------------------------- | ------- | ------------------------------------------------------------- |
-| `@typescript-eslint/no-explicit-any`      | error   | `docs/07-prompt-coder.md:28` already forbids `any`            |
+| `@typescript-eslint/no-explicit-any`      | error   | `docs/07-prompt-coder.md` forbids `any`                       |
 | `@typescript-eslint/no-floating-promises` | error   | An unawaited promise in a worker silently loses a job         |
 | `import/no-cycle`                         | error   | Cycles are how small modules quietly become one big one       |
-| `import/no-internal-modules`              | error   | Enforces § 2.2 slice boundaries                               |
-| `no-restricted-imports`                   | error   | Blocks `app/` → deep feature paths, and cross-slice internals |
+| `boundaries/dependencies`                 | error   | Enforces § 2.2 — `app` → `features`/`shared`, no cross-slice |
 | size rules from § 3.1                     | warn    | Blocking via `--max-warnings 0`                               |
+
+**FSD enforcement today:** `eslint-plugin-boundaries` with `capture: ['slice']` on
+`apps/web/src/features/*` — same-slice imports allowed, cross-slice forbidden,
+`app/` may reach features and shared only. There is **no** active
+`import/no-internal-modules` or `no-restricted-imports` rule in
+`eslint.config.mjs` (comments in feature barrels still cite the intended policy;
+re-enable or document a barrel-only rule under T2 tooling if deep imports become a problem).
 
 `strict-type-checked` requires type information, which makes lint slower than a syntax-only pass. Worth it: it is what catches floating promises and unsafe `any` propagation, both of which matter more in a queue-driven system than in a typical app.
 
@@ -344,7 +360,7 @@ Not yet updated — these are edits for the scaffolding task, where paths change
 | ~~`docs/11-sandbox.md`~~         | ~~Lint failure non-fatal, no Prettier or `prisma validate`, `--no-git` vs. `no-auto-commits` contradiction~~ — **done 2026-08-02**. ~~Still open: no commit call in `runner.js`~~ — **done Task 3.1** (`commitWorkspace` after gate)                                 |
 | ~~`docs/03-data-model.md`~~      | ~~Doc prose lagged the Prisma schemas~~ — **done 2026-08-08**: § 2/§ 3/§ 7 rewritten against `schema.prisma` + `schema_project_template.prisma (enums, missing models, indexes). Schema and doc now agree.                                                           |
 | ~~`docs/08-prompt-reviewer.md`~~ | ~~Add the size criterion from § 6 to the REJECTED list~~ — **done 2026-08-07** (file ≤200 / function ≤50 on REJECTED)                                                                                                                                                |
-| `docs/09-ui-spec.md`             | § 9 gained an "Implementation pointers" subsection (2026-08-08: token file, primitives, app-composition). **Still open:** the component inventory (modal, toast, tabs, timeline, file tree) is unbuilt as shared primitives — arrives with the screens that need it. |
+| `docs/09-ui-spec.md`             | **Resolved 2026-08-31 (Wave A)** — rewritten for OpenUI `ProjectShell` / `AgentInterface` shell (Stage D). **Still open:** shared Modal/Toast/Timeline primitives; `/agents` screen (MVP-2); Monaco SPEC edit in shell. |
 | ~~`docs/12-open-questions.md`~~  | ~~#3 (concurrency) loses its premise~~ — **done 2026-08-02**, #3 marked Resolved                                                                                                                                                                                     |
 
 ### Resolved defect: `yarn verify` on a clean tree

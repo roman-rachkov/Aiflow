@@ -1,99 +1,69 @@
-# AI Studio — Glossary
+# AI Studio glossary
 
-User-facing Russian terms (product copy), English code identifiers, and
-one-line technical definitions. ADR precedence is listed for conflict resolution.
+Terms linking product language (often Russian UI), docs, and code. English in docs;
+UI strings may be Russian per language policy.
 
-## ADR hierarchy (highest wins)
+## ADR / doc hierarchy (docs-autopilot)
 
-1. [`14-decisions-needed.md`](14-decisions-needed.md) resolved table + § A–E
-2. [`12-open-questions.md`](12-open-questions.md) status table
-3. [`04-roadmap.md`](04-roadmap.md) — MVP phases and task status
-4. [`02-architecture.md`](02-architecture.md) — component topology
-5. [`10-infrastructure.md`](10-infrastructure.md) / [`11-sandbox.md`](11-sandbox.md)
-   — partly aspirational YAML; live dev = root `docker-compose.yml`
-6. [`01-system-spec.md`](01-system-spec.md) — product intent (overview)
-7. Prompts [`05`](05-prompt-analyst.md)–[`08`](08-prompt-reviewer.md)
-8. [`09-ui-spec.md`](09-ui-spec.md) — screens and flows
+When documents conflict during autopilot:
 
-Operational truth for paths and queues: [`16-code-map.md`](16-code-map.md) +
-repo root compose file.
+1. `CLAUDE.md` + `docs/` (source of truth for this repo)
+2. `docs/14-decisions-needed.md` resolved table
+3. `docs/12-open-questions.md` status table
+4. `notes/` — ideas only until promoted to roadmap
 
----
+Product user-facing copy: user's language. Internal agent traffic: English.
 
-## Personas and UI modes
+## Roles (personas & AI)
 
-| RU (user-facing) | Code / doc EN | One-liner |
-| --- | --- | --- |
-| Заказчик / «тётя Зина» | Customer | Non-technical user; BASIC mode default |
-| Инженер / «дядя Вася» | Engineer | Technical user; PRO mode (`User.uiMode`) |
-| Pro-режим | `UiMode.PRO` | Unlocks editor, model config, planner/coder tools |
-| Базовый режим | `UiMode.BASIC` | Chat + SPEC + deploy; no manual editor |
+| Term | Code / doc | Meaning |
+| ---- | ---------- | ------- |
+| Customer / Aunt Zina | UI mode `BASIC` | Non-technical user; chat-first workflow |
+| Engineer / Uncle Vasya | UI mode `PRO` | Planner, coder enqueue, editor, model config |
+| Analyst | `docs/05`, `.claude/agents/analyst.md`, chat worker | Interviews user, produces `SPEC.md` |
+| Planner | `docs/06`, `plan-generate` queue | SPEC → JSON task array |
+| Coder | `docs/07`, `code-execute`, Aider sandbox | One atomic task per branch |
+| Reviewer | `docs/08`, `code-review` queue | Verdict JSON; MVP-2 product gate |
+| Deployer | roadmap 4.3, worker `deploy-run` | Build image + deploy (no prompt file yet) |
 
-`User.role` (OWNER/ADMIN/USER) is authorization for future admin — not the Customer/Engineer split.
+## UI (Russian ↔ routes)
 
----
+| Russian (UI) | Route / shell | Component |
+| ------------ | ------------- | --------- |
+| Проекты | `/projects` | `ProjectList` |
+| Исследование | `/projects/[id]/research` → redirect home | legacy `AppNav` link |
+| (project home / chat) | `/projects/[id]` | `ProjectShell` / `AgentInterface` |
+| Задачи | shell `tasks` or `/projects/[id]/tasks` | `TasksPanel` |
+| Развёртывания | shell `deploy` or `/deployments` | `DeploymentsPanel` |
+| Редактор | `/projects/[id]/editor` | `EditorShell` |
+| Модели | shell `models` or `/settings/models` | `ModelSettingsForm` |
+| Утвердить (SPEC) | — | `SpecApproveButton` |
 
-## AI roles (internal, English in prompts)
+## Artifacts
 
-| Role | RU in UI (examples) | Queue / trigger |
-| --- | --- | --- |
-| Analyst | Аналитик, чат | `chat-run` tool `spec:generate` |
-| Planner | Планировщик | `plan-generate` |
-| Coder | Кодер | `code-execute` → sandbox |
-| Reviewer | Ревьюер | `code-review` (MVP-2+ product) |
-| Deployer | Деплой | `deploy-run` |
+| Term | Location | Notes |
+| ---- | -------- | ----- |
+| `SPEC.md` | Gitea repo root | Hybrid: English headings, user-language body |
+| `Task` | per-project schema | Planner output; branch `task/{id}-{slug}` |
+| `TaskLog` | per-project schema | Progress checkpoint; Redis disposable |
+| `ChatThread` | per-project schema | OpenUI thread list backing store |
 
----
+## Tech one-liners
 
-## Core artifacts
+| Term | Meaning |
+| ---- | ------- |
+| OpenUI | `@openuidev/react-ui` — `AgentInterface` chat shell in `apps/web` |
+| AG-UI | Agent UI event protocol; SSE from `/threads/{tid}/run` |
+| `chat-run` | BullMQ queue; worker owns tool loop + SPEC generation tool |
+| pgvector | Embeddings in per-project `DocumentChunk`; RAG retrieval |
+| `registry-proxy` | Sandbox-only egress allowlist (npm registry) |
+| `aiflow-rag` | Dev MCP over `apps/web/scripts/rag-mcp.ts` |
+| FSD | Feature-sliced design — `app → features → shared → packages` |
+| `boundaries/dependencies` | ESLint rule enforcing cross-slice isolation in `apps/web` |
 
-| Term | Location | One-liner |
-| --- | --- | --- |
-| SPEC.md | DB `Specification` (+ Gitea copy) | Versioned requirements; section headings EN, body user language |
-| User repo SPEC | `specs/SPEC.md` in generated Gitea repo | Copy for version control alongside code |
-| Platform SPEC draft | `specs/{slug}/SPEC.md` in monorepo | B1 directory layout for design artifacts |
-| Task branch | `task/{id}-{slug}` | Git isolation per Coder task |
-| Sandbox gate | `docker/aider-sandbox/runner-checks.js` | Fatal tsc/eslint/prettier/prisma validate |
+## Autopilot gates
 
----
-
-## Infrastructure (dev compose)
-
-| Term | Value / path | One-liner |
-| --- | --- | --- |
-| App | `:3000` | Next.js + API + WS proxy; stateless |
-| Gitea (browser) | `:3002` → container `:3000` | One Git repo per project |
-| model-router | `:3001` | OpenAI-compatible provider router (stub OK for MVP) |
-| registry-proxy | internal `:3128` | CONNECT allowlist for sandbox egress |
-| Project DB schema | `project_{uuid}` | Platform tables per tenant |
-| User app DB schema | `app_{hex}` | Deploy-time `prisma db push` target |
-| API key to sandbox | `/run/secrets/api_key` | Read-only file mount, never env |
-| docker.sock | worker mount | **DEV-ONLY** — RES-004 |
-| Node dev image | `node:22-bookworm` | Stock image, bind mount, no `build:` |
-| Postgres image | `pgvector/pgvector:pg16` | pgvector for RAG embeddings |
-
----
-
-## Queues (canonical hyphen names)
-
-`spec-generate` (dormant stub) · `plan-generate` · `code-execute` ·
-`code-review` · `deploy-run` · `chat-run`
-
----
-
-## MVP phases (roadmap shorthand)
-
-| Phase | Scope |
-| --- | --- |
-| MVP-0 | Auth, projects, chat, RAG, SPEC, editor, manual deploy |
-| Slim MVP-1 | Planner + sandbox Coder; gate = sandbox checks |
-| MVP-2 | LLM Reviewer product path, Support Bot, domain deploy, dogfood/load |
-| MVP-3 | Agent maturity: idempotency, Langfuse, Self-Refine, escalation (C3) |
-
----
-
-## Cross-links
-
-- Gap tracker: [`roadmap/DOC_GAPS.md`](roadmap/DOC_GAPS.md)
-- Analyst decisions: [`roadmap/DOC_RESOLUTIONS.md`](roadmap/DOC_RESOLUTIONS.md)
-- Doc completion: [`roadmap/STATUS.md`](roadmap/STATUS.md)
+| Gate | Meaning |
+| ---- | ------- |
+| `DOCS_COMPLETE` | No 🔴 open in `DOC_GAPS.md`; specs consistent enough for Wave B |
+| `APP_COMPLETE` | `REQUIREMENTS.md` open registry empty; smoke evidence per DoD |

@@ -1,75 +1,59 @@
-# Analyst Resolutions — Wave A Pass 1
+# Doc analyst resolutions (mini-ADR)
 
-Binding decisions for open questions that blocked documentation or prod
-narrative. Implementation code is unchanged in this pass (docs only).
-
----
-
-## RES-004 — `docker.sock` on the worker (OQ #4)
-
-**Decision:** Keep the host socket mount **dev-only** (current
-`docker-compose.yml`). For production sandbox orchestration, adopt a
-**dedicated Docker host** reached via **dockerode + mutual TLS** — not the
-platform app host, not an in-cluster `docker.sock` mount.
-
-| Environment | Mechanism | Rationale |
-| --- | --- | --- |
-| Dev / Compose | Bind-mount `/var/run/docker.sock` on `worker` | Zero extra infra; acceptable on a single-engineer machine |
-| Prod (MVP-3 **D3** packaging) | Remote Docker API on a sandbox-only VM; TLS client certs in worker secrets | Blast radius isolated from Postgres/Redis; matches OQ #4 option "dedicated Docker host" |
-| Rejected for MVP scale | Kubernetes Jobs per coder task | Operational cost exceeds 5 concurrent projects |
-| Rejected | Remote runner without TLS | Same privilege as sock mount over the network |
-
-**Does not block MVP-0/1/2 dev work.** Prod compose must drop the sock mount
-when D3 lands; until then document the mount as `DEV-ONLY` (already in compose
-comments).
-
-**Affected docs updated:** `12-open-questions.md` status table, `10-infrastructure.md`
-§ Moving to production, `11-sandbox.md` integration note.
+Decisions made during docs-autopilot Wave A without user input. Source of truth for
+defaults that closed blocking gaps.
 
 ---
 
-## RES-009 — Escalation to a stronger model (OQ #9)
+## R-A3-01 — UI spec follows shipped OpenUI shell (2026-08-31)
 
-**Decision:** Escalation is **explicitly post-MVP**. Ship at **MVP-3 task C3**
-only. Until then:
+**Context:** `docs/09-ui-spec.md` predated Stage D (`ProjectShell`, `AgentInterface`).
 
-1. Each role runs on a **single model** from `ModelConfig.config`.
-2. `services/model-router` may remain a stub but **must not foreclose** a second
-   routed request (advisor) — same OpenAI-compatible contract as the primary.
-3. **Trigger policy (when C3 ships):** worker-decided fixed points — before
-   `plan-generate`, on repeated task failure, before marking a plan complete —
-   not model-decided ad hoc.
-4. **Advisor constraint:** advisor model ≥ primary capability (Anthropic pattern).
-5. **Cache:** escalated calls are **not** written to the 1-hour Redis response
-   cache (distinct cache key namespace `escalation:` or skip cache entirely).
-6. **Structured output:** pairs with C3 in `14-decisions-needed.md` — validate +
-   retry on parse failure; advisor disagreement is a separate retry policy (max 1
-   advisor override per trigger).
+**Decision:** Canonical project UX is `/projects/[id]` full-bleed shell: chat default,
+sidebar threads + Route panels (`files`, `tasks`, `deploy`, `spec`, `models`). Legacy
+`/research` redirects home. Standalone `/tasks` and `/deployments` remain deep links.
+`AppNav` applies only to `(app)` layout (project list).
 
-**Does not block current implementation.** No `advisor` field in `ModelConfig`
-until C3 schema migration.
-
-**Affected docs updated:** `12-open-questions.md` #9 status, `02-architecture.md`
-§2.5 note, `04-roadmap.md` §5 C3 cross-ref.
+**Rationale:** Code map and `ProjectShell.tsx` are authoritative; spec must match for
+Wave B requirement extraction.
 
 ---
 
-## RES-QUEUE — Canonical BullMQ queue names
+## R-A3-02 — AGENTS.md continuity block (2026-08-31)
 
-**Decision:** All documentation uses **hyphen** queue names matching
-`packages/queue` and compose `QUEUES`:
+**Context:** docs-autopilot SKILL requires `Current phase` with gate flags and run commands.
 
-`spec-generate`, `plan-generate`, `code-execute`, `code-review`,
-`deploy-run`, `chat-run`.
-
-Colon forms (`plan:generate`, etc.) are **historical aliases only** — invalid
-for BullMQ (Redis key separator). Prompt files updated in a later wave.
+**Decision:** Add table linking `DOCS_COMPLETE`, `APP_COMPLETE`, next wave, and
+`docker compose exec app yarn verify`.
 
 ---
 
-## RES-SLIM-MVP1-GATE — Product acceptance gate
+## R-A4-01 — Sandbox lint gate is real (2026-08-31)
 
-**Decision (reaffirms OQ #7):** Slim MVP-1 product gate = sandbox runner checks
-(tsc, ESLint `--max-warnings 0`, Prettier, `prisma validate`). LLM Reviewer
-(`code-review`) may run in dev/staging but is **not** the slim MVP-1 ship
-criterion; full Reviewer product gate = MVP-2 §4.1; Self-Refine loop = MVP-3 C1.
+**Context:** `docs/15` § 3.2 still described pre-3.1 non-fatal lint.
+
+**Decision:** Document `runner.js` + `runner-gate.js` fatal chain (tsc, eslint,
+prettier, prisma validate) before commit.
+
+**Evidence:** `docker/aider-sandbox/runner.js`, `runner-checks.js`.
+
+---
+
+## R-A4-02 — ESLint FSD enforcement = boundaries plugin (2026-08-31)
+
+**Context:** Docs cited `import/no-internal-modules` and `no-restricted-imports` not present
+in `eslint.config.mjs` (only `import/no-cycle` + `boundaries/dependencies`).
+
+**Decision:** Update `docs/15` § 4.2 and `AGENTS.md` to describe actual stack. Cross-slice
+is enforced; barrel-only deep imports remain convention + future T2 work.
+
+**Not decided:** Re-add `import/no-internal-modules` — deferred; log as A4-03 open gap.
+
+---
+
+## R-A3-05 — Deployer prompt deferral stands (2026-08-31)
+
+**Context:** T3 — no `docs/08`-style deployer prompt.
+
+**Decision:** Waive as blocking for `DOCS_COMPLETE`; deploy path is largely deterministic
+code (`deploy-run` worker). Revisit when MVP-3 domain deploy (D3) needs LLM steps.
