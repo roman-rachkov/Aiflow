@@ -8,8 +8,8 @@
 # Prerequisites: copy .env.example → .env and set AUTH_SECRET / ENCRYPTION_KEY /
 # OPENAI_* (empty OPENAI_API_KEY = MOCK provider).
 # Start:  docker compose up
-# Ports:  3000 app, 3001 model-router, 3002 Gitea, 3100 Langfuse UI,
-#         5432 pg, 6379 redis, 9000/9001 MinIO.
+# Ports:  3000 app, 3001 model-router, 3002 Gitea, 3030 Bull Board,
+#         3100 Langfuse UI, 5432 pg, 6379 redis, 9000/9001 MinIO.
 
 x-healthcheck-defaults: &healthcheck-defaults
   interval: 10s
@@ -330,6 +330,36 @@ services:
         soft: 262144
         hard: 262144
 
+  # Bull Board — dev-only BullMQ dashboard on host port 3030.
+  # Set BULL_BOARD_USER / BULL_BOARD_PASSWORD in .env to enable Basic auth.
+  # Leave both empty (default) to skip auth — acceptable for local dev only.
+  bull-board:
+    <<: *node-service
+    command: ['bash', '-c', 'node_modules/.bin/tsx tools/bull-board/src/index.ts']
+    environment:
+      <<: *node-env
+      ROLE: bull-board
+      BULL_BOARD_PORT: '3030'
+      # Optional: set to enable Basic auth (dev can leave empty).
+      BULL_BOARD_USER: ${BULL_BOARD_USER:-}
+      BULL_BOARD_PASSWORD: ${BULL_BOARD_PASSWORD:-}
+    ports:
+      - '3030:3030'
+    volumes:
+      - .:/workspace
+      - node_modules:/workspace/node_modules
+      - bull_board_node_modules:/workspace/tools/bull-board/node_modules
+      - queue_node_modules:/workspace/packages/queue/node_modules
+      - yarn_cache:/root/.yarn/berry/cache
+      - yarn_install_stamp:/var/cache/aiflow-yarn
+      - corepack_home:/root/.cache/node/corepack
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - internal
+    restart: unless-stopped
+
   langfuse-redis:
     image: redis:7-alpine
     command:
@@ -468,6 +498,7 @@ volumes:
   queue_node_modules:
   crypto_node_modules:
   session_analyzer_node_modules:
+  bull_board_node_modules:
   yarn_cache:
   yarn_install_stamp:
   corepack_home:
