@@ -29,13 +29,15 @@ Task type?
 │   └─ web-design-guidelines
 ├─ API or route handlers changed
 │   └─ api-smoke-testing (compose up; auth cookies as needed)
-├─ Frontend behaviour check, no Playwright project yet
+├─ Frontend behaviour check (light, no server needed)
 │   └─ webapp-testing (Python Playwright scripts) OR agent-browser for one-off
+├─ Full E2E against running server
+│   └─ `yarn test:e2e` → Playwright (`apps/web/e2e/`); needs `docker compose up` or `yarn dev`
 ├─ About to claim done / commit / open PR
 │   ├─ verification-before-completion → run `yarn verify` (or `docker compose exec app yarn verify`)
 │   └─ Cloud Agent + UI change → walkthrough-artifacts (screenshot / RecordScreen)
 └─ Adding persistent E2E suite
-    └─ DEFER — no @playwright/test in repo yet; use e2e-testing-patterns + playwright-best-practices when adopted
+    └─ e2e-testing-patterns + playwright-best-practices (configured: `apps/web/e2e/`, `yarn test:e2e`; needs running server)
 ```
 
 ## Workflow hooks

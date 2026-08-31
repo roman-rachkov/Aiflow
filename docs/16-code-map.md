@@ -416,6 +416,7 @@ compose topology          `docker compose up` (no `--build`): postgres, redis,
 | Gitea HTTP client (REST v1, fetch-only; token file or env)         | `apps/web/src/shared/gitea` (Task 2.2); worker `gitea-token.ts`        |
 | Gitea bootstrap after volume wipe                                  | `docker/gitea/bootstrap.sh` + compose `gitea-init`                     |
 | App HTTP bind (`LISTEN_HOST` / `HOST`, never Docker `HOSTNAME`)    | `apps/web/server.ts`                                                   |
+| Playwright E2E smoke tests (`yarn test:e2e`; needs running server) | `apps/web/e2e/smoke.spec.ts`, `apps/web/playwright.config.ts`          |
 | Pro code editor (Monaco + Gitea files/git + in-memory WS hub)      | `apps/web/src/features/editor` (Task 2.2); WS via `apps/web/server.ts` |
 | UI primitives + design tokens (OpenUI-backed)                      | `packages/ui/src` (Task 1.2d; OpenUI D0a)                              |
 | OpenUI brand tokens (CSS `:root` overrides)                        | `apps/web/src/app/globals.css` (D0a; no ThemeProvider)                 |
