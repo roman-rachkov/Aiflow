@@ -17,6 +17,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "evals": "yarn workspace @aiflow/evals evals",
     "verify": "yarn typecheck && yarn lint && yarn format:check && yarn test",
     "prepare": "husky"
   },

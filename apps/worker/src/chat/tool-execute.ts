@@ -1,5 +1,7 @@
 /** Tool execution context + result + dispatcher for chat:run. */
 
+import { allowMutatingTool } from '@aiflow/ai-roles';
+
 import type { ResolvedAnalystProvider } from './resolve-provider';
 import {
   DEPLOY_TOOL,
@@ -28,6 +30,10 @@ export interface ToolExecContext {
   ownerId: string;
   uiMode: 'BASIC' | 'PRO';
   resolved: ResolvedAnalystProvider;
+  /** Latest user turn — used for B4 write-tool intent checks. */
+  userMessage: string;
+  /** Retrieved RAG block mixed into the system prompt (may be empty). */
+  ragContext: string;
 }
 
 export interface ToolResult {
@@ -44,6 +50,16 @@ export async function executeTool(
   args: unknown,
   ctx: ToolExecContext,
 ): Promise<ToolResult> {
+  if (!allowMutatingTool(name, ctx.userMessage, ctx.ragContext)) {
+    return {
+      heading: name,
+      content: {
+        error:
+          'Инструмент заблокирован: подозрительные инструкции в загруженных документах без явного запроса пользователя.',
+      },
+      error: true,
+    };
+  }
   switch (name) {
     case SPEC_GENERATE_TOOL:
       return executeSpecGenerate(ctx);

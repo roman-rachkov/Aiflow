@@ -291,25 +291,38 @@ it" stance above holds until C3 ships.
 
 ---
 
-## 5a. LLM observability — Langfuse (planned, MVP-3)
+## 5a. LLM observability — Langfuse (MVP-3 B1–B4 shipped)
 
 MVP-3 adds a single observability layer for every LLM role
 ([04-roadmap.md](04-roadmap.md) § 5, tracks B1–B4; decision E2 in
 [14-decisions-needed.md](14-decisions-needed.md)).
 
-**Langfuse self-host** ships as a service in `docker-compose.yml` (Postgres-
-backed, OTLP receiver). A wrapper over `createOpenAICompatibleProvider` in
-`packages/ai-roles/src/openai-compatible.ts` — the single chokepoint of all
-roles — traces prompt/tokens/latency/cost/errors for Analyst/Planner/Coder/
-Reviewer, linked to project/task. The `traceId` propagates into `TaskLog` and
-`AuditEvent` for cross-link (so a Coder attempt is visible end-to-end, from queue
-to LLM call to commit/verdict). An `LLMCall` row in the public schema stays as a
-cold fallback/audit, not the primary path.
+**B1 (2026-08-23):** Langfuse v3 self-host in `docker-compose.yml` —
+`langfuse-web` (host **3100**), `langfuse-worker`, dedicated `clickhouse` +
+`langfuse-redis`, OLTP DB `langfuse` on shared Postgres, MinIO bucket via
+`docker/minio/ensure-langfuse-bucket.sh`. Licence: Langfuse is MIT (OSS). Dev
+seed user/keys via `LANGFUSE_INIT_*` in `.env.example`. Existing Postgres
+volumes need a one-shot `CREATE DATABASE langfuse;`.
 
-This section is the placeholder — populate it (licence verdict, ingestion
-format, role→trace mapping) when B1 ships. Until then it does not exist in the
-tree. Evals (B3) build on Langfuse datasets; the prompt-injection red-team (B4)
-targets the Analyst `withRagContext` surface.
+**B2 (2026-08-23):** wrapper over `createOpenAICompatibleProvider` in
+`packages/ai-roles` — traces prompt/tokens/latency/errors for Analyst/Planner/
+Reviewer (and embeddings). Env: `LANGFUSE_PUBLIC_KEY` + `LANGFUSE_SECRET_KEY`
+(+ optional `LANGFUSE_BASE_URL`); unset → noop. Compose app/worker point
+`LANGFUSE_BASE_URL` at `http://langfuse-web:3000`. Workers set
+`runWithTraceContext({ role, projectId, taskId })`; Reviewer appends
+`langfuseTraceId=` to `TaskLog`. `AuditEvent` cross-link → A3. Sandbox Aider
+calls are out of this wrapper.
+
+**B3 (2026-08-23):** `tools/evals` golden SPEC→plan→code suite + prompt-contract
+regression (`yarn evals`). Offline fixtures by default; `EVALS_LIVE=1` for a
+live Planner call. Optional Langfuse boolean scores on the same ingestion API
+(noop without keys). CI: `.github/workflows/evals.yml` on
+`.claude/agents/**` / sandbox coder / planner+reviewer / `tools/evals/**`.
+
+**B4 (2026-08-23):** untrusted RAG wrap + `allowMutatingTool` guard in
+`packages/ai-roles` (`rag-safety.ts`); worker `executeTool` blocks write tools
+when RAG looks injected without explicit user intent; red-team cases in
+`tools/evals` (`scoreRedTeam`) on the same `yarn evals` / CI path.
 
 ---
 

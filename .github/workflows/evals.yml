@@ -1,0 +1,57 @@
+# Golden SPEC→plan→code evals + prompt-injection red-team (MVP-3 B3/B4).
+# Fires when role prompts, RAG surface, or the eval suite change.
+
+name: evals
+
+on:
+  pull_request:
+    paths:
+      - '.claude/agents/**'
+      - 'packages/ai-roles/src/planner*'
+      - 'packages/ai-roles/src/reviewer*'
+      - 'packages/ai-roles/src/rag-safety*'
+      - 'docker/aider-sandbox/**'
+      - 'apps/worker/src/chat/**'
+      - 'apps/web/src/features/chat/model/schema*'
+      - 'tools/evals/**'
+      - '.github/workflows/evals.yml'
+  push:
+    branches: [main]
+    paths:
+      - '.claude/agents/**'
+      - 'packages/ai-roles/src/planner*'
+      - 'packages/ai-roles/src/reviewer*'
+      - 'packages/ai-roles/src/rag-safety*'
+      - 'docker/aider-sandbox/**'
+      - 'apps/worker/src/chat/**'
+      - 'apps/web/src/features/chat/model/schema*'
+      - 'tools/evals/**'
+      - '.github/workflows/evals.yml'
+  workflow_dispatch:
+
+jobs:
+  evals:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Enable Corepack (Yarn 4)
+        run: corepack enable
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: yarn
+
+      - name: Install
+        run: yarn install --immutable
+
+      - name: Run golden + red-team evals (offline)
+        run: yarn evals
+        env:
+          EVALS_LIVE: '0'
+          LANGFUSE_PUBLIC_KEY: ''
+          LANGFUSE_SECRET_KEY: ''
