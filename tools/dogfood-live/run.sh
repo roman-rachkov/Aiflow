@@ -30,6 +30,10 @@ echo "[dogfood-live] build sandbox image (once per machine)…"
 sudo docker build -t aistudio/aider-sandbox:latest -f docker/aider-sandbox/Dockerfile docker/aider-sandbox
 
 echo "[dogfood-live] run live pipeline inside app container…"
-sudo docker compose exec -T -e DOGFOOD_LIVE=1 -e DOGFOOD_FIXTURE="${DOGFOOD_FIXTURE:-}" app yarn workspace @aiflow/web dogfood-live
+sudo docker compose exec -T \
+  -e DOGFOOD_LIVE=1 \
+  -e DOGFOOD_FIXTURE="${DOGFOOD_FIXTURE:-}" \
+  -e SANDBOX_RUN_AS="${SANDBOX_RUN_AS:-1000:1000}" \
+  app yarn workspace @aiflow/web dogfood-live
 
 echo "[dogfood-live] done — see specs/slim-mvp1-dogfood/EVIDENCE.md"

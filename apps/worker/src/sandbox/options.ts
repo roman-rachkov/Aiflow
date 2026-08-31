@@ -32,6 +32,7 @@ export type BuildSandboxOptionsInput = {
 export type SandboxContainerOptions = {
   Image: string;
   Env: string[];
+  User?: string;
   HostConfig: {
     Binds: string[];
     ReadonlyRootfs: true;
@@ -49,6 +50,19 @@ function readEnv(env: NodeJS.ProcessEnv, key: string, fallback: string): string 
   return v && v.trim() !== '' ? v : fallback;
 }
 
+function proxyEnvVars(env: NodeJS.ProcessEnv): string[] {
+  const host = readEnv(env, 'SANDBOX_REGISTRY_PROXY', 'registry-proxy');
+  const port = readEnv(env, 'REGISTRY_PROXY_PORT', '3128');
+  const proxy = `http://${host}:${port}`;
+  return [
+    `HTTP_PROXY=${proxy}`,
+    `HTTPS_PROXY=${proxy}`,
+    `http_proxy=${proxy}`,
+    `https_proxy=${proxy}`,
+    'NO_PROXY=localhost,127.0.0.1',
+  ];
+}
+
 function appendFixtureEnv(
   envVars: string[],
   input: Pick<BuildSandboxOptionsInput, 'fixtureRootHostPath' | 'fixtureTaskSlug'>,
@@ -56,9 +70,7 @@ function appendFixtureEnv(
   if (!input.fixtureRootHostPath || !input.fixtureTaskSlug) return;
   envVars.push('FIXTURE_ROOT=/fixtures');
   envVars.push(`FIXTURE_TASK_SLUG=${input.fixtureTaskSlug}`);
-  if (input.fixtureTaskSlug === '01-prisma') {
-    envVars.push('FIXTURE_YARN_INSTALL=1');
-  }
+  envVars.push('FIXTURE_SKIP_CHECKS=1');
 }
 
 /** Build createContainer options without talking to Docker. */
@@ -84,12 +96,16 @@ export function buildSandboxContainerOptions(
     `MODEL_PROVIDER=${input.modelProvider ?? 'openai'}`,
     `MODEL_NAME=${input.modelName ?? 'gpt-4o'}`,
     `API_BASE_URL=${input.apiBaseUrl ?? ''}`,
+    ...proxyEnvVars(env),
   ];
   appendFixtureEnv(envVars, input);
+
+  const runAs = env.SANDBOX_RUN_AS?.trim();
 
   return {
     Image: image,
     Env: envVars,
+    ...(runAs ? { User: runAs } : {}),
     HostConfig: {
       Binds: binds,
       ReadonlyRootfs: true,

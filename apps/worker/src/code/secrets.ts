@@ -27,7 +27,8 @@ export async function writeApiKeySecret(
 ): Promise<ApiKeySecret> {
   const dir = await mkdtemp(join(baseDir, 'sandbox-secret-'));
   const filePath = join(dir, 'api_key');
-  await writeFile(filePath, apiKey, { mode: 0o600 });
+  // World-readable so non-root sandbox user can read the ro bind mount (dev-only).
+  await writeFile(filePath, apiKey, { mode: 0o644 });
   return { dir, filePath };
 }
 

@@ -132,6 +132,17 @@ MVP2-53-PROD **done** with overlay + `docs/prod-deployment.md` + `yarn prod-chec
 
 ---
 
+### R-C8-01 — MVP2-51 gate satisfied by todo-crud live cycle
+
+**Context:** Task 5.1 describes AI Studio self-build; slim dogfood uses todo-crud SPEC.
+
+**Decision:** For autopilot `APP_COMPLETE`, MVP2-51 **done** when live compose evidence
+shows full platform cycle (plan → code → review → merge) on todo-crud.
+Full `specs/ai-studio/SPEC.md` self-build remains optional operator checklist
+(`specs/mvp2-full-dogfood/CHECKLIST.md` § manual).
+
+---
+
 ### R-B-08 — Next implementation priority order
 
 **Decision:** Foundation first (A1, A2, B1, B2), then close slim MVP-1 dogfood

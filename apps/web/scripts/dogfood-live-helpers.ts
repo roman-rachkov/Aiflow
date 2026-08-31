@@ -11,13 +11,19 @@ export function taskOutcome(tasks: TaskSummary[]): { ok: boolean; detail: string
   const failed = tasks.filter((t) => t.status === 'FAILED');
   const inProgress = tasks.filter((t) => t.status === 'IN_PROGRESS');
   const done = tasks.filter((t) => t.status === 'DONE');
+  const pending = tasks.filter((t) => t.status === 'PENDING' || t.status === 'AWAITING_REVIEW');
   if (failed.length > 0) {
     return { ok: false, detail: `failed: ${failed.map((t) => t.title).join(', ')}` };
   }
-  if (inProgress.length > 0) {
-    return { ok: false, detail: `in progress: ${inProgress.map((t) => t.title).join(', ')}` };
+  if (inProgress.length > 0 || pending.length > 0) {
+    return {
+      ok: false,
+      detail: `${String(done.length)}/${String(tasks.length)} DONE; active: ${inProgress.length + pending.length}`,
+    };
   }
-  if (done.length === 0) return { ok: false, detail: 'no DONE tasks yet' };
+  if (done.length !== tasks.length) {
+    return { ok: false, detail: `${String(done.length)}/${String(tasks.length)} DONE` };
+  }
   return { ok: true, detail: `${String(done.length)}/${String(tasks.length)} DONE` };
 }
 

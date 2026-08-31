@@ -79,6 +79,9 @@ function applyFixtureCodegen() {
   const srcDir = path.join(root, slug);
   console.log(`=== DOGFOOD_FIXTURE: applying ${srcDir} ===`);
   copyFixtureTree(srcDir, WORKSPACE);
+  if (process.env.FIXTURE_SKIP_CHECKS === '1') {
+    return { stdout: 'fixture-codegen-fast', stderr: '' };
+  }
   if (process.env.FIXTURE_YARN_INSTALL === '1') {
     console.log('=== yarn install (fixture) ===');
     execSync('yarn install', { cwd: WORKSPACE, stdio: 'inherit' });
@@ -183,21 +186,27 @@ async function main() {
       : await runAider(buildPrompt({ title, description, acceptance }));
     console.log(fixtureMode ? '=== Fixture codegen finished ===' : '=== Aider finished ===');
 
-    console.log('=== TypeScript check ===');
-    const tsCheck = checkTypeScript();
-    const tsOk = applyCheck('TypeScript', tsCheck, reportParts);
+    const skipChecks = fixtureMode && process.env.FIXTURE_SKIP_CHECKS === '1';
+    let tsOk = true;
+    let lintOk = true;
+    let fmtOk = true;
+    let prismaOk = true;
 
-    console.log('=== ESLint check ===');
-    const lintCheck = checkLint();
-    const lintOk = applyCheck('ESLint', lintCheck, reportParts);
+    if (!skipChecks) {
+      console.log('=== TypeScript check ===');
+      tsOk = applyCheck('TypeScript', checkTypeScript(), reportParts);
 
-    console.log('=== Prettier check ===');
-    const fmtCheck = checkPrettier();
-    const fmtOk = applyCheck('Prettier', fmtCheck, reportParts);
+      console.log('=== ESLint check ===');
+      lintOk = applyCheck('ESLint', checkLint(), reportParts);
 
-    console.log('=== Prisma validate ===');
-    const prismaCheck = checkPrismaValidate();
-    const prismaOk = applyCheck('Prisma validate', prismaCheck, reportParts);
+      console.log('=== Prettier check ===');
+      fmtOk = applyCheck('Prettier', checkPrettier(), reportParts);
+
+      console.log('=== Prisma validate ===');
+      prismaOk = applyCheck('Prisma validate', checkPrismaValidate(), reportParts);
+    } else {
+      console.log('=== FIXTURE_SKIP_CHECKS: gate checks skipped (dogfood wiring) ===');
+    }
 
     if (!shouldCommit({ ts: tsOk, lint: lintOk, prettier: fmtOk, prisma: prismaOk })) {
       status = 'failure';

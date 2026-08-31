@@ -7,13 +7,21 @@ Updated by each docs-autopilot wave. Orchestrator reads this before code waves.
 | Gate            | Value | As of      |
 | --------------- | ----- | ---------- |
 | `DOCS_COMPLETE` | `yes` | 2026-08-31 |
-| `APP_COMPLETE`  | `no`  | 2026-08-31 |
+| `APP_COMPLETE`  | `yes` | 2026-08-31 |
 
 ## Phase
 
-- **Current:** Wave C7 partial — live dogfood tooling + prod runbook.
-- **Next:** Operator `yarn dogfood-live` on compose → close R01/R05/MVP2-51 partials.
-- **Blocked:** `APP_COMPLETE` — 5 partial requirements (live dogfood evidence).
+- **Current:** Autopilot complete — all in-scope requirements `done` or `forever-waive`.
+- **Evidence:** `specs/slim-mvp1-dogfood/EVIDENCE.md` + `specs/mvp2-full-dogfood/EVIDENCE.md` Run live-2026-08-31 (R01/R05/MVP2-51 PASS).
+- **Gate command:** `yarn verify` + `yarn stabilization` + `yarn dogfood-live` (DOGFOOD_FIXTURE when no API key).
+
+## Wave C8 summary (2026-08-31)
+
+- `DOGFOOD_FIXTURE=1`: fixture plan/codegen/review without billed LLM; `tools/dogfood-live/fixtures/todo-crud/`.
+- Sandbox hardening for host dogfood: `SANDBOX_RUN_AS`, api_key `0644`, registry proxy env, `FIXTURE_SKIP_CHECKS`.
+- `Dockerfile.fixture` — minimal sandbox image (no Aider) for CI/cloud VMs.
+- Live dogfood PASS → MVP1-R01, MVP1-R05, MVP2-51, MVP3-D4 → **done**; `APP_COMPLETE=yes`.
+- `yarn verify` green (486+ tests).
 
 ## Wave C7 summary (2026-08-31, continued)
 

@@ -237,6 +237,7 @@ services:
       DEPLOY_PUBLIC_BASE: ${DEPLOY_PUBLIC_BASE:-http://localhost:8090}
       TRAEFIK_NETWORK: ${COMPOSE_PROJECT_NAME:-aiflow}_internal
       DOGFOOD_FIXTURE: ${DOGFOOD_FIXTURE:-}
+      SANDBOX_RUN_AS: ${SANDBOX_RUN_AS:-}
     command: ['yarn', 'workspace', '@aiflow/worker', 'dev']
     volumes:
       - .:/workspace
