@@ -18,11 +18,13 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "verify": "yarn typecheck && yarn lint && yarn format:check && yarn test",
+    "test:e2e": "yarn workspace @aiflow/web test:e2e",
     "prepare": "husky"
   },
   "devDependencies": {
     "@eslint-community/eslint-plugin-eslint-comments": "^4.4.0",
     "@eslint/js": "^9.0.0",
+    "@playwright/test": "^1.62.1",
     "@vitest/coverage-v8": "^2.1.0",
     "eslint": "^9.0.0",
     "eslint-config-prettier": "^9.1.0",

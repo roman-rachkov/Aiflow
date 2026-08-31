@@ -51,6 +51,8 @@ export default tseslint.config(
           allowDefaultProject: [
             'apps/web/postcss.config.js',
             'apps/web/next.config.ts',
+            'apps/web/playwright.config.ts',
+            'apps/web/e2e/*.spec.ts',
             'eslint.config.mjs',
             'vitest.config.ts',
           ],
