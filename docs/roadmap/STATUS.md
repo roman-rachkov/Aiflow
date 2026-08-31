@@ -39,8 +39,6 @@ Updated by each docs-autopilot wave. Orchestrator reads this before code waves.
 - 8 new tests (parse-review.test.ts). `yarn verify` green (419 tests).
 - `REQUIREMENTS.md`: MVP3-D1 → done, MVP2-41-UI → partial (needs automated UI test).
 
-
-
 - Implemented MVP-3 C1: Reviewer Self-Refine loop (retry cap 3).
 - Integrated MVP-3 A1–A4 + B1–B4 from prior cloud-agent branches (idempotency, audit, policy, Langfuse, evals, red-team).
 - `yarn verify` green (412 tests).
