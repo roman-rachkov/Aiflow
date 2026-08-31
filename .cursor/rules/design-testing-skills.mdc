@@ -1,0 +1,55 @@
+---
+description: Route design and testing work to the right vendored skill in .cursor/skills/
+alwaysApply: false
+---
+
+# Design & testing skill routing
+
+Read this rule when the task touches **UI** (features in `apps/web`, `packages/ui`) or **verification** (API routes, browser checks, claiming work done).
+
+Full registry and dual-use verdicts: [`docs/13-agent-tooling.md`](../docs/13-agent-tooling.md) § 2.3.
+
+## Product UI constraints (AI Studio)
+
+Before any design skill: [`docs/09-ui-spec.md`](../docs/09-ui-spec.md) § 9 — light theme, Inter, blue accent, minimalist **Operate** surfaces. Use `@aiflow/ui` primitives and semantic tokens (`text-fg-muted`, `border-border`, `bg-surface`). Do **not** use Anthropic `frontend-design` (rejected in § 2.1). Prefer **`impeccable`** Operate mode over **`design-taste-frontend`** (marketing-only).
+
+## Decision tree
+
+```
+Task type?
+├─ New/changed product screen or component (dashboard, chat, editor, settings)
+│   ├─ Before merge → impeccable `audit` (shortcut: audit/) on the route or slice
+│   ├─ Visual pass → impeccable `polish` (shortcut: polish/)
+│   └─ UX critique only → impeccable `critique` (shortcut: critique/)
+├─ Landing / marketing page (not in MVP scope)
+│   └─ design-taste-frontend OR imagegen-frontend-web → image-to-code (defer unless asked)
+├─ Need real-world UI references before designing
+│   └─ ui-radar (UIZZE API or connector; optional)
+├─ Accessibility / guidelines check on existing markup
+│   └─ web-design-guidelines
+├─ API or route handlers changed
+│   └─ api-smoke-testing (compose up; auth cookies as needed)
+├─ Frontend behaviour check, no Playwright project yet
+│   └─ webapp-testing (Python Playwright scripts) OR agent-browser for one-off
+├─ About to claim done / commit / open PR
+│   ├─ verification-before-completion → run `yarn verify` (or `docker compose exec app yarn verify`)
+│   └─ Cloud Agent + UI change → walkthrough-artifacts (screenshot / RecordScreen)
+└─ Adding persistent E2E suite
+    └─ DEFER — no @playwright/test in repo yet; use e2e-testing-patterns + playwright-best-practices when adopted
+```
+
+## Workflow hooks
+
+| When | Skill | Notes |
+| ---- | ----- | ----- |
+| UI feature branch, pre-PR | `audit` → fix → optional `polish` | Target `apps/web/src/features/<slice>/` or route |
+| REST/API feature | `api-smoke-testing` | After `docker compose up`; seed dev user if auth required |
+| Bugfix / feature claim | `verification-before-completion` | Evidence before "done" |
+| Cloud Agent UI delivery | `walkthrough-artifacts` | Minimal screenshot or short recording |
+| New unit behaviour | `test-driven-development` | Vitest only today — no E2E gate in CI |
+
+## Overlap
+
+- **`/verify`** command = mechanical gate; **`verification-before-completion`** = discipline (no success claims without fresh output).
+- **`reviewer`** subagent = code/spec review; **`impeccable audit`** = UX/visual quality on UI surfaces.
+- **`qa-expert`** = heavy process docs; skip unless building a QA handoff pack.

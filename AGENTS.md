@@ -47,9 +47,12 @@ Everything designed in `.claude/` works here — use it.
 - **Subagents** (`.claude/agents/`): role agents `analyst`, `planner`, `coder`, `reviewer`;
   read-only mechanical ones `classifier`, `doc-checker`, `lang-lint`.
 - **Skills** (`.claude/skills/` + `.cursor/skills/`): **`ai-studio-internals`** — read before touching Docker Compose,
-  sandbox config, per-project DB access, or secret handling. Plus `notes`. **Cloud Agents** read
-  `.cursor/skills/` from the repo checkout (not `~/.cursor/skills/` on desktop); personal/global skills
-  are vendored there and mirrored under `.claude/skills/` for Claude Code.
+ sandbox config, per-project DB access, or secret handling. Plus `notes`. **Design & testing cluster** —
+ which skill to use (`impeccable`, `api-smoke-testing`, `verification-before-completion`, etc.):
+ [`.cursor/rules/design-testing-skills.mdc`](.cursor/rules/design-testing-skills.mdc) and
+ [`docs/13-agent-tooling.md` § 2.3](docs/13-agent-tooling.md). **Cloud Agents** read
+ `.cursor/skills/` from the repo checkout (not `~/.cursor/skills/` on desktop); personal/global skills
+ are vendored there and mirrored under `.claude/skills/` for Claude Code.
 - **MCP servers** (`.mcp.json`): `context7`, `aiflow-rag` (semantic search over docs +
   filtered source — prefer for concepts; Grep for exact symbols), `omniroute`.
   Reindex: `yarn workspace @aiflow/web docs:ingest` (needs Postgres + embeddings).
