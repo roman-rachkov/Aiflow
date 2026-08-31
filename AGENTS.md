@@ -18,13 +18,13 @@ User-app bootstrap template: `templates/user-nextjs/`. Details: `docs/04-roadmap
 
 ## Current phase (docs-autopilot)
 
-| Gate            | Status                                                         | Notes                                                   |
-| --------------- | -------------------------------------------------------------- | ------------------------------------------------------- |
-| `DOCS_COMPLETE` | `yes`                                                          | Wave A + B complete — see `docs/roadmap/STATUS.md`      |
-| `APP_COMPLETE`  | `no`                                                           | 5 partial — live dogfood evidence needed              |
-| Roadmap phase   | Wave C7 partial (dogfood-live + prod runbook)                  | Run `yarn dogfood-live` on compose host                 |
-| Next milestone  | Live dogfood PASS → close R01/R05/MVP2-51                      |                                                         |
-| Run / verify    | `docker compose up` then `docker compose exec app yarn verify` | Copy `.env.example` → `.env` first                      |
+| Gate            | Status                                                         | Notes                                              |
+| --------------- | -------------------------------------------------------------- | -------------------------------------------------- |
+| `DOCS_COMPLETE` | `yes`                                                          | Wave A + B complete — see `docs/roadmap/STATUS.md` |
+| `APP_COMPLETE`  | `no`                                                           | 5 partial — live dogfood evidence needed           |
+| Roadmap phase   | Wave C7 partial (dogfood-live + prod runbook)                  | Run `yarn dogfood-live` on compose host            |
+| Next milestone  | Live dogfood PASS → close R01/R05/MVP2-51                      |                                                    |
+| Run / verify    | `docker compose up` then `docker compose exec app yarn verify` | Copy `.env.example` → `.env` first                 |
 
 Continuity artifacts: `docs/roadmap/REQUIREMENTS.md`, `MASTER_ROADMAP.md`, `DECISIONS.md`,
 `DOC_GAPS.md`, `DOC_RESOLUTIONS.md`, `STATUS.md`, `docs/glossary.md`.
