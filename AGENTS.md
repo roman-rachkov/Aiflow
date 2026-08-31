@@ -20,13 +20,14 @@ User-app bootstrap template: `templates/user-nextjs/`. Details: `docs/04-roadmap
 
 | Gate            | Status | Notes |
 | --------------- | ------ | ----- |
-| `DOCS_COMPLETE` | see `docs/roadmap/STATUS.md` | Wave A pass 1 (analyst A3–A4) — prompt/UI/code-map/conventions sweep |
-| `APP_COMPLETE`  | `no`   | Implementation waves blocked until `DOCS_COMPLETE=yes` |
-| Roadmap phase   | Wave A | Doc analyst remediation before `REQUIREMENTS.md` / code waves |
-| Next milestone  | Wave B | Code gap audit → `MASTER_ROADMAP.md` + `REQUIREMENTS.md` |
+| `DOCS_COMPLETE` | `yes`  | Wave A + B complete — see `docs/roadmap/STATUS.md` |
+| `APP_COMPLETE`  | `no`   | 30 open requirements — MVP-2 partial, MVP-3 not started |
+| Roadmap phase   | Wave B done → Wave C | Foundation: A1, A2, B1, B2 + slim MVP-1 dogfood proof |
+| Next milestone  | Wave C | Idempotent workers + Langfuse + resumable pipeline |
 | Run / verify    | `docker compose up` then `docker compose exec app yarn verify` | Copy `.env.example` → `.env` first |
 
-Continuity artifacts: `docs/roadmap/DOC_GAPS.md`, `DOC_RESOLUTIONS.md`, `STATUS.md`, `docs/glossary.md`.
+Continuity artifacts: `docs/roadmap/REQUIREMENTS.md`, `MASTER_ROADMAP.md`, `DECISIONS.md`,
+`DOC_GAPS.md`, `DOC_RESOLUTIONS.md`, `STATUS.md`, `docs/glossary.md`.
 
 Real packages today: `apps/web` (Next.js 15 App Router), `packages/db` (Prisma, two schemas),
 `packages/ui` (design system), `packages/ai-roles` (OpenAI-compatible chat+embed),

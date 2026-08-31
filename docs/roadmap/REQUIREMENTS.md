@@ -1,0 +1,98 @@
+# Requirements registry — Wave B code gap audit
+
+Evidence-based status as of 2026-08-31. Source of truth for implementation waves.
+Statuses: `done` | `open` | `forever-waive`.
+
+| id | requirement | source doc | status | evidence |
+| --- | --- | --- | --- | --- |
+| **MVP-0 — functionality** |
+| MVP0-F01 | User registration and authentication (NextAuth) | `docs/04-roadmap.md` §2.1 | done | `apps/web/src/features/auth/` (`nextauth.ts`, Credentials provider); `packages/db/prisma/schema.prisma` User/Account/Session |
+| MVP0-F02 | Project create, list, delete | `docs/04-roadmap.md` §2.1 | done | `apps/web/src/features/projects/`; `/api/projects` routes; soft-delete via `deletedAt` |
+| MVP0-F03 | Chat with AI Analyst (SSE streaming, history) | `docs/04-roadmap.md` §2.1 | done | `apps/web/src/features/chat/`; AG-UI `AguiChatPanel`; worker `chat-run` queue |
+| MVP0-F04 | Document upload + RAG indexing (MinIO, pgvector) | `docs/04-roadmap.md` §2.1 | done | `apps/web/src/features/files/`; `model/index-service.ts`, `retrieve.ts`; `/api/projects/[id]/files` |
+| MVP0-F05 | SPEC.md generation, versions, approve | `docs/04-roadmap.md` §2.1 | done | `apps/web/src/features/specifications/`; chat tool `spec:generate` on worker |
+| MVP0-F06 | Monaco editor + file tree | `docs/04-roadmap.md` §2.1 | done | `apps/web/src/features/editor/ui/EditorShell.tsx`, `MonacoPane.tsx`, `FileTree.tsx` |
+| MVP0-F07 | Git integration (history, diff, commit) via Gitea | `docs/04-roadmap.md` §2.1 | done | `apps/web/src/shared/gitea/`; editor `GitPanel.tsx`; `/api/projects/[id]/editor/*` |
+| MVP0-F08 | Manual deploy (Dockerfile/compose export, Build) | `docs/04-roadmap.md` §2.1 | done | `apps/web/src/features/deploy/`; worker `deploy-run`; `dockerode` build |
+| MVP0-F09 | ModelConfig per project (encrypted provider/model) | `docs/04-roadmap.md` §2.1 | done | `apps/web/src/features/model-config/`; `@aiflow/crypto`; `/api/projects/[id]/model-config` |
+| **MVP-0 — tasks (all marked done in roadmap)** |
+| MVP0-T11 | Project init: monorepo, Compose, Prisma public + project schema SQL | `docs/04-roadmap.md` §2.2 Task 1.1 | done | `docker-compose.yml`, `packages/db/scripts/generate-project-sql.ts`, `docker/dev-entrypoint.sh` |
+| MVP0-T12a | Auth + app shell + guards | `docs/04-roadmap.md` §2.2 Task 1.2a | done | `features/auth/model/guards.ts` (`requireUser`, `requireProMode`); `(app)/` layout |
+| MVP0-T12b | Projects CRUD + schema provisioning saga | `docs/04-roadmap.md` §2.2 Task 1.2b | done | `features/projects/model/service.ts` compensation saga; Gitea seed |
+| MVP0-T12c | Tailwind v4 + explicit `@source` | `docs/04-roadmap.md` §2.2 Task 1.2c | done | `apps/web/src/app/globals.css`; no `tailwind.config.js`; `@tailwindcss/postcss` |
+| MVP0-T12d | Design system (`@aiflow/ui` primitives + tokens) | `docs/04-roadmap.md` §2.2 Task 1.2d | done | `packages/ui/src/`; `@aiflow/ui/styles/theme.css` |
+| MVP0-T13 | Researcher chat MVP (SSE, ChatMessage, ModelRouter path) | `docs/04-roadmap.md` §2.2 Task 1.3 | done | `packages/ai-roles/`; `ChatMessage` in `schema_project_template.prisma` |
+| MVP0-T21 | RAG + SPEC generator | `docs/04-roadmap.md` §2.2 Task 2.1 | done | `features/files` + `features/specifications`; specs in `specs/task-2.1-rag-and-spec-generator/` |
+| MVP0-T22 | Code editor + Gitea + WebSocket hub | `docs/04-roadmap.md` §2.2 Task 2.2 | done | `apps/web/server.ts` WS; `features/editor/model/ws-hub.ts`; specs `task-2.2-editor-gitea` |
+| MVP0-T23 | Manual deploy + ModelConfig | `docs/04-roadmap.md` §2.2 Task 2.3 | done | `@aiflow/queue` `deploy-run`; worker `deploy/handler.ts`; specs `task-2.3-deploy-modelconfig` |
+| MVP0-E01 | Exit: register → SPEC → editor commit → Build image | `docs/04-roadmap.md` §2 MVP-0 exit | done | End-to-end path documented in roadmap; deploy worker tests `handler.test.ts`; editor + deploy slices shipped |
+| **Slim MVP-1 — functionality + tasks** |
+| MVP1-F01 | Planner: task list from approved SPEC.md | `docs/04-roadmap.md` §3.1 | done | `packages/ai-roles/src/planner.ts`; worker `plan/handler.ts`; `features/tasks` plan enqueue |
+| MVP1-F02 | Aider Coder in isolated Docker sandboxes | `docs/04-roadmap.md` §3.1 | done | `docker/aider-sandbox/`; worker `code/handler.ts`, `sandbox/options.ts` |
+| MVP1-F03 | Sandbox acceptance checks as product gate | `docs/04-roadmap.md` §3.1 | done | `docker/aider-sandbox/runner-checks.js` (`tsc`, `eslint --max-warnings 0`, prettier, `prisma validate`); `runner-gate.test.ts` |
+| MVP1-F04 | Bootstrap from `templates/user-nextjs/` into Gitea | `docs/04-roadmap.md` §3.1 | done | `shared/gitea/seedUserTemplate`; worker `code/seed-template.ts`; `templates/user-nextjs/` |
+| MVP1-F05 | Reuse MVP-0 `deploy-run` for generated image | `docs/04-roadmap.md` §3.1 | done | worker `deploy/handler.ts` + `app-schema-push.ts` (`app_{hex}` db push) |
+| MVP1-T31 | Sandbox infra: image, dockerode hardening, registry-proxy, runner | `docs/04-roadmap.md` §3.2 Task 3.1 | done | `services/registry-proxy/`; API key file mount `/run/secrets/api_key` in `runner-gate.js` |
+| MVP1-T32 | Planner queue + Roadmap UI | `docs/04-roadmap.md` §3.2 Task 3.2 | done | `plan-generate` queue; `features/tasks/ui/TasksPanel.tsx`; `/api/projects/[id]/tasks/plan` |
+| MVP1-T33 | Coder queue, dry-run, WS logs, run-plan DAG | `docs/04-roadmap.md` §3.2 Task 3.3 | done | `code-execute` queue; `pipeline.ts`; `ws-attach.ts`; `run-plan.ts`; specs `task-3.3-coder` |
+| **Slim MVP-1 — readiness criteria (§6)** |
+| MVP1-R01 | Customer gets simple CRUD app from approved SPEC (Planner → Coder) | `docs/04-roadmap.md` §6.1 | open | Path documented in `specs/slim-mvp1-dogfood/CHECKLIST.md`; no CI/automated proof of live LLM+sandbox run |
+| MVP1-R02 | Engineer manual edits not overwritten by generation | `docs/04-roadmap.md` §6.2 | done | Branch-per-task: `apps/worker/src/code/branch.ts` (`task/{short}-{slug}`); merge on ACCEPTED only; `docs/15` §2.2 |
+| MVP1-R03 | Sandbox check failure → FAILED; success → commit (no LLM Reviewer gate in slim scope) | `docs/04-roadmap.md` §6.3 | done | `runner-gate.js` fatal chain; slim gate satisfied before review enqueue |
+| MVP1-R04 | Secrets encrypted; sandbox API key file-mounted; project isolation | `docs/04-roadmap.md` §6.4 | done | `@aiflow/crypto`; sandbox secret file; per-project Postgres schema; internal sandbox network |
+| MVP1-R05 | Narrow dogfood: one CRUD through plan → codegen | `docs/04-roadmap.md` §6.5 | open | Checklist exists (`specs/slim-mvp1-dogfood/`); operator-run only — full dogfood → MVP2-51 |
+| **MVP-2 — Task 4.1 Acceptance loop** |
+| MVP2-41-UT | Unit test generation agent (post-Coder) | `docs/04-roadmap.md` §3.3 Task 4.1 | open | No worker handler or queue for test generation; explicitly deferred in roadmap |
+| MVP2-41-SB | Static checks in sandbox (TS/ESLint/Prettier/Prisma) | `docs/04-roadmap.md` §3.3 Task 4.1 | done | Shipped in Task 3.1 — see MVP1-F03 |
+| MVP2-41-RV | LLM Reviewer one-shot verdict on diff + AC | `docs/04-roadmap.md` §3.3 Task 4.1 | done | `code-review` queue; `packages/ai-roles/src/reviewer.ts`; worker `review/handler.ts`; enqueued from `pipeline.ts` |
+| MVP2-41-UI | Check / review results UI | `docs/04-roadmap.md` §3.3 Task 4.1 | open | Partial: `ReviewVerdictCard.tsx` + `parse-review.ts` — no file/line issues list, no auto-approve threshold (→ MVP3-D1) |
+| **MVP-2 — Task 4.2 Support Bot** |
+| MVP2-42-BOT | Embeddable Support Bot (RAG on SPEC + docs, widget/iframe) | `docs/04-roadmap.md` §3.3 Task 4.2 | open | Schema stub `EmbeddedAgent` in `schema_project_template.prisma`; no runtime, no `/projects/[id]/agents` UI (`DOC_GAPS` A4-05) |
+| MVP2-42-COMPOSE | Include bot in final application build | `docs/04-roadmap.md` §3.3 Task 4.2 | open | No compose template changes in `features/deploy/templates/` |
+| **MVP-2 — Task 4.3 Automatic domain deploy** |
+| MVP2-43-DOMAIN | Deploy to test domain (Traefik/nginx); real URL in UI | `docs/04-roadmap.md` §3.3 Task 4.3 | open | Deploy URL is `docker://{tag}` placeholder — `apps/worker/src/deploy/handler.ts:114`; no Traefik service in compose |
+| MVP2-43-LOGS | Deployment logs surfaced in project UI | `docs/04-roadmap.md` §3.3 Task 4.3 | done | `features/deploy/ui/DeploymentsPanel.tsx`; `Deployment.log` polling |
+| **MVP-2 — Tasks 5.1–5.3** |
+| MVP2-51 | Full dogfooding: AI Studio project through full cycle inside platform | `docs/04-roadmap.md` §3.3 Task 5.1 | open | No recorded dogfood run in repo; dev RAG index (`docs:ingest`) is tooling-only |
+| MVP2-52 | Load testing: ~3 concurrent projects, isolation, Bull Board | `docs/04-roadmap.md` §3.3 Task 5.2 | open | No load-test scripts; Bull Board not in `docker-compose.yml` |
+| MVP2-53-README | README + first-user guide | `docs/04-roadmap.md` §3.3 Task 5.3 | open | No root `README.md` for end users; only `docs/README.md` (internal index) |
+| MVP2-53-PROD | Production environment prep | `docs/04-roadmap.md` §3.3 Task 5.3 | open | Dev-only docker.sock documented OQ #4; no prod compose |
+| **MVP-3 — Track A (architectural maturity)** |
+| MVP3-A1 | Idempotent `code:execute` / `deploy:run` (no duplicate commit/deploy) | `docs/04-roadmap.md` §5.1 A1 | open | Handlers lack attempt tokens / dedup guards; `deploy-run` `attempts: 1` only |
+| MVP3-A2 | Resumable pipeline with explicit step encoding | `docs/04-roadmap.md` §5.1 A2 | open | `pipeline.ts` is linear, not step-resumable; no `(taskId, step)` idempotency |
+| MVP3-A3 | Audit trails (`AuditEvent`, Pro event feed) | `docs/04-roadmap.md` §5.1 A3 | open | No `AuditEvent` in `schema.prisma`; no `recordAudit()` in worker |
+| MVP3-A4 | Role policy layer (capability guard before LLM) | `docs/04-roadmap.md` §5.1 A4 | open | No `packages/ai-roles/src/policy.ts` |
+| **MVP-3 — Track B (observability & evals)** |
+| MVP3-B1 | Langfuse self-host in compose | `docs/04-roadmap.md` §5.1 B1 | open | Not in `docker-compose.yml`; decision E2 in `docs/14-decisions-needed.md` |
+| MVP3-B2 | Trace every LLM call via provider wrapper | `docs/04-roadmap.md` §5.1 B2 | open | `openai-compatible.ts` has no Langfuse/OTel spans |
+| MVP3-B3 | Evals framework + CI on prompt change | `docs/04-roadmap.md` §5.1 B3 | open | No Promptfoo/Langfuse datasets; no CI config |
+| MVP3-B4 | Prompt-injection red-team in CI | `docs/04-roadmap.md` §5.1 B4 | open | No red-team test suite against `withRagContext` |
+| **MVP-3 — Track C (agent intelligence)** |
+| MVP3-C1 | Reviewer Self-Refine loop (auto re-enqueue Coder ≤N) | `docs/04-roadmap.md` §5.1 C1 | open | `review/handler.ts` one-shot: REJECTED → PENDING, no auto retry enqueue |
+| MVP3-C2 | Persistent agent memory (`AgentMemory` model) | `docs/04-roadmap.md` §5.1 C2 | open | No `AgentMemory` in project schema |
+| MVP3-C3 | Escalation to advisor model via model-router | `docs/04-roadmap.md` §5.1 C3 | open | `services/model-router/src/index.ts` is `export {}` stub |
+| MVP3-C4 | Planner Tree-of-Thoughts (flagged, eval-driven) | `docs/04-roadmap.md` §5.1 C4 | open | No ToT mode in `planner.ts` |
+| **MVP-3 — Track D (mature MVP-2 features)** |
+| MVP3-D1 | Full Reviewer UI (verdict list, file/line issues, auto-approve threshold) | `docs/04-roadmap.md` §5.1 D1 | open | Only compact `ReviewVerdictCard` — see MVP2-41-UI |
+| MVP3-D2 | Support Bot on maturity layer (memory/retrieval) | `docs/04-roadmap.md` §5.1 D2 | open | Depends on MVP2-42 + C2 |
+| MVP3-D3 | Domain deploy auditable + idempotent | `docs/04-roadmap.md` §5.1 D3 | open | Depends on MVP2-43 + A1 + A3 |
+| MVP3-D4 | Dogfood + load + stabilization with observability/evals | `docs/04-roadmap.md` §5.1 D4 | open | Depends on MVP2-51/52/53 + B2 + B3 |
+| **Engineering / UI debt (in-scope, non-blocking)** |
+| ENG-T02 | Barrel-only `index.ts` import enforcement (ESLint) | `docs/15` §2.2; `DOC_GAPS` A4-03 | open | `boundaries/dependencies` only; no `import/no-internal-modules` |
+| ENG-UI-MT | Shared Modal + Toast primitives per UI spec | `docs/09-ui-spec.md`; `DOC_GAPS` A4-04 | open | Editor uses local `toast` state strings; no shared `@aiflow/ui` Modal/Toast |
+| ENG-T03 | Deployer LLM prompt (T3) | `docs/13-agent-tooling.md`; `DOC_GAPS` A3-05 | open | Waived as blocking for docs; deploy path is deterministic code today |
+| **Forever-waives (explicit in docs only)** |
+| FW-01 | Full multi-agent group chat (equal-rights roles) | `docs/04-roadmap.md` §5.3 | forever-waive | Supervisor-worker model retained by design |
+| FW-02 | A2A federation protocol | `docs/04-roadmap.md` §5.3 | forever-waive | Product is internal; federation post-MVP |
+| FW-03 | Browser automation for roles (Playwright/Browser Use) | `docs/04-roadmap.md` §5.3 | forever-waive | Sandbox-Coder only; no autonomous web-action tasks |
+| FW-04 | Heavy external memory stack (Mem0/Zep/Letta) | `docs/04-roadmap.md` §5.3 | forever-waive | Own `AgentMemory` + pgvector on C2 instead |
+
+## Summary counts
+
+| Status | Count |
+| --- | ---: |
+| done | 33 |
+| open | 30 |
+| forever-waive | 4 |
+
+**Total in-scope:** 67
