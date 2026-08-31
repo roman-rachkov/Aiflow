@@ -282,10 +282,10 @@ apps/
           secret-file api_key bind, SANDBOX_NETWORK / AIDER_SANDBOX_IMAGE)
 
 services/
-├── model-router/         Express, port 3001. OpenAI-compatible facade over
-│                         routerai/OpenAI/Anthropic, fallback chain, Redis cache.
-│                         Stores no keys. Declared deps: express, ioredis (stub;
-│                         `src/index.ts` is `export {};`, no crypto consumer yet)
+├── model-router/         Express, port 3001. OpenAI-compatible proxy +
+│                         `/v1/escalate` advisor route; Redis 1h cache for
+│                         non-streaming chat. `src/index.ts` createApp();
+│                         planner escalation via `PLANNER_ADVISOR_MODEL`.
 └── registry-proxy/       Sandbox egress allowlist proxy (Task 3.1). Express +
                           CONNECT; ALLOWED_HOSTS; GET /health; PORT 3128.
                           public entry: src/index.ts
@@ -528,8 +528,8 @@ branch.
 | Prompt-injection red-team set                                               | B4 **done 2026-08-23** | `packages/ai-roles` `rag-safety` (untrusted wrap + `allowMutatingTool`); worker tool guard; `tools/evals` `scoreRedTeam`                                                          |
 | `code:review` Self-Refine loop (retry cap + AgentMemory feedback)           | C1                     | `apps/worker/src/review/` already one-shot (4.1); C1 adds auto re-enqueue code-execute ≤N                                                                                         |
 | `AgentMemory` model (task/role/lesson)                                      | C2                     | `packages/db/prisma/schema_project_template.prisma`; mixed into Coder + Reviewer prompts                                                                                          |
-| `services/model-router` runtime (escalation as 2nd routed request)          | C3                     | `services/model-router/src` (currently `export {};` stub); `ModelConfig.config` gains `advisor` per role                                                                          |
+| `services/model-router` runtime (escalation as 2nd routed request)          | C3                     | `services/model-router/src` + `packages/ai-roles/src/escalation.ts`; `PLANNER_ADVISOR_MODEL` env                                                                                  |
 | Optional Planner Tree-of-Thoughts mode                                      | C4                     | `packages/ai-roles/src/planner.ts`; behind a flag                                                                                                                                 |
 | Reviewer verdict UI                                                         | D1                     | `apps/web/src/features/tasks` (verdict list, issues, auto-approve threshold)                                                                                                      |
-| Support Bot (embed widget + final-compose inclusion)                        | D2 ✅                  | `features/support-bot/`; `/api/projects/[id]/support/chat` (SSE); Pro "Агенты" panel; compose sidecar via `SUPPORT_BOT_ENABLED`                                                  |
+| Support Bot (embed widget + final-compose inclusion)                        | D2 ✅                  | `features/support-bot/`; `/api/projects/[id]/support/chat` (SSE); Pro "Агенты" panel; compose sidecar via `SUPPORT_BOT_ENABLED`                                                   |
 | Automatic domain deploy (Traefik/nginx)                                     | D3 **done 2026-08-31** | `apps/worker/src/deploy/run-container.ts`; Traefik v3 in compose; real URL `http://app-{hex}.localhost:8090`; idempotent remove-before-create; fallback `docker://` when disabled |

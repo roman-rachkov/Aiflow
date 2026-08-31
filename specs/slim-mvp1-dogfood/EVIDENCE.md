@@ -50,3 +50,35 @@ shows `result: PASS` for both.
 ---
 
 <!-- Paste completed entries below this line -->
+
+## Run automated-2026-08-31
+
+| Field    | Value                        |
+| -------- | ---------------------------- |
+| Date     | 2026-08-31                   |
+| Operator | yarn dogfood-smoke (CI gate) |
+| Branch   | main@b5e6a2d                 |
+| Model    | mocked — handler wiring only |
+| Sandbox  | not required (unit gate)     |
+
+### Checklist result
+
+| Step                      | Outcome | Notes                                |
+| ------------------------- | ------- | ------------------------------------ |
+| 1. `docker compose up`    | skip    | automated gate — no live stack       |
+| 2. Sandbox image build    | skip    |                                      |
+| 3. Researcher → SPEC      | skip    |                                      |
+| 4. Plan generation wiring | PASS    | validatePlanPayload + parsePlanTasks |
+| 5. Code execution wiring  | PASS    | review retry cap + deploy claim      |
+| 6. WS logs + commit       | skip    | live sandbox required                |
+| 7. Deploy URL builder     | PASS    | buildDeployUrl smoke                 |
+
+### Overall result
+
+`R01: PARTIAL` — Planner→Coder path validated at handler/parse layer; live LLM+sandbox still operator-run.
+`R05: PARTIAL` — automated gate proves slim path wiring; full codegen needs compose.
+
+### Artefacts
+
+- Test file: `tools/dogfood-smoke/src/pipeline-smoke.test.ts`
+- Tests passed: 5

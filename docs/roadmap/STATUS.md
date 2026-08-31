@@ -11,9 +11,22 @@ Updated by each docs-autopilot wave. Orchestrator reads this before code waves.
 
 ## Phase
 
-- **Current:** Wave C5 complete (MVP2-42-BOT + MVP2-42-COMPOSE + MVP3-D2 Support Bot).
-- **Next:** Wave C6 — MVP3-C3 (model-router runtime), MVP3-C4 (Planner ToT), MVP2-51 dogfood closure.
-- **Blocked:** `APP_COMPLETE` — ~14 open requirements in `REQUIREMENTS.md`.
+- **Current:** Wave C6 complete — MVP3-C3 (model-router) + MVP3-C4 (Planner ToT) + ENG-UI-MT.
+- **Next:** Wave C7 — MVP2-51 live dogfood, ENG-T02, MVP3-D4 stabilization.
+- **Blocked:** `APP_COMPLETE` — 6 open + 4 partial in `REQUIREMENTS.md`.
+
+## Wave C6 summary (2026-08-31)
+
+- MVP3-C3: `services/model-router` Express runtime (`/health`, `/v1/chat/completions`,
+  `/v1/escalate`); planner `callPlannerAdvisor` on retry exhaustion when
+  `PLANNER_ADVISOR_MODEL` set.
+- MVP3-C4: `planner-tot.ts` + `generatePlanTasksWithToT`; worker plan handler wired;
+  `PLANNER_TOT_ENABLED` flag; eval smoke `tools/evals/src/score-tot.ts`.
+- ENG-UI-MT: `@aiflow/ui` Modal + ToastNotice/ToastProvider; DeleteProjectButton +
+  DeploymentsPanel migrated.
+- MVP2-53-PROD partial: `docker-compose.prod.yml` overlay.
+- `tools/dogfood-smoke/` + `yarn dogfood-smoke` — automated R01/R05 wiring evidence.
+- `yarn verify` green (480 tests).
 
 ## Wave C5 summary (2026-08-31)
 

@@ -18,13 +18,13 @@ User-app bootstrap template: `templates/user-nextjs/`. Details: `docs/04-roadmap
 
 ## Current phase (docs-autopilot)
 
-| Gate            | Status                                                         | Notes                                                               |
-| --------------- | -------------------------------------------------------------- | ------------------------------------------------------------------- |
-| `DOCS_COMPLETE` | `yes`                                                          | Wave A + B complete — see `docs/roadmap/STATUS.md`                  |
-| `APP_COMPLETE`  | `no`                                                           | 13 open requirements — see `docs/roadmap/REQUIREMENTS.md`           |
-| Roadmap phase   | Wave C5 complete (Support Bot MVP2-42 + MVP3-D2)               | MVP-3 A1–B4 + C1–C2 + D1 + D3 done; C3–C4, dogfood open           |
-| Next milestone  | Wave C6                                                        | MVP3-C3 (model-router), dogfood evidence (R01/R05), MVP2-51       |
-| Run / verify    | `docker compose up` then `docker compose exec app yarn verify` | Copy `.env.example` → `.env` first                                  |
+| Gate            | Status                                                             | Notes                                                             |
+| --------------- | ------------------------------------------------------------------ | ----------------------------------------------------------------- |
+| `DOCS_COMPLETE` | `yes`                                                              | Wave A + B complete — see `docs/roadmap/STATUS.md`                |
+| `APP_COMPLETE`  | `no`                                                               | 10 open/partial requirements — see `docs/roadmap/REQUIREMENTS.md` |
+| Roadmap phase   | Wave C6 complete (model-router C3, Planner ToT C4, UI Modal/Toast) | MVP-3 A1–C4 + D1–D3 done; dogfood + prod overlay partial          |
+| Next milestone  | Wave C7                                                            | MVP2-51 live dogfood, ENG-T02, MVP3-D4 stabilization              |
+| Run / verify    | `docker compose up` then `docker compose exec app yarn verify`     | Copy `.env.example` → `.env` first                                |
 
 Continuity artifacts: `docs/roadmap/REQUIREMENTS.md`, `MASTER_ROADMAP.md`, `DECISIONS.md`,
 `DOC_GAPS.md`, `DOC_RESOLUTIONS.md`, `STATUS.md`, `docs/glossary.md`.

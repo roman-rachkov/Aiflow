@@ -6,7 +6,7 @@
 import type { Job } from 'bullmq';
 import {
   createProviderFromEnv,
-  generatePlanTasks,
+  generatePlanTasksWithToT,
   runWithTraceContext,
   type PlanTask,
 } from '@aiflow/ai-roles';
@@ -30,7 +30,7 @@ export type PlanHandlerDeps = {
 
 const defaultDeps: PlanHandlerDeps = {
   loadSpecification: loadApprovedSpecification,
-  generatePlan: (spec) => generatePlanTasks(createProviderFromEnv(), spec),
+  generatePlan: (spec) => generatePlanTasksWithToT(createProviderFromEnv(), spec),
   persistPlan: persistPlanTasks,
 };
 
