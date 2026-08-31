@@ -346,6 +346,10 @@ packages/
 tools/                    Dev-only workspaces. Ship nowhere; still gated by
 │                         `yarn verify` — an unverified self-analysis tool
 │                         would be worth less than none.
+├── cloud-agent-sync/     Pull personal agent tools from git into `.cursor/skills`
+│                         + `.claude/*` on Cloud Agent boot. Config:
+│                         `.cursor/agent-sync.json`; wired by `.cursor/environment.json`
+│                         `install`. Shell only — `sync.sh`, README, JSON schema.
 └── session-analyzer/     Tool-flow analytics over ~/.claude transcripts.
                           └── public entry: src/cli.ts (via tsx), consumed by
                               /session-review. deps: none (Node built-ins only)
