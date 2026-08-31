@@ -91,8 +91,8 @@ Statuses: `done` | `open` | `forever-waive`.
 
 | Status        | Count |
 | ------------- | ----: |
-| done          |    47 |
-| open          |    16 |
+| done          |    50 |
+| open          |    13 |
 | forever-waive |     4 |
 
 **Total in-scope:** 67
