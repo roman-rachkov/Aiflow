@@ -285,6 +285,21 @@ targets the Analyst `withRagContext` surface.
 
 ---
 
+## 5b. Cloud agent tools sync (`tools/cloud-agent-sync`)
+
+Desktop Cursor loads user skills from `~/.cursor/skills/`, but Cloud Agent VMs
+do **not** copy that folder ([Cursor Agent Skills](https://cursor.com/docs/skills)).
+Project-committed `.cursor/skills/` and `.claude/skills/` are what remote agents
+see.
+
+| Tool | Purpose | Scope | License | Status | Notes |
+| ---- | ------- | ----- | ------- | ------ | ----- |
+| `cloud-agent-sync` | Pull personal skills/commands/agents/hooks from a git remote into `.cursor/skills/` + `.claude/*` on Cloud Agent boot | `dev` | ours | in use | Config: `.cursor/agent-sync.json` (copy from `agent-sync.example.json`). Wired via `.cursor/environment.json` `install`. User maintains one `my-agent-tools` git repo; each project points at it. Does not merge MCP config. See `tools/cloud-agent-sync/README.md`. |
+
+Verified 2026-08-31: no-op when config absent; local-path and git sources; skip-existing default.
+
+---
+
 ## 6. Slash commands
 
 Commands live in [`.claude/commands/`](../.claude/commands/). They are the cheapest mechanism available: nothing enters context until invoked, and each can pin its own model. Mechanical workflows belong here rather than in `CLAUDE.md`, which is billed on every turn whether or not it is relevant.

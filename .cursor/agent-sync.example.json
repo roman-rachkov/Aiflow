@@ -1,0 +1,18 @@
+{
+  "$comment": "Copy to agent-sync.json and set your git remote. Committed example only — do not put secrets here.",
+  "cacheDir": ".cursor/.agent-sync-cache",
+  "overwrite": false,
+  "targets": {
+    "skills": [".cursor/skills", ".claude/skills"],
+    "commands": [".claude/commands"],
+    "agents": [".claude/agents"],
+    "hooks": [".claude"]
+  },
+  "sources": [
+    {
+      "git": "https://github.com/YOUR_USER/my-agent-tools.git",
+      "ref": "main",
+      "layout": "standard"
+    }
+  ]
+}

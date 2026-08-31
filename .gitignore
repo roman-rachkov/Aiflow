@@ -105,6 +105,8 @@ storage/
 .swc/
 
 # --- IDE ---------------------------------------------------------------------
+# Cloud agent sync cache (cloned git remotes for personal tools)
+.cursor/.agent-sync-cache/
 # .idea is partially committed: shared project settings help, personal ones
 # do not.
 .idea/*
