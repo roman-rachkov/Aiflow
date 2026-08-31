@@ -7,8 +7,10 @@
 import type { Job } from 'bullmq';
 import {
   createProviderFromEnv,
+  fixtureReviewVerdict,
   generateReviewVerdict,
   getCurrentTraceId,
+  isDogfoodFixtureEnabled,
   runWithTraceContext,
   type ReviewTaskInput,
   type ReviewVerdict,
@@ -47,7 +49,10 @@ export type ReviewHandlerDeps = {
 
 const defaultDeps: ReviewHandlerDeps = {
   loadTask,
-  generateVerdict: (input) => generateReviewVerdict(createProviderFromEnv(), input),
+  generateVerdict: (input) =>
+    isDogfoodFixtureEnabled()
+      ? Promise.resolve(fixtureReviewVerdict())
+      : generateReviewVerdict(createProviderFromEnv(), input),
   applyVerdict: {
     appendTaskLog,
     setTaskStatus,

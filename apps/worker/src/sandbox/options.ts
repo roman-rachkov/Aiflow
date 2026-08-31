@@ -21,6 +21,10 @@ export type BuildSandboxOptionsInput = {
   modelName?: string;
   apiBaseUrl?: string;
   tmpSandboxHostPath?: string;
+  /** Bind-mounted fixture tree for DOGFOOD_FIXTURE codegen (host path). */
+  fixtureRootHostPath?: string;
+  /** Subdirectory slug under fixture root (e.g. 01-prisma). */
+  fixtureTaskSlug?: string;
   /** Override process.env in unit tests. */
   env?: NodeJS.ProcessEnv;
 };
@@ -45,6 +49,18 @@ function readEnv(env: NodeJS.ProcessEnv, key: string, fallback: string): string 
   return v && v.trim() !== '' ? v : fallback;
 }
 
+function appendFixtureEnv(
+  envVars: string[],
+  input: Pick<BuildSandboxOptionsInput, 'fixtureRootHostPath' | 'fixtureTaskSlug'>,
+): void {
+  if (!input.fixtureRootHostPath || !input.fixtureTaskSlug) return;
+  envVars.push('FIXTURE_ROOT=/fixtures');
+  envVars.push(`FIXTURE_TASK_SLUG=${input.fixtureTaskSlug}`);
+  if (input.fixtureTaskSlug === '01-prisma') {
+    envVars.push('FIXTURE_YARN_INSTALL=1');
+  }
+}
+
 /** Build createContainer options without talking to Docker. */
 export function buildSandboxContainerOptions(
   input: BuildSandboxOptionsInput,
@@ -59,15 +75,21 @@ export function buildSandboxContainerOptions(
     `${input.apiKeyHostPath}:${SANDBOX_API_KEY_MOUNT}:ro`,
     `${tmpHost}:/tmp/sandbox`,
   ];
+  if (input.fixtureRootHostPath && input.fixtureTaskSlug) {
+    binds.push(`${input.fixtureRootHostPath}:/fixtures:ro`);
+  }
+
+  const envVars = [
+    `TASK_JSON=${JSON.stringify(input.task)}`,
+    `MODEL_PROVIDER=${input.modelProvider ?? 'openai'}`,
+    `MODEL_NAME=${input.modelName ?? 'gpt-4o'}`,
+    `API_BASE_URL=${input.apiBaseUrl ?? ''}`,
+  ];
+  appendFixtureEnv(envVars, input);
 
   return {
     Image: image,
-    Env: [
-      `TASK_JSON=${JSON.stringify(input.task)}`,
-      `MODEL_PROVIDER=${input.modelProvider ?? 'openai'}`,
-      `MODEL_NAME=${input.modelName ?? 'gpt-4o'}`,
-      `API_BASE_URL=${input.apiBaseUrl ?? ''}`,
-    ],
+    Env: envVars,
     HostConfig: {
       Binds: binds,
       ReadonlyRootfs: true,

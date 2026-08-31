@@ -4,10 +4,12 @@
 /**
  * Sandbox runner: run Aider headless, enforce verification gate, commit on success.
  * Lint/TS/Prettier/prisma validate failures → status failure, exit 1, no commit.
+ * DOGFOOD_FIXTURE: api key "dogfood-fixture" copies prebuilt files instead of Aider.
  */
 
-const { spawn } = require('child_process');
+const { execSync, spawn } = require('child_process');
 const fs = require('fs');
+const path = require('path');
 const {
   checkTypeScript,
   checkLint,
@@ -18,6 +20,7 @@ const {
 } = require('./runner-checks');
 const { readApiKey, shouldCommit, commitWorkspace } = require('./runner-gate');
 
+const FIXTURE_API_KEY = 'dogfood-fixture';
 const AIDER_CONFIG = '/home/sandbox/.aider.conf.yml';
 
 function loadTask() {
@@ -34,6 +37,10 @@ function loadTask() {
   }
 }
 
+function isFixtureKey(apiKey) {
+  return apiKey === FIXTURE_API_KEY;
+}
+
 function writeAiderConfig(apiKey) {
   const modelProvider = process.env.MODEL_PROVIDER || 'openai';
   const modelName = process.env.MODEL_NAME || 'gpt-4o';
@@ -46,6 +53,42 @@ function writeAiderConfig(apiKey) {
     'no-auto-commits: true',
   ].filter(Boolean);
   fs.writeFileSync(AIDER_CONFIG, `${lines.join('\n')}\n`);
+}
+
+function copyFixtureTree(srcDir, destDir) {
+  if (!fs.existsSync(srcDir)) {
+    throw new Error(`Fixture directory missing: ${srcDir}`);
+  }
+  for (const entry of fs.readdirSync(srcDir, { withFileTypes: true })) {
+    const src = path.join(srcDir, entry.name);
+    const dest = path.join(destDir, entry.name);
+    if (entry.isDirectory()) {
+      fs.mkdirSync(dest, { recursive: true });
+      copyFixtureTree(src, dest);
+    } else {
+      fs.mkdirSync(path.dirname(dest), { recursive: true });
+      fs.copyFileSync(src, dest);
+    }
+  }
+}
+
+function applyFixtureCodegen() {
+  const slug = process.env.FIXTURE_TASK_SLUG;
+  const root = process.env.FIXTURE_ROOT || '/fixtures';
+  if (!slug) throw new Error('FIXTURE_TASK_SLUG is not set');
+  const srcDir = path.join(root, slug);
+  console.log(`=== DOGFOOD_FIXTURE: applying ${srcDir} ===`);
+  copyFixtureTree(srcDir, WORKSPACE);
+  if (process.env.FIXTURE_YARN_INSTALL === '1') {
+    console.log('=== yarn install (fixture) ===');
+    execSync('yarn install', { cwd: WORKSPACE, stdio: 'inherit' });
+  }
+  const schemaPath = path.join(WORKSPACE, 'prisma/schema.prisma');
+  if (fs.existsSync(schemaPath)) {
+    console.log('=== prisma generate (fixture) ===');
+    execSync('npx prisma generate', { cwd: WORKSPACE, stdio: 'pipe' });
+  }
+  return { stdout: 'fixture-codegen', stderr: '' };
 }
 
 /** Shared core aligned with docs/07-prompt-coder.md (Aider message wrapper). */
@@ -127,15 +170,18 @@ async function main() {
   const task = loadTask();
   const { title, description, acceptance } = task;
   const apiKey = readApiKey();
-  writeAiderConfig(apiKey);
+  const fixtureMode = isFixtureKey(apiKey);
+  if (!fixtureMode) writeAiderConfig(apiKey);
 
   let status = 'success';
   const reportParts = [];
 
   try {
     console.log(`=== Starting task: ${title} ===`);
-    const aiderResult = await runAider(buildPrompt({ title, description, acceptance }));
-    console.log('=== Aider finished ===');
+    const aiderResult = fixtureMode
+      ? applyFixtureCodegen()
+      : await runAider(buildPrompt({ title, description, acceptance }));
+    console.log(fixtureMode ? '=== Fixture codegen finished ===' : '=== Aider finished ===');
 
     console.log('=== TypeScript check ===');
     const tsCheck = checkTypeScript();

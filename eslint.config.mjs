@@ -26,6 +26,7 @@ export default tseslint.config(
       'docker/aider-sandbox/**',
       // User-project scaffold; linted inside the sandbox, not the monorepo gate.
       'templates/**',
+      'tools/dogfood-live/fixtures/**',
       // Vendored personal agent skills (Cloud Agent parity); not platform code.
       '.cursor/skills/**',
       '.claude/skills/**',

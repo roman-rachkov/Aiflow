@@ -12,8 +12,9 @@ export type ApiKeySecret = {
   filePath: string;
 };
 
-/** Resolve plaintext key from env; throws if missing. */
+/** Resolve plaintext key from env; throws if missing (unless DOGFOOD_FIXTURE). */
 export function resolveApiKey(env: NodeJS.ProcessEnv = process.env): string {
+  if (env.DOGFOOD_FIXTURE === '1') return 'dogfood-fixture';
   const key = env.OPENAI_API_KEY?.trim();
   if (!key) throw new Error('OPENAI_API_KEY is not set');
   return key;

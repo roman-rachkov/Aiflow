@@ -31,6 +31,13 @@ export {
   type PlanTaskEffort,
   type PlanTaskPriority,
 } from './planner';
+export {
+  fixtureReviewVerdict,
+  fixtureRootPath,
+  isDogfoodFixtureEnabled,
+  loadFixturePlan,
+  resolveFixtureTaskSlug,
+} from './dogfood-fixture';
 export { callPlannerAdvisor, type PlannerAdvisorDeps } from './escalation';
 export { generatePlanTasksWithToT, scorePlanCandidate, type TotOptions } from './planner-tot';
 export { REVIEWER_SYSTEM_PROMPT } from './reviewer-prompt';

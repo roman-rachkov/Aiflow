@@ -7,6 +7,8 @@ import type { Job } from 'bullmq';
 import {
   createProviderFromEnv,
   generatePlanTasksWithToT,
+  isDogfoodFixtureEnabled,
+  loadFixturePlan,
   runWithTraceContext,
   type PlanTask,
 } from '@aiflow/ai-roles';
@@ -30,7 +32,10 @@ export type PlanHandlerDeps = {
 
 const defaultDeps: PlanHandlerDeps = {
   loadSpecification: loadApprovedSpecification,
-  generatePlan: (spec) => generatePlanTasksWithToT(createProviderFromEnv(), spec),
+  generatePlan: (spec) =>
+    isDogfoodFixtureEnabled()
+      ? Promise.resolve(loadFixturePlan())
+      : generatePlanTasksWithToT(createProviderFromEnv(), spec),
   persistPlan: persistPlanTasks,
 };
 

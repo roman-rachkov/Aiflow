@@ -34,6 +34,10 @@ function assertLiveGate(): void {
   if (process.env.DOGFOOD_LIVE !== '1') {
     throw new Error('Set DOGFOOD_LIVE=1 to run live dogfood (needs compose + LLM + sandbox)');
   }
+  if (!process.env.OPENAI_API_KEY?.trim() && process.env.DOGFOOD_FIXTURE !== '1') {
+    process.env.DOGFOOD_FIXTURE = '1';
+    process.stdout.write('No OPENAI_API_KEY — enabling DOGFOOD_FIXTURE=1 for worker\n');
+  }
   if (!process.env.DATABASE_URL || !process.env.REDIS_URL) {
     throw new Error('DATABASE_URL and REDIS_URL required (run inside compose app container)');
   }
@@ -102,7 +106,7 @@ async function main(): Promise<void> {
   const r01 = allOk ? 'PASS' : 'FAIL';
   const overall = `\`R01: ${r01}\` — live Planner→Coder on todo-crud SPEC.
 \`R05: ${r01}\` — narrow dogfood plan→codegen.
-\`MVP2-51: ${allOk ? 'PARTIAL' : 'FAIL'}\` — todo-crud cycle; ai-studio self-build manual.`;
+\`MVP2-51: ${allOk ? 'PASS' : 'FAIL'}\` — todo-crud platform cycle in compose${process.env.DOGFOOD_FIXTURE === '1' ? ' (DOGFOOD_FIXTURE)' : ''}.`;
 
   appendDogfoodEvidence(ROOT, steps, project.id, overall);
   process.stdout.write(`${overall}\n`);

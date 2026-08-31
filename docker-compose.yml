@@ -236,6 +236,7 @@ services:
       DEPLOY_DOMAIN_ENABLED: ${DEPLOY_DOMAIN_ENABLED:-false}
       DEPLOY_PUBLIC_BASE: ${DEPLOY_PUBLIC_BASE:-http://localhost:8090}
       TRAEFIK_NETWORK: ${COMPOSE_PROJECT_NAME:-aiflow}_internal
+      DOGFOOD_FIXTURE: ${DOGFOOD_FIXTURE:-}
     command: ['yarn', 'workspace', '@aiflow/worker', 'dev']
     volumes:
       - .:/workspace

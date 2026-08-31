@@ -7,6 +7,7 @@ import { PassThrough } from 'node:stream';
 
 import Docker from 'dockerode';
 import { createRedisConnection } from '@aiflow/queue';
+import { fixtureRootPath, isDogfoodFixtureEnabled, resolveFixtureTaskSlug } from '@aiflow/ai-roles';
 
 import { warnIfProdSocket, createDockerClient } from '../deploy/docker';
 import { buildSandboxContainerOptions, type SandboxTaskEnv } from '../sandbox';
@@ -44,6 +45,9 @@ export async function runSandboxContainer(input: RunSandboxInput): Promise<RunSa
     taskId: input.taskId,
   });
 
+  const fixtureTaskSlug =
+    isDogfoodFixtureEnabled() && input.task.title ? resolveFixtureTaskSlug(input.task.title) : null;
+
   const opts = buildSandboxContainerOptions({
     workspaceHostPath: input.workspaceHostPath,
     apiKeyHostPath: input.apiKeyHostPath,
@@ -51,6 +55,8 @@ export async function runSandboxContainer(input: RunSandboxInput): Promise<RunSa
     modelProvider: input.modelProvider,
     modelName: input.modelName,
     apiBaseUrl: input.apiBaseUrl,
+    fixtureRootHostPath: fixtureTaskSlug ? fixtureRootPath() : undefined,
+    fixtureTaskSlug: fixtureTaskSlug ?? undefined,
   });
 
   const container = await docker.createContainer(opts);
