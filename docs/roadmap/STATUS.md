@@ -11,9 +11,9 @@ Updated by each docs-autopilot wave. Orchestrator reads this before code waves.
 
 ## Phase
 
-- **Current:** Wave B complete (code gap audit).
-- **Next:** Wave C — Foundation implementation (A1, A2, B1, B2) + slim MVP-1 dogfood proof.
-- **Blocked:** `APP_COMPLETE` — 30 open requirements in `REQUIREMENTS.md`.
+- **Current:** Wave C2 complete (MVP-3 D1 Full Reviewer UI); C1 Self-Refine + A1–B4 foundation intact.
+- **Next:** Wave C3 — MVP2-43-DOMAIN (Traefik deploy), MVP3-C2 (AgentMemory), root README, dogfood closure.
+- **Blocked:** `APP_COMPLETE` — 20 open requirements in `REQUIREMENTS.md`.
 
 ## Wave B summary (2026-08-31)
 
@@ -30,22 +30,27 @@ Updated by each docs-autopilot wave. Orchestrator reads this before code waves.
 - Added `AGENTS.md` **Current phase** block.
 - Created `DOC_GAPS.md`, `DOC_RESOLUTIONS.md`, `docs/glossary.md`.
 
-## Wave C1 summary (2026-08-31)
+## Wave C2 summary (2026-08-31)
 
-- Implemented MVP-3 C1: Reviewer Self-Refine loop.
-- `review/retry.ts`: `buildReviewFeedback`, `nextRetryCount`, `buildRetryPayload`, `handleRejectedVerdict`.
-- `review/handler.ts`: REJECTED → `handleRejectedVerdict`; `enqueueCodeExecute` dep added.
-- `code/pipeline-live.ts`: passes `retryCount` to review payload; appends `reviewFeedback` to sandbox description.
-- `packages/queue`: `CodeExecutePayload` + `CodeReviewPayload` extended with retry fields.
-- 5 new Self-Refine tests; 412 total passing. `yarn verify` green.
+- Implemented MVP-3 D1: Full Reviewer verdict UI.
+- `ReviewIssueList.tsx` — issues list with severity badges, file:line, collapse after 5.
+- `ReviewVerdictCard.tsx` — confidence badge, auto-approve badge (threshold 0.85), issues list.
+- `parse-review.ts` — `ReviewIssue` type, `issues[]`, `AUTO_APPROVE_THRESHOLD`, `isAutoApproved()`.
+- 8 new tests (parse-review.test.ts). `yarn verify` green (419 tests).
+- `REQUIREMENTS.md`: MVP3-D1 → done, MVP2-41-UI → partial (needs automated UI test).
+
+
+
+- Implemented MVP-3 C1: Reviewer Self-Refine loop (retry cap 3).
+- Integrated MVP-3 A1–A4 + B1–B4 from prior cloud-agent branches (idempotency, audit, policy, Langfuse, evals, red-team).
+- `yarn verify` green (412 tests).
 
 ## Next implementation milestones
 
-1. **Foundation** — A1 idempotent workers, A2 resumable pipeline, B1 Langfuse compose, B2 LLM tracing.
-2. **Slim MVP-1 closure** — run `specs/slim-mvp1-dogfood/CHECKLIST.md` with recorded evidence.
-3. **MVP-2 domain deploy** — Traefik/nginx + real URL (`MVP2-43-DOMAIN`).
-4. **Agent wave** — C2 persistent memory, C3 escalation, D1 verdict UI.
-5. **User docs** — root README when MVP-2 stabilizes.
+1. **MVP2-43-DOMAIN** — Traefik/nginx + real deploy URL.
+2. **MVP3-C2** — `AgentMemory` model + prompt mixing.
+3. **MVP2-53-README** — root README for first users.
+4. **Slim MVP-1 closure** — recorded dogfood evidence (`MVP1-R01`, `MVP1-R05`).
 
 See `MASTER_ROADMAP.md` for full dependency order.
 

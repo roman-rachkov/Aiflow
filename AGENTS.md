@@ -18,13 +18,13 @@ User-app bootstrap template: `templates/user-nextjs/`. Details: `docs/04-roadmap
 
 ## Current phase (docs-autopilot)
 
-| Gate            | Status                                                         | Notes                                                   |
-| --------------- | -------------------------------------------------------------- | ------------------------------------------------------- |
-| `DOCS_COMPLETE` | `yes`                                                          | Wave A + B complete — see `docs/roadmap/STATUS.md`      |
-| `APP_COMPLETE`  | `no`                                                           | 29 open requirements — MVP-2 partial, MVP-3 C1 done     |
-| Roadmap phase   | Wave C1 done (Self-Refine loop)                                | MVP-3 A1–B4 done; C1 done; C2, C3, D1+ pending         |
-| Next milestone  | Wave C2                                                        | Persistent agent memory (`AgentMemory` model)           |
-| Run / verify    | `docker compose up` then `docker compose exec app yarn verify` | Copy `.env.example` → `.env` first                      |
+| Gate            | Status                                                         | Notes                                               |
+| --------------- | -------------------------------------------------------------- | --------------------------------------------------- |
+| `DOCS_COMPLETE` | `yes`                                                          | Wave A + B complete — see `docs/roadmap/STATUS.md`  |
+| `APP_COMPLETE`  | `no`                                                           | 29 open requirements — MVP-2 partial, MVP-3 C1 done |
+| Roadmap phase   | Wave C1 done (Self-Refine loop)                                | MVP-3 A1–B4 done; C1 done; C2, C3, D1+ pending      |
+| Next milestone  | Wave C2                                                        | Persistent agent memory (`AgentMemory` model)       |
+| Run / verify    | `docker compose up` then `docker compose exec app yarn verify` | Copy `.env.example` → `.env` first                  |
 
 Continuity artifacts: `docs/roadmap/REQUIREMENTS.md`, `MASTER_ROADMAP.md`, `DECISIONS.md`,
 `DOC_GAPS.md`, `DOC_RESOLUTIONS.md`, `STATUS.md`, `docs/glossary.md`.
