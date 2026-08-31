@@ -128,7 +128,7 @@ Gitea saga + lazy backfill. Specs in `specs/task-2.2-editor-gitea/`.
 - ModelConfig settings page (provider/model choice for the Analyst).
 
 Shipped on `task/2.3-deploy-modelconfig`: `@aiflow/crypto`, ModelConfig UI/API,
-chat provider resolve, `@aiflow/queue` + worker `deploy:run` (dockerode,
+chat provider resolve, `@aiflow/queue` + worker `deploy-run` (dockerode,
 dev-only sock), deployments UI. Specs in `specs/task-2.3-deploy-modelconfig/`.
 
 **MVP-0 exit criterion:**
@@ -154,7 +154,7 @@ moves to **MVP-2** (see § 3.3). Rationale: open questions #7–#8 in
 - Aider-based Coder in isolated Docker sandboxes (simple CRUD scope).
 - Sandbox acceptance checks (lint/typecheck/validate) as the product gate.
 - Bootstrap from `templates/user-nextjs/` into the project Gitea repo.
-- Reuse MVP-0 manual deploy (`deploy:run`) for the generated image.
+- Reuse MVP-0 manual deploy (`deploy-run`) for the generated image.
 
 ### 3.2. Detailed task plan (slim MVP-1)
 
@@ -175,12 +175,12 @@ Aider pin and `registry-proxy` shape: C4/C5 in `docs/14-decisions-needed.md`.
 **Task 3.2. Planner** (done 2026-08-07)
 
 - Develop the prompt for generating a task list from SPEC.md (in a format the Coder understands).
-- Integration with the `plan:generate` queue: fetch SPEC.md, call the LLM, parse, create `Task` records.
+- Integration with the `plan-generate` queue: fetch SPEC.md, call the LLM, parse, create `Task` records.
 - UI for the Roadmap (task list with order and dependencies); drag-reorder deferred.
 
 **Task 3.3. Coder** (done 2026-08-07; E2E wiring 2026-08-17)
 
-- Worker `code:execute`: takes a task, fetches current code from Gitea, starts a sandbox.
+- Worker `code-execute`: takes a task, fetches current code from Gitea, starts a sandbox.
 - Result handling: commit on success (runner), worker push, log capture and FAILED marking on failure.
 - Dry-run mode: planned prompt stub → `AWAITING_REVIEW`, confirm enqueues live run.
 - WebSocket streaming of sandbox logs (`sandbox:logs:{taskId}` via custom server).
@@ -209,7 +209,7 @@ Moved out of slim MVP-1 so Planner+Coder can stabilize first
 
 **Task 4.3. Automatic domain deploy**
 
-- Worker `deploy:run` extended: builds the Docker image with the application and agents.
+- Worker `deploy-run` extended: builds the Docker image with the application and agents.
 - Deployment to a test domain (based on Traefik or an nginx proxy).
 - URL and logs surfaced in the project UI.
 
@@ -430,13 +430,13 @@ suffice, revisit on C2 data).
 4. All secrets are stored encrypted; sandbox API key is file-mounted (`/run/secrets/api_key`); project isolation holds for the concurrent projects exercised in MVP-0/1.
 5. Narrow dogfood: at least one simple CRUD app through plan → sandbox codegen (full self-dogfood and load testing → MVP-2).
 
-## 5. Tools and repositories
+## 7. Tools and repositories
 
 - **Code**: a monorepo in Gitea (Next.js, workers, Docker Compose configuration).
 - **CI/CD**: for MVP, manual test and build runs via scripts. Later, integration with Gitea Actions.
 - **Documentation**: kept in the AI Studio `SPEC.md` and updated as dogfooding proceeds.
 
-## 6. Risks and mitigation
+## 8. Risks and mitigation
 
 | Risk                              | Likelihood | Impact   | Mitigation                                                     |
 | --------------------------------- | ---------- | -------- | -------------------------------------------------------------- |

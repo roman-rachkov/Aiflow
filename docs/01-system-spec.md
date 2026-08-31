@@ -58,19 +58,22 @@ AI Studio is an AI-driven autonomous software development environment. It takes 
 
 ### F5. Acceptance loop
 
-- Automatic unit test generation.
-- Linters and static analysis.
-- LLM-based Reviewer, augmented by tool reports.
+- **Slim MVP-1 gate:** TypeScript, ESLint (`--max-warnings 0`), Prettier, and
+  `prisma validate` inside the sandbox runner — all fatal before commit.
+- **MVP-2+:** automatic unit test generation and an LLM Reviewer over diff +
+  acceptance criteria (`code-review` queue). Self-Refine retry loop → MVP-3.
 
-### F6. Embeddable agents
+### F6. Embeddable agents (MVP-2)
 
 - Library of ready-made agents (minimum: Support Bot with project RAG).
 - Can be attached to the application under construction.
+- Deferred out of slim MVP-1 — see `docs/04-roadmap.md` §4 task 4.2.
 
 ### F7. Build and deploy
 
-- Docker image build of the target application.
-- Deployment to the platform test domain, or docker-compose export.
+- Docker image build of the target application (`deploy-run` queue).
+- **MVP-0 / slim MVP-1:** manual build path and docker-compose export.
+- **MVP-2:** deployment to a test domain (Traefik/nginx).
 - Health monitoring of the deployed application.
 
 ## 4. Architecture and technology
@@ -115,13 +118,22 @@ AI Studio is an AI-driven autonomous software development environment. It takes 
 - Monaco Editor, file tree, Git integration (browsing, manual commits).
 - Manual deploy (Dockerfile/docker-compose export).
 
-### MVP-1 (next 6 weeks) – Automatic Coder and agents
+### MVP-1 (slim) – Planner + sandbox Coder
 
-- Planner and Aider-based Coder, isolated sandboxes.
-- Acceptance loop (tests, linters, Reviewer).
-- Embeddable Support Bot.
-- Automatic deploy to a test environment.
-- Dogfooding: create the "AI Studio" project inside the platform itself and run the full cycle for a simple CRUD application.
+- Planner and Aider-based Coder in isolated sandboxes (simple CRUD scope).
+- Product gate = sandbox automated checks (not an LLM Reviewer).
+- Reuse MVP-0 manual deploy for the generated image.
+- Narrow dogfood: one simple CRUD app through plan → codegen.
+
+### MVP-2 – Product features deferred from slim MVP-1
+
+- LLM Reviewer + generated tests; Support Bot; automatic domain deploy.
+- Full self-dogfood and load testing. See `docs/04-roadmap.md` §4.
+
+### MVP-3 – Agent maturity
+
+- Durable execution, observability (Langfuse), Self-Refine Reviewer, model
+  escalation (C3). See `docs/04-roadmap.md` §5.
 
 ## 6. Trade-offs and deliberate limitations
 
@@ -131,10 +143,13 @@ AI Studio is an AI-driven autonomous software development environment. It takes 
 - Local models (Ollama) come after MVP, via a CLI agent.
 - Scaling to many concurrent projects: MVP targets at most 5 projects at a time; queue monitoring is configured at the application level.
 
-## 7. MVP-1 readiness criteria
+## 7. Slim MVP-1 readiness criteria
 
-- A Customer ("Aunt Zina") gets a working web application (simple CRUD) within 2 hours, with no Engineer involved.
-- An Engineer can fix code manually and redeploy without breaking the automated processes.
-- The system handles 3 concurrent projects without data mixing or critical failures.
-- All secrets are stored encrypted; project access is strictly isolated.
-- The platform successfully builds and deploys a simplified prototype of itself (dogfooding).
+Aligned with `docs/04-roadmap.md` §6:
+
+1. A Customer gets a simple CRUD web app from an approved SPEC via Planner →
+   sandbox Coder; deploy may use the MVP-0 Build path.
+2. An Engineer can edit manually without generation overwriting protected files.
+3. Sandbox check failure → FAILED; success → commit. No product LLM Reviewer gate.
+4. Secrets encrypted; sandbox API key file-mounted; isolation holds for concurrent projects exercised in MVP-0/1.
+5. Narrow dogfood (one CRUD app). Full self-dogfood and load testing → MVP-2.

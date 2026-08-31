@@ -73,9 +73,11 @@ Hardening (see also `ai-studio-internals` skill):
 | Image            | `AIDER_SANDBOX_IMAGE` (default `aistudio/aider-sandbox:latest`)                        |
 | Binds            | workspace → `/workspace`; api key file → `/run/secrets/api_key:ro`                     |
 
-`docker.sock` on the worker remains **DEV-ONLY** (open question #4).
+`docker.sock` on the worker remains **DEV-ONLY** (OQ #4). Production uses a
+dedicated Docker host with mutual TLS — RES-004 in
+`docs/roadmap/DOC_RESOLUTIONS.md`.
 
-### `code:execute` worker (Task 3.3)
+### `code-execute` worker (Task 3.3)
 
 `apps/worker/src/code/` loads the Task (`deletedAt: null`), clones from Gitea,
 checks out `task/{shortId}-{slug}`, and either:
@@ -87,8 +89,9 @@ checks out `task/{shortId}-{slug}`, and either:
   `sandbox:logs:{taskId}`, parses `=== RESULT ===` JSON, pushes the branch on
   success (`DONE`) or marks `FAILED`.
 
-Compose `QUEUES` includes `code:execute` alongside `plan:generate` and
-`deploy:run`.
+Compose `QUEUES` includes `code-execute` alongside `plan-generate`,
+`deploy-run`, `code-review`, and `chat-run` (hyphen names — see
+`docs/roadmap/DOC_RESOLUTIONS.md` RES-QUEUE).
 
 ## registry-proxy
 

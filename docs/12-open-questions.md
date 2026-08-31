@@ -69,11 +69,16 @@ concurrently and rebase cleanly.
 
 In docker-compose the worker has `- /var/run/docker.sock:/var/run/docker.sock`, giving it full control over the host Docker daemon.
 
-Options:
+**Resolved for MVP dev (2026-08-31, Wave A).** Keep the sock mount in local
+Compose only. **Production (MVP-3 D3):** dedicated Docker host + dockerode with
+mutual TLS — not the platform Postgres/Redis host. Full rationale:
+`docs/roadmap/DOC_RESOLUTIONS.md` RES-004.
 
-- A remote Docker runner with TLS authentication (dockerode with certificates).
-- Kubernetes Jobs for each coder task.
-- A dedicated Docker host for sandboxes only, separate from the platform host.
+Options considered:
+
+- A remote Docker runner with TLS authentication (dockerode with certificates) — **chosen for prod**
+- Kubernetes Jobs for each coder task — deferred (scale)
+- A dedicated Docker host for sandboxes only, separate from the platform host — same as chosen path
 
 **Affected artifacts:** [10-infrastructure](10-infrastructure.md), [11-sandbox](11-sandbox.md)
 
@@ -178,7 +183,12 @@ Options:
 
 Sub-questions if adopted: how does escalation interact with the 1-hour Redis response cache — is an escalated response cacheable at all? Does it compound with C3 in [14-decisions-needed](14-decisions-needed.md) (structured-output guarantees across providers)? What is the retry budget when advisor and primary disagree?
 
-**Explicitly post-MVP.** `services/model-router/src/index.ts` is still a stub, so this is recorded to keep the router from being built in a way that forecloses it — not to schedule the work.
+**Explicitly post-MVP.** `services/model-router/src/index.ts` is still a stub, so this is recorded to keep the router from being built in a way that forecloses it — not to schedule the work before MVP-3.
+
+**Resolved (deferred) 2026-08-31, Wave A.** Ship at MVP-3 task C3 only.
+Worker-decided trigger points; advisor ≥ primary; escalated calls skip Redis
+response cache. Router must allow a second routed request without redesign.
+Policy detail: `docs/roadmap/DOC_RESOLUTIONS.md` RES-009.
 
 **Scheduled as MVP-3 task C3 (2026-08-09).** The agent-maturity phase
 ([04-roadmap.md](04-roadmap.md) § 5) revisits this: `model-router` becomes a real
@@ -200,10 +210,10 @@ Anthropic's own `advisor` tool was evaluated for dev-time use here and rejected:
 | 1   | Project template               | **Resolved 2026-08-07** — `templates/user-nextjs/` → Gitea on bootstrap             |
 | 2   | Applying migrations            | **Resolved 2026-08-07** — validate in sandbox; `db push` at deploy into `app_{hex}` |
 | 3   | code:execute concurrency       | **Resolved 2026-08-02** — premise removed by branch-per-task                        |
-| 4   | docker.sock mount in prod      | Open — DEV-ONLY sock for MVP; revisited at MVP-3 D3 (domain deploy)                 |
+| 4   | docker.sock mount in prod      | **Resolved 2026-08-31** — dev sock OK; prod = dedicated host + TLS at MVP-3 D3 (RES-004) |
 | 5   | API key passing                | **Resolved 2026-08-07** — `/run/secrets/api_key` file mount                         |
 | 6   | Proxy allowlist                | **Resolved 2026-08-07** — Node proxy + expandable `ALLOWED_HOSTS`                   |
 | 7   | Reviewer role                  | **Resolved 2026-08-07** — deferred to MVP-2; gate = sandbox checks                  |
 | 8   | MVP-1 timeline                 | **Resolved 2026-08-07** — slim MVP-1 (Planner+Coder); rest → MVP-2                  |
-| 9   | Escalation to a stronger model | Open — scheduled at MVP-3 C3 (model-router runtime)                                 |
+| 9   | Escalation to a stronger model | **Resolved (deferred) 2026-08-31** — MVP-3 C3; RES-009; not blocking MVP builds   |
 | 10  | AG-UI optimistic vs DB msg ids | **Resolved 2026-08-11** — persist client UUID as ChatMessage PK                     |

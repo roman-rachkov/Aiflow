@@ -55,6 +55,8 @@ services:
   # PostgreSQL — primary database
   # ===========================================================================
   postgres:
+    # Live compose uses pgvector/pgvector:pg16 (RAG embeddings). Alpine stock
+    # image shown here is the prod-sketch equivalent — see root compose.
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-ai_studio}
@@ -204,7 +206,7 @@ services:
       dockerfile: apps/worker/Dockerfile
     environment:
       <<: *common-env
-      QUEUES: 'spec-generate,plan-generate,code-execute,deploy-run'
+      QUEUES: 'spec-generate,plan-generate,code-execute,code-review,deploy-run,chat-run'
     volumes:
       # Docker socket for sandbox management (dev only)
       - /var/run/docker.sock:/var/run/docker.sock
@@ -336,7 +338,9 @@ Both numbers are correct in their own context. Do not "fix" one to match the oth
 3. Add an external reverse proxy (Traefik, Nginx) in front of the app service.
 4. Scale workers with `docker compose up --scale worker=3`.
 5. Move PostgreSQL, Redis, MinIO to managed services and remove them from compose.
-6. Replace `/var/run/docker.sock` with a remote Docker runner (dockerode with TLS) or use Kubernetes for sandboxes.
+6. Replace `/var/run/docker.sock` with a **dedicated Docker host + dockerode TLS**
+   (RES-004 in `docs/roadmap/DOC_RESOLUTIONS.md`) — not a sock mount on the
+   platform host. Kubernetes Jobs remain an alternative at higher scale.
 7. Configure secrets via Docker Secrets / Vault instead of environment variables.
 
 ### Security

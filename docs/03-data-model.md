@@ -269,19 +269,44 @@ enum LogLevel {
   ERROR
 }
 
+// A conversation thread. A project holds many threads; the OpenUI
+// AgentInterface ThreadList maps onto these. Forking uses `forkedFromId`.
+model ChatThread {
+  id           String       @id @default(uuid())
+  title        String       @default("Новый чат")
+  forkedFromId String?
+  forkedFrom   ChatThread?  @relation("ChatThreadFork", fields: [forkedFromId], references: [id], onDelete: NoAction)
+  forks        ChatThread[] @relation("ChatThreadFork")
+  messages     ChatMessage[]
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  deletedAt    DateTime?
+
+  @@index([createdAt])
+  @@index([forkedFromId])
+}
+
 // Analyst interview history. `tokensIn` / `tokensOut` are nullable because both
 // a streaming mock and a dropped connection leave them absent — NULL is an
 // honest "we don't know", not a zero.
+//
+// `threadId` is nullable for legacy rows (pre-thread migration); new rows
+// always carry one. `parentId` links edited/regenerated message versions.
 model ChatMessage {
   id         String      @id @default(uuid())
   role       ChatRole
   content    String      @db.Text
   tokensIn   Int?
   tokensOut  Int?
+  threadId   String?
+  thread     ChatThread? @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  parentId   String?
   createdAt  DateTime    @default(now())
   deletedAt  DateTime?
 
   @@index([createdAt])
+  @@index([threadId])
+  @@index([parentId])
 }
 
 enum ChatRole {
