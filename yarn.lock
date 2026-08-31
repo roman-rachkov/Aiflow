@@ -23,6 +23,23 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@aiflow/bull-board@workspace:tools/bull-board":
+  version: 0.0.0-use.local
+  resolution: "@aiflow/bull-board@workspace:tools/bull-board"
+  dependencies:
+    "@aiflow/queue": "workspace:*"
+    "@bull-board/api": "npm:^6.0.0"
+    "@bull-board/express": "npm:^6.0.0"
+    "@types/express": "npm:^4.17.0"
+    "@types/node": "npm:^22.0.0"
+    bullmq: "npm:^5.0.0"
+    express: "npm:^4.21.0"
+    ioredis: "npm:^5.4.0"
+    tsx: "npm:^4.23.5"
+    typescript: "npm:^5.6.0"
+  languageName: unknown
+  linkType: soft
+
 "@aiflow/crypto@workspace:^, @aiflow/crypto@workspace:packages/crypto":
   version: 0.0.0-use.local
   resolution: "@aiflow/crypto@workspace:packages/crypto"
@@ -59,6 +76,19 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@aiflow/load-test@workspace:tools/load-test":
+  version: 0.0.0-use.local
+  resolution: "@aiflow/load-test@workspace:tools/load-test"
+  dependencies:
+    "@types/node": "npm:^22.0.0"
+    "@types/pg": "npm:^8.11.0"
+    pg: "npm:^8.13.0"
+    tsx: "npm:^4.23.5"
+    typescript: "npm:^5.6.0"
+    vitest: "npm:^2.1.0"
+  languageName: unknown
+  linkType: soft
+
 "@aiflow/model-router@workspace:services/model-router":
   version: 0.0.0-use.local
   resolution: "@aiflow/model-router@workspace:services/model-router"
@@ -72,7 +102,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@aiflow/queue@workspace:^, @aiflow/queue@workspace:packages/queue":
+"@aiflow/queue@workspace:*, @aiflow/queue@workspace:^, @aiflow/queue@workspace:packages/queue":
   version: 0.0.0-use.local
   resolution: "@aiflow/queue@workspace:packages/queue"
   dependencies:
@@ -348,6 +378,38 @@ __metadata:
     is-core-module: "npm:2.16.1"
     micromatch: "npm:4.0.8"
   checksum: 10c0/bca3ea68d17ac6faf0a3c9565897eda7e11403cb035925e6838a326970234d7e91c29a9f0d382cd9a236d0a87cfdd76da91feb539ed4ee59b41f0fe074e5806e
+  languageName: node
+  linkType: hard
+
+"@bull-board/api@npm:6.21.3, @bull-board/api@npm:^6.0.0":
+  version: 6.21.3
+  resolution: "@bull-board/api@npm:6.21.3"
+  dependencies:
+    redis-info: "npm:^3.1.0"
+  peerDependencies:
+    "@bull-board/ui": 6.21.3
+  checksum: 10c0/34604a87d4bebbe37be36afa85634bce0c5e79ce7e887b866edc167654da55f965f483312fe5751c7d3022cb632ee6c78f1b6638350029b6cb9d86b63f5b0d40
+  languageName: node
+  linkType: hard
+
+"@bull-board/express@npm:^6.0.0":
+  version: 6.21.3
+  resolution: "@bull-board/express@npm:6.21.3"
+  dependencies:
+    "@bull-board/api": "npm:6.21.3"
+    "@bull-board/ui": "npm:6.21.3"
+    ejs: "npm:^5.0.2"
+    express: "npm:^5.2.1"
+  checksum: 10c0/40b7ed0b71c178016fb54d3042208195fc133a4147d8fbb80a65ce942fad63d7427bf0e8e48b616341e25aa92e327279ae703932f88102f7a4b2c8552733e003
+  languageName: node
+  linkType: hard
+
+"@bull-board/ui@npm:6.21.3":
+  version: 6.21.3
+  resolution: "@bull-board/ui@npm:6.21.3"
+  dependencies:
+    "@bull-board/api": "npm:6.21.3"
+  checksum: 10c0/287082716f40e747e8f22150689680a6d4aa1ad97a4c92d793562dad53bb75c47095d51497382e17898d31e59973d683f2e455f50929a0736e19db5a7cdfcb24
   languageName: node
   linkType: hard
 
@@ -4314,6 +4376,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/pg@npm:^8.11.0":
+  version: 8.23.1
+  resolution: "@types/pg@npm:8.23.1"
+  dependencies:
+    "@types/node": "npm:*"
+    pg-protocol: "npm:*"
+    pg-types: "npm:^2.2.0"
+  checksum: 10c0/0e39ff7dbe233e1e50b172d87fe84cca086a52e255adb104ef1d60619cded356c4414427ffbea58e70a5a985c3036603c8e544ca2937fc1cf4050185109973be
+  languageName: node
+  linkType: hard
+
 "@types/pg@npm:^8.11.10":
   version: 8.20.3
   resolution: "@types/pg@npm:8.20.3"
@@ -6872,6 +6945,15 @@ __metadata:
   bin:
     ejs: bin/cli.js
   checksum: 10c0/52eade9e68416ed04f7f92c492183340582a36482836b11eab97b159fcdcfdedc62233a1bf0bf5e5e1851c501f2dca0e2e9afd111db2599e4e7f53ee29429ae1
+  languageName: node
+  linkType: hard
+
+"ejs@npm:^5.0.2":
+  version: 5.0.2
+  resolution: "ejs@npm:5.0.2"
+  bin:
+    ejs: bin/cli.js
+  checksum: 10c0/6377ba83487e9e818dd77ab92d67a5f6c0d093689fa500aa0654305f4c19af13a30a606cc6286b8dfef1cf8aae89a71130af16aca5b72dc500a4a44ac3aa13bf
   languageName: node
   linkType: hard
 
@@ -10268,7 +10350,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"lodash@npm:^4.17.21":
+"lodash@npm:^4.17.11, lodash@npm:^4.17.21":
   version: 4.18.1
   resolution: "lodash@npm:4.18.1"
   checksum: 10c0/757228fc68805c59789e82185135cf85f05d0b2d3d54631d680ca79ec21944ec8314d4533639a14b8bcfbd97a517e78960933041a5af17ecb693ec6eecb99a27
@@ -13478,6 +13560,15 @@ __metadata:
   version: 1.2.0
   resolution: "redis-errors@npm:1.2.0"
   checksum: 10c0/5b316736e9f532d91a35bff631335137a4f974927bb2fb42bf8c2f18879173a211787db8ac4c3fde8f75ed6233eb0888e55d52510b5620e30d69d7d719c8b8a7
+  languageName: node
+  linkType: hard
+
+"redis-info@npm:^3.1.0":
+  version: 3.1.0
+  resolution: "redis-info@npm:3.1.0"
+  dependencies:
+    lodash: "npm:^4.17.11"
+  checksum: 10c0/ec0f31d97893c5828cec7166486d74198c92160c60073b6f2fe805cdf575a10ddcccc7641737d44b8f451355f0ab5b6c7b0d79e8fc24742b75dd625f91ffee38
   languageName: node
   linkType: hard
 

@@ -380,6 +380,17 @@ tools/                    Dev-only workspaces. Ship nowhere; still gated by
 │                             src/taxonomy.ts owns the ourProblem split.
 │                             Complements Anthropic's session-report (cost),
 │                             deliberately not a fork of it — conventions § 8.3
+├── bull-board/           BullMQ dashboard (MVP2-52). Express + @bull-board/express
+│                         on host port 3030 (compose service `bull-board`).
+│                         All 6 queues registered. Optional Basic auth via
+│                         BULL_BOARD_USER / BULL_BOARD_PASSWORD (dev: leave empty).
+│                         └── public entry: src/index.ts (`tsx src/index.ts`)
+├── load-test/            Concurrency + isolation load test (MVP2-52).
+│                         Creates N=3 project schemas concurrently, verifies
+│                         cross-schema isolation, tears down. `yarn load-test`.
+│                         Vitest smoke: unit always; DB integration skipIf no
+│                         DATABASE_URL.
+│                         └── public entry: src/run.mts (`tsx src/run.mts`)
 └── evals/                Golden SPEC→plan→code evals (MVP-3 B3) +
                           prompt-injection red-team (B4).
                           └── public entry: src/cli.ts (`yarn evals`);
@@ -420,7 +431,10 @@ templates/                User-project scaffolds (not Yarn workspaces).
                           repo is still README-only) (OQ #1).
 
 compose topology          `docker compose up` (no `--build`): postgres, redis,
-                          minio, gitea, **gitea-init**, Langfuse (`langfuse-web`
+                          minio, gitea, **gitea-init**, **traefik** (:8090 HTTP,
+                          :8091 dashboard; Docker provider, `exposedByDefault=false`;
+                          routes user-app containers via Host label; DEV-ONLY
+                          docker.sock:ro — OQ #4; MVP-2 4.3), Langfuse (`langfuse-web`
                           :3100 + worker + clickhouse + langfuse-redis; B1) +
                           four Node services on node:22-bookworm. Bind mount
                           `.` → `/workspace`; named volumes for each workspace
@@ -491,20 +505,20 @@ The agent-maturity phase ([04-roadmap.md](04-roadmap.md) § 5; decisions E1–E4
 next session does not re-derive the integration points. Each lands in its own
 branch.
 
-| Planned entity / change                                                     | Track                  | Where it will live                                                                                                                                                |
-| --------------------------------------------------------------------------- | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Idempotent `code:execute` / `deploy:run` (claim + headCommit/finish dedup)  | A1 **done 2026-08-23** | `apps/worker/src/code/{handler,claim,status}.ts`, `apps/worker/src/deploy/{handler,claim,status}.ts`                                                              |
-| Step-encoded resumable pipeline (`CLONE…DONE` + checkpoint ref)             | A2 **done 2026-08-23** | `apps/worker/src/code/pipeline{,-live,-steps,}.ts`, `git-checkpoint.ts`; TaskLog step markers                                                                     |
-| `AuditEvent` model (append-only, role/action/target/traceId)                | A3 **done 2026-08-23** | `packages/db` (`AuditEvent` + `recordAudit`/`listAuditEvents`); worker `src/audit.ts`; Pro feed `features/audit` + `/api/.../audit`                               |
-| Role policy guard (capability set)                                          | A4 **done 2026-08-23** | `packages/ai-roles` `policy.ts` + `policy-guard.ts`; PUSH asserts `write-commit`; violation → AuditEvent                                                          |
-| Langfuse self-host (UI :3100; ClickHouse + langfuse-redis; shared PG/MinIO) | B1 **done 2026-08-23** | `docker-compose.yml` (`langfuse-web`/`worker`/`clickhouse`/`langfuse-redis`); `docker/postgres/init/02-langfuse-db.sql`; `docker/minio/ensure-langfuse-bucket.sh` |
-| LLM-call tracing wrapper                                                    | B2 **done 2026-08-23** | `packages/ai-roles` (`traced-provider` + `langfuse-tracer`); `runWithTraceContext`; Reviewer `TaskLog` `langfuseTraceId=`; noop without keys                      |
-| Evals framework + CI job on prompt change                                   | B3 **done 2026-08-23** | `tools/evals` (`yarn evals`); golden cases + prompt contracts; `.github/workflows/evals.yml`; Langfuse scores noop without keys                                   |
-| Prompt-injection red-team set                                               | B4 **done 2026-08-23** | `packages/ai-roles` `rag-safety` (untrusted wrap + `allowMutatingTool`); worker tool guard; `tools/evals` `scoreRedTeam`                                          |
-| `code:review` Self-Refine loop (retry cap + AgentMemory feedback)           | C1                     | `apps/worker/src/review/` already one-shot (4.1); C1 adds auto re-enqueue code-execute ≤N                                                                         |
-| `AgentMemory` model (task/role/lesson)                                      | C2                     | `packages/db/prisma/schema_project_template.prisma`; mixed into Coder + Reviewer prompts                                                                          |
-| `services/model-router` runtime (escalation as 2nd routed request)          | C3                     | `services/model-router/src` (currently `export {};` stub); `ModelConfig.config` gains `advisor` per role                                                          |
-| Optional Planner Tree-of-Thoughts mode                                      | C4                     | `packages/ai-roles/src/planner.ts`; behind a flag                                                                                                                 |
-| Reviewer verdict UI                                                         | D1                     | `apps/web/src/features/tasks` (verdict list, issues, auto-approve threshold)                                                                                      |
-| Support Bot (embed widget + final-compose inclusion)                        | D2                     | Dify/lightweight RAG on SPEC + docs; reuses `features/files` pgvector stack                                                                                       |
-| Automatic domain deploy (Traefik/nginx)                                     | D3                     | `apps/worker/src/deploy/handler.ts`; real URL over `deploy:run`; auditable (A3), idempotent (A1)                                                                  |
+| Planned entity / change                                                     | Track                  | Where it will live                                                                                                                                                                |
+| --------------------------------------------------------------------------- | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Idempotent `code:execute` / `deploy:run` (claim + headCommit/finish dedup)  | A1 **done 2026-08-23** | `apps/worker/src/code/{handler,claim,status}.ts`, `apps/worker/src/deploy/{handler,claim,status}.ts`                                                                              |
+| Step-encoded resumable pipeline (`CLONE…DONE` + checkpoint ref)             | A2 **done 2026-08-23** | `apps/worker/src/code/pipeline{,-live,-steps,}.ts`, `git-checkpoint.ts`; TaskLog step markers                                                                                     |
+| `AuditEvent` model (append-only, role/action/target/traceId)                | A3 **done 2026-08-23** | `packages/db` (`AuditEvent` + `recordAudit`/`listAuditEvents`); worker `src/audit.ts`; Pro feed `features/audit` + `/api/.../audit`                                               |
+| Role policy guard (capability set)                                          | A4 **done 2026-08-23** | `packages/ai-roles` `policy.ts` + `policy-guard.ts`; PUSH asserts `write-commit`; violation → AuditEvent                                                                          |
+| Langfuse self-host (UI :3100; ClickHouse + langfuse-redis; shared PG/MinIO) | B1 **done 2026-08-23** | `docker-compose.yml` (`langfuse-web`/`worker`/`clickhouse`/`langfuse-redis`); `docker/postgres/init/02-langfuse-db.sql`; `docker/minio/ensure-langfuse-bucket.sh`                 |
+| LLM-call tracing wrapper                                                    | B2 **done 2026-08-23** | `packages/ai-roles` (`traced-provider` + `langfuse-tracer`); `runWithTraceContext`; Reviewer `TaskLog` `langfuseTraceId=`; noop without keys                                      |
+| Evals framework + CI job on prompt change                                   | B3 **done 2026-08-23** | `tools/evals` (`yarn evals`); golden cases + prompt contracts; `.github/workflows/evals.yml`; Langfuse scores noop without keys                                                   |
+| Prompt-injection red-team set                                               | B4 **done 2026-08-23** | `packages/ai-roles` `rag-safety` (untrusted wrap + `allowMutatingTool`); worker tool guard; `tools/evals` `scoreRedTeam`                                                          |
+| `code:review` Self-Refine loop (retry cap + AgentMemory feedback)           | C1                     | `apps/worker/src/review/` already one-shot (4.1); C1 adds auto re-enqueue code-execute ≤N                                                                                         |
+| `AgentMemory` model (task/role/lesson)                                      | C2                     | `packages/db/prisma/schema_project_template.prisma`; mixed into Coder + Reviewer prompts                                                                                          |
+| `services/model-router` runtime (escalation as 2nd routed request)          | C3                     | `services/model-router/src` (currently `export {};` stub); `ModelConfig.config` gains `advisor` per role                                                                          |
+| Optional Planner Tree-of-Thoughts mode                                      | C4                     | `packages/ai-roles/src/planner.ts`; behind a flag                                                                                                                                 |
+| Reviewer verdict UI                                                         | D1                     | `apps/web/src/features/tasks` (verdict list, issues, auto-approve threshold)                                                                                                      |
+| Support Bot (embed widget + final-compose inclusion)                        | D2                     | Dify/lightweight RAG on SPEC + docs; reuses `features/files` pgvector stack                                                                                                       |
+| Automatic domain deploy (Traefik/nginx)                                     | D3 **done 2026-08-31** | `apps/worker/src/deploy/run-container.ts`; Traefik v3 in compose; real URL `http://app-{hex}.localhost:8090`; idempotent remove-before-create; fallback `docker://` when disabled |

@@ -11,9 +11,25 @@ Updated by each docs-autopilot wave. Orchestrator reads this before code waves.
 
 ## Phase
 
-- **Current:** Wave C3 complete (MVP-3 C2 AgentMemory + Reflexion prompt mixing); C1 Self-Refine + A1–B4 + D1 intact.
-- **Next:** Wave C4 — MVP2-43-DOMAIN (Traefik deploy), root README, dogfood closure.
-- **Blocked:** `APP_COMPLETE` — 19 open requirements in `REQUIREMENTS.md`.
+- **Current:** Wave C4 complete (MVP2-43-DOMAIN + MVP3-D3 Traefik domain deploy).
+- **Next:** Wave C5 — MVP2-42-BOT (Support Bot), MVP3-C3 (model-router runtime), MVP3-C4 (Planner ToT), dogfood closure.
+- **Blocked:** `APP_COMPLETE` — 17 open requirements in `REQUIREMENTS.md`.
+
+## Wave C4 summary (2026-08-31)
+
+- Implemented MVP2-43-DOMAIN + MVP3-D3: Traefik v3 domain deploy.
+- `apps/worker/src/deploy/run-container.ts`: `runDeployedContainer` with Traefik labels
+  (`traefik.enable`, Host rule, entrypoint `web`, server port `3000`); idempotent
+  (stop + remove existing container before create); `docker://` fallback when disabled.
+- `handler.ts` extended: `runDeployedContainer` dep injected between build and db-push;
+  real URL stored in `Deployment.url`; Russian log line "Запуск контейнера…".
+- `docker-compose.yml`: Traefik v3 service (port 8090 HTTP, 8091 dashboard);
+  worker env `DEPLOY_DOMAIN_ENABLED` / `DEPLOY_PUBLIC_BASE` / `TRAEFIK_NETWORK`.
+- `.env.example`: `DEPLOY_DOMAIN_ENABLED=false` (opt-in), `DEPLOY_PUBLIC_BASE`.
+- `run-container.test.ts`: 6 tests — shortHex, containerName, buildDeployUrl,
+  fallback path, create+start, missing-container idempotence.
+- `handler.test.ts` updated: `runDeployedContainer` mock + URL assertion.
+- `yarn verify` green.
 
 ## Wave C3 summary (2026-08-31)
 
