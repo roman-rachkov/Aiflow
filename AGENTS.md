@@ -21,9 +21,9 @@ User-app bootstrap template: `templates/user-nextjs/`. Details: `docs/04-roadmap
 | Gate            | Status                                                         | Notes                                               |
 | --------------- | -------------------------------------------------------------- | --------------------------------------------------- |
 | `DOCS_COMPLETE` | `yes`                                                          | Wave A + B complete — see `docs/roadmap/STATUS.md`  |
-| `APP_COMPLETE`  | `no`                                                           | 29 open requirements — MVP-2 partial, MVP-3 C1 done |
-| Roadmap phase   | Wave C1 done (Self-Refine loop)                                | MVP-3 A1–B4 done; C1 done; C2, C3, D1+ pending      |
-| Next milestone  | Wave C2                                                        | Persistent agent memory (`AgentMemory` model)       |
+| `APP_COMPLETE`  | `no`                                                           | 20 open requirements — see `docs/roadmap/REQUIREMENTS.md` |
+| Roadmap phase   | Wave C2 (D1 UI + README done)                                  | MVP-3 A1–B4 + C1 done; C2–C4, MVP-2 product features open |
+| Next milestone  | Wave C3                                                        | AgentMemory (C2), domain deploy (MVP2-43), Support Bot    |
 | Run / verify    | `docker compose up` then `docker compose exec app yarn verify` | Copy `.env.example` → `.env` first                  |
 
 Continuity artifacts: `docs/roadmap/REQUIREMENTS.md`, `MASTER_ROADMAP.md`, `DECISIONS.md`,
