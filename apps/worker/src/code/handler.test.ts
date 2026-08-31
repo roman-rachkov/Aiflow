@@ -27,6 +27,8 @@ const TASK = {
   description: 'Create Recipe in schema.prisma',
   acceptance: 'Migration applied',
   status: 'PENDING' as const,
+  branchName: null,
+  headCommit: null,
 };
 
 function job(data: CodeExecutePayload): Job<CodeExecutePayload> {
@@ -36,6 +38,7 @@ function job(data: CodeExecutePayload): Job<CodeExecutePayload> {
 function mockDeps(overrides: Partial<CodeHandlerDeps> = {}): CodeHandlerDeps {
   return {
     loadTask: vi.fn(() => Promise.resolve(TASK)),
+    claimInProgress: vi.fn(() => Promise.resolve(true)),
     setTaskStatus: vi.fn(() => Promise.resolve()),
     appendTaskLog: vi.fn(() => Promise.resolve()),
     cloneRepo: vi.fn(() => Promise.resolve()),
@@ -84,16 +87,14 @@ describe('parseResultFromLogs', () => {
   });
 });
 
-describe('handleCodeExecute dry-run', () => {
+describe('handleCodeExecute dry-run and live', () => {
   it('does not start sandbox; sets AWAITING_REVIEW', async () => {
     const deps = mockDeps();
     await handleCodeExecute(job(PAYLOAD), deps);
 
     expect(deps.runSandboxContainer).not.toHaveBeenCalled();
     expect(deps.cloneRepo).not.toHaveBeenCalled();
-    expect(deps.setTaskStatus).toHaveBeenCalledWith(
-      expect.objectContaining({ status: 'IN_PROGRESS' }),
-    );
+    expect(deps.claimInProgress).toHaveBeenCalled();
     expect(deps.setTaskStatus).toHaveBeenCalledWith(
       expect.objectContaining({ status: 'AWAITING_REVIEW' }),
     );
@@ -105,20 +106,19 @@ describe('handleCodeExecute dry-run', () => {
     expect(deps.removeWorkDir).toHaveBeenCalled();
   });
 
-  it('live path clones, runs sandbox, enqueues review (not DONE)', async () => {
+  it('live path clones, runs sandbox, checkpoints then push+review', async () => {
     const deps = mockDeps();
     await handleCodeExecute(job({ ...PAYLOAD, dryRun: false }), deps);
 
     expect(deps.cloneRepo).toHaveBeenCalled();
     expect(deps.runSandboxContainer).toHaveBeenCalled();
-    expect(deps.captureBranchDiff).toHaveBeenCalled();
-    expect(deps.pushBranch).toHaveBeenCalled();
     expect(deps.recordTaskGit).toHaveBeenCalledWith(
       expect.objectContaining({
         branchName: expect.stringContaining('task/'),
         headCommit: 'abc123',
       }),
     );
+    expect(deps.pushBranch).toHaveBeenCalled();
     expect(deps.enqueueCodeReview).toHaveBeenCalledWith(
       expect.objectContaining({
         taskId: PAYLOAD.taskId,
@@ -129,10 +129,43 @@ describe('handleCodeExecute dry-run', () => {
     expect(deps.setTaskStatus).not.toHaveBeenCalledWith(
       expect.objectContaining({ status: 'DONE' }),
     );
+  });
+});
+
+describe('handleCodeExecute idempotency', () => {
+  it('skips work when task already DONE', async () => {
+    const deps = mockDeps({
+      loadTask: vi.fn(() => Promise.resolve({ ...TASK, status: 'DONE' as const })),
+    });
+    await handleCodeExecute(job(PAYLOAD), deps);
+    expect(deps.claimInProgress).not.toHaveBeenCalled();
+    expect(deps.runSandboxContainer).not.toHaveBeenCalled();
     expect(deps.appendTaskLog).toHaveBeenCalledWith(
       PAYLOAD.schemaName,
       PAYLOAD.taskId,
-      expect.stringContaining('LLM-ревью'),
+      expect.stringContaining('DONE'),
+    );
+  });
+
+  it('resume-after-push skips sandbox and re-enqueues review', async () => {
+    const deps = mockDeps({
+      loadTask: vi.fn(() =>
+        Promise.resolve({
+          ...TASK,
+          status: 'IN_PROGRESS' as const,
+          headCommit: 'abc123',
+          branchName: 'task/task-123-add-recipe-model',
+        }),
+      ),
+    });
+    await handleCodeExecute(job({ ...PAYLOAD, dryRun: false }), deps);
+    expect(deps.runSandboxContainer).not.toHaveBeenCalled();
+    expect(deps.pushBranch).toHaveBeenCalled();
+    expect(deps.enqueueCodeReview).toHaveBeenCalled();
+    expect(deps.appendTaskLog).toHaveBeenCalledWith(
+      PAYLOAD.schemaName,
+      PAYLOAD.taskId,
+      expect.stringContaining('Возобновление'),
     );
   });
 });

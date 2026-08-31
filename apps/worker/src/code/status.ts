@@ -13,6 +13,8 @@ export type TaskRow = {
   description: string;
   acceptance: string;
   status: CodeTaskStatus;
+  branchName: string | null;
+  headCommit: string | null;
 };
 
 export type RecordTaskGitInput = {
@@ -23,19 +25,54 @@ export type RecordTaskGitInput = {
   mergedAt?: Date | null;
 };
 
-/** Load a non-deleted Task or null. */
+const TASK_SELECT = {
+  id: true,
+  title: true,
+  description: true,
+  acceptance: true,
+  status: true,
+  branchName: true,
+  headCommit: true,
+} as const;
+
+/** Statuses allowed to transition into IN_PROGRESS (MVP-3 A1). */
+const CLAIM_FROM = ['PENDING', 'AWAITING_REVIEW', 'FAILED'] as const;
+
+/** Load a non-deleted Task or null (includes git checkpoint fields). */
 export async function loadTask(schemaName: string, taskId: string): Promise<TaskRow | null> {
   const row = await getProjectClient(schemaName).task.findFirst({
     where: { id: taskId, deletedAt: null },
-    select: {
-      id: true,
-      title: true,
-      description: true,
-      acceptance: true,
-      status: true,
-    },
+    select: TASK_SELECT,
   });
   return row;
+}
+
+/**
+ * Conditional claim: PENDING | AWAITING_REVIEW | FAILED → IN_PROGRESS.
+ * Returns false when another worker won the race or status is not claimable.
+ */
+export async function claimInProgress(input: {
+  schemaName: string;
+  taskId: string;
+  startedAt: Date;
+}): Promise<boolean> {
+  const result = await getProjectClient(input.schemaName).task.updateMany({
+    where: {
+      id: input.taskId,
+      deletedAt: null,
+      status: { in: [...CLAIM_FROM] },
+    },
+    data: {
+      status: 'IN_PROGRESS',
+      startedAt: input.startedAt,
+      completedAt: null,
+      // New attempt — clear prior git checkpoint so resume cannot skip sandbox.
+      headCommit: null,
+      branchName: null,
+      mergedAt: null,
+    },
+  });
+  return result.count === 1;
 }
 
 /** Append a TaskLog row (durable checkpoint; Redis is disposable). */

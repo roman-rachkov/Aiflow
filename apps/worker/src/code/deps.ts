@@ -4,10 +4,16 @@
 
 import type { CodeReviewPayload } from '@aiflow/queue';
 
-import type { CodeTaskStatus, TaskRow } from './status';
+import type { TaskRowWithGit } from './claim';
+import type { CodeTaskStatus } from './status';
 
 export type CodeHandlerDeps = {
-  loadTask: (schemaName: string, taskId: string) => Promise<TaskRow | null>;
+  loadTask: (schemaName: string, taskId: string) => Promise<TaskRowWithGit | null>;
+  claimInProgress: (input: {
+    schemaName: string;
+    taskId: string;
+    startedAt: Date;
+  }) => Promise<boolean>;
   setTaskStatus: (input: {
     schemaName: string;
     taskId: string;

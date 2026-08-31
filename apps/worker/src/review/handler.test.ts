@@ -26,6 +26,8 @@ const TASK = {
   description: 'Create Recipe',
   acceptance: 'Table exists',
   status: 'IN_PROGRESS' as const,
+  branchName: 'task/task-1-add',
+  headCommit: 'abc',
 };
 
 const ACCEPTED: ReviewVerdict = {

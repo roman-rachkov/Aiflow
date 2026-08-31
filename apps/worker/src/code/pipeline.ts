@@ -102,9 +102,7 @@ async function finishFromSandbox(
     await failTask(payload, `Sandbox: ${report}\n`, deps);
     return;
   }
-  const diff = await deps.captureBranchDiff(workDir, payload.giteaDefaultBranch);
-  await deps.appendTaskLog(payload.schemaName, payload.taskId, 'Пуш ветки в Gitea…\n');
-  await deps.pushBranch(workDir, branch);
+  // Checkpoint headCommit before push so a crash mid-push can resume (A1).
   const headCommit = await deps.readHeadCommit(workDir);
   await deps.recordTaskGit({
     schemaName: payload.schemaName,
@@ -112,6 +110,9 @@ async function finishFromSandbox(
     branchName: branch,
     headCommit,
   });
+  const diff = await deps.captureBranchDiff(workDir, payload.giteaDefaultBranch);
+  await deps.appendTaskLog(payload.schemaName, payload.taskId, 'Пуш ветки в Gitea…\n');
+  await deps.pushBranch(workDir, branch);
   await deps.enqueueCodeReview({
     projectId: payload.projectId,
     schemaName: payload.schemaName,
